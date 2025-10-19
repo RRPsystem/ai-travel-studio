@@ -98,6 +98,11 @@ Deno.serve(async (req: Request) => {
     if (requestBody.mode) {
       payload.mode = requestBody.mode;
       console.log('[JWT] Including mode in payload:', requestBody.mode);
+
+      if (requestBody.mode === 'create-template' || requestBody.mode === 'edit-template') {
+        payload.is_template = true;
+        console.log('[JWT] Setting is_template=true for template mode');
+      }
     }
 
     const jwt = await signJWT(payload);
