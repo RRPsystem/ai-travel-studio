@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Save, AlertCircle } from 'lucide-react';
+import { Upload, Save, AlertCircle, Settings, Globe } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { DomainSettings } from './WebsiteManagement/DomainSettings';
+
+type TabType = 'general' | 'domains';
 
 export function BrandSettings() {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<TabType>('general');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -169,8 +173,47 @@ export function BrandSettings() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      <div className="bg-white rounded-lg shadow-sm border">
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Brand Instellingen</h1>
+
+        <div className="flex space-x-1 border-b border-gray-200">
+          <button
+            type="button"
+            onClick={() => setActiveTab('general')}
+            className={`px-6 py-3 font-medium text-sm transition-colors ${
+              activeTab === 'general'
+                ? 'border-b-2 border-orange-600 text-orange-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Settings size={18} />
+              <span>Algemene Instellingen</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('domains')}
+            className={`px-6 py-3 font-medium text-sm transition-colors ${
+              activeTab === 'domains'
+                ? 'border-b-2 border-orange-600 text-orange-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Globe size={18} />
+              <span>Domein Instellingen</span>
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {activeTab === 'domains' ? (
+        <DomainSettings />
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm border">
+          <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start space-x-3">
               <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
@@ -437,6 +480,7 @@ export function BrandSettings() {
           </div>
         </form>
       </div>
+      )}
     </div>
   );
 }
