@@ -6,6 +6,8 @@ import { TravelBro } from './AITools/TravelBro';
 import { SocialMedia } from './AITools/SocialMedia';
 import { BrandSettings } from './BrandSettings';
 import { HelpBot } from '../shared/HelpBot';
+import { NewsManagement } from '../Admin/NewsManagement';
+import { PageManagement } from './PageManagement';
 import { Users, Settings, Plus, Bot, Sparkles, Import as FileImport, ChevronDown, ChevronRight, LayoutGrid as Layout, FileText, Globe, Newspaper, MapPin, Plane, Share2, Map, ArrowRight } from 'lucide-react';
 import RoadmapBoard from './RoadmapBoard';
 
@@ -77,6 +79,13 @@ export function BrandDashboard() {
           .in('website_id', websiteIds);
         pagesCount = pagesResult.count || 0;
       }
+
+      const legacyPagesResult = await db.supabase
+        .from('pages')
+        .select('id', { count: 'exact' })
+        .eq('brand_id', user.brand_id)
+        .eq('is_template', false);
+      pagesCount += legacyPagesResult.count || 0;
 
       if (brandResult.data) setBrandData(brandResult.data);
       setStats({
@@ -545,13 +554,7 @@ export function BrandDashboard() {
               <p className="text-gray-600">Kies uit professionele website templates (Binnenkort beschikbaar)</p>
             </div>
           )}
-          {activeSection === 'pages' && (
-            <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
-              <FileText className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Pagina Beheer</h2>
-              <p className="text-gray-600">Beheer alle pagina's van je website (Binnenkort beschikbaar)</p>
-            </div>
-          )}
+          {activeSection === 'pages' && <PageManagement />}
           {activeSection === 'menus' && (
             <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
               <Layout className="mx-auto h-16 w-16 text-gray-400 mb-4" />
@@ -567,13 +570,7 @@ export function BrandDashboard() {
             </div>
           )}
           {activeSection === 'settings' && <BrandSettings />}
-          {activeSection === 'nieuwsbeheer' && (
-            <div className="bg-white rounded-lg shadow-sm border p-8 text-center">
-              <Newspaper className="mx-auto h-16 w-16 text-gray-400 mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Nieuws Beheer</h2>
-              <p className="text-gray-600">Beheer en publiceer je nieuwsberichten (Binnenkort beschikbaar)</p>
-            </div>
-          )}
+          {activeSection === 'nieuwsbeheer' && <NewsManagement />}
           {activeSection === 'ai-content' && <AIContentGenerator />}
           {activeSection === 'ai-travelbro' && <TravelBro />}
           {activeSection === 'social-media' && <SocialMedia />}
