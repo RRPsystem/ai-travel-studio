@@ -168,16 +168,28 @@ export function NewsApproval() {
   };
 
   const handleEdit = async (assignment: NewsAssignment) => {
-    if (!user?.brand_id || !user?.id) return;
+    console.log('[NewsApproval] handleEdit called', {
+      user_brand_id: user?.brand_id,
+      user_id: user?.id,
+      news_slug: assignment.news_item.slug
+    });
+
+    if (!user?.brand_id || !user?.id) {
+      console.error('[NewsApproval] Missing user data');
+      alert('Gebruikersgegevens ontbreken. Log opnieuw in.');
+      return;
+    }
 
     try {
-      console.log('Opening builder for news item:', assignment.news_item);
+      console.log('[NewsApproval] Generating JWT...');
       const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, ['content:read', 'content:write'], {
         newsSlug: assignment.news_item.slug,
         authorType: 'brand',
         authorId: user.id,
         mode: 'news'
       });
+      console.log('[NewsApproval] JWT generated successfully', jwtResponse);
+
       const builderBaseUrl = 'https://www.ai-websitestudio.nl';
       const apiBaseUrl = jwtResponse.api_url || import.meta.env.VITE_SUPABASE_URL;
       const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -188,11 +200,16 @@ export function NewsApproval() {
 
       const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=news_items&news_slug=${assignment.news_item.slug}&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
 
-      console.log('Generated deeplink:', deeplink);
-      window.open(deeplink, '_blank');
+      console.log('[NewsApproval] Opening deeplink:', deeplink);
+      const result = window.open(deeplink, '_blank');
+      console.log('[NewsApproval] window.open result:', result);
+
+      if (!result) {
+        alert('Pop-up geblokkeerd! Sta pop-ups toe voor deze website.');
+      }
     } catch (error) {
-      console.error('Error opening builder:', error);
-      alert('Kon de website builder niet openen');
+      console.error('[NewsApproval] Error opening builder:', error);
+      alert(`Fout bij openen builder: ${error instanceof Error ? error.message : 'Onbekende fout'}`);
     }
   };
 
