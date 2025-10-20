@@ -128,7 +128,12 @@ Deno.serve(async (req: Request) => {
 
     const url = new URL(req.url);
     const pathParts = url.pathname.split("/").filter(Boolean);
-    const contentType = url.searchParams.get("type") || pathParts[pathParts.length - 2];
+    let contentType = url.searchParams.get("type") || pathParts[pathParts.length - 2];
+
+    // Map "news" alias to "news_items" for builder compatibility
+    if (contentType === "news") {
+      contentType = "news_items";
+    }
 
     const validTypes = ["news_items", "destinations", "trips"];
     if (!validTypes.includes(contentType)) {
