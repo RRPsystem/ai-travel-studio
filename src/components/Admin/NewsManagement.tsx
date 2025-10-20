@@ -258,7 +258,14 @@ export function NewsManagement() {
   };
 
   const openPreview = (slug: string) => {
-    window.open(`/preview/news/${slug}`, '_blank');
+    const currentOrigin = window.location.origin;
+    let previewUrl = currentOrigin;
+
+    if (currentOrigin.includes('bolt.') && currentOrigin.includes('supabase.co')) {
+      previewUrl = currentOrigin.replace('bolt.', '');
+    }
+
+    window.open(`${previewUrl}/preview/news/${slug}`, '_blank');
   };
 
   if (loading) {

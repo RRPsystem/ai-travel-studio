@@ -433,49 +433,49 @@ export function BrandDashboard() {
       </div>
 
       <div className="flex-1 flex flex-col">
-        <header className="bg-white border-b border-gray-200 px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">
-                {activeSection === 'dashboard' && 'Brand Dashboard'}
-                {activeSection === 'websites' && 'My Websites'}
-                {activeSection === 'agents' && 'Agents'}
-                {activeSection === 'pages' && 'Pagina Beheer'}
-                {activeSection === 'menus' && 'Menu Builder'}
-                {activeSection === 'footers' && 'Footer Builder'}
-                {activeSection === 'nieuwsbeheer' && 'Nieuwsbeheer'}
-                {activeSection === 'content' && 'Nieuwsberichten'}
-                {activeSection === 'destinations' && 'Bestemmingen'}
-                {activeSection === 'settings' && 'Brand Settings'}
-                {activeSection === 'ai-content' && 'AI Content Generator'}
-                {activeSection === 'ai-travelbro' && 'AI TravelBRO'}
-                {activeSection === 'ai-import' && 'AI TravelImport'}
-                {activeSection === 'social-media' && 'Social Media Manager'}
-                {activeSection === 'roadmap' && 'Roadmap'}
-              </h1>
-              <p className="text-gray-600 mt-1">
-                {activeSection === 'dashboard' && 'Welkom terug bij je brand dashboard'}
-                {activeSection === 'websites' && 'Manage your travel websites'}
-                {activeSection === 'pages' && 'Beheer alle pagina\'s van je website'}
-                {activeSection === 'menus' && 'Beheer menu\'s en hun structuur'}
-                {activeSection === 'footers' && 'Beheer footer layouts voor je website'}
-                {activeSection === 'nieuwsbeheer' && 'Beheer en publiceer je nieuwsberichten'}
-                {activeSection === 'ai-content' && 'Generate travel content with AI'}
-                {activeSection === 'ai-travelbro' && 'Your AI travel assistant'}
-                {activeSection === 'ai-import' && 'Import travel data with AI'}
-                {activeSection === 'social-media' && 'Manage your social media presence'}
-                {activeSection === 'roadmap' && 'Vote on features and track development progress'}
-              </p>
-            </div>
+        {activeSection !== 'nieuwsbeheer' && (
+          <header className="bg-white border-b border-gray-200 px-6 py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {activeSection === 'dashboard' && 'Brand Dashboard'}
+                  {activeSection === 'websites' && 'My Websites'}
+                  {activeSection === 'agents' && 'Agents'}
+                  {activeSection === 'pages' && 'Pagina Beheer'}
+                  {activeSection === 'menus' && 'Menu Builder'}
+                  {activeSection === 'footers' && 'Footer Builder'}
+                  {activeSection === 'content' && 'Nieuwsberichten'}
+                  {activeSection === 'destinations' && 'Bestemmingen'}
+                  {activeSection === 'settings' && 'Brand Settings'}
+                  {activeSection === 'ai-content' && 'AI Content Generator'}
+                  {activeSection === 'ai-travelbro' && 'AI TravelBRO'}
+                  {activeSection === 'ai-import' && 'AI TravelImport'}
+                  {activeSection === 'social-media' && 'Social Media Manager'}
+                  {activeSection === 'roadmap' && 'Roadmap'}
+                </h1>
+                <p className="text-gray-600 mt-1">
+                  {activeSection === 'dashboard' && 'Welkom terug bij je brand dashboard'}
+                  {activeSection === 'websites' && 'Manage your travel websites'}
+                  {activeSection === 'pages' && 'Beheer alle pagina\'s van je website'}
+                  {activeSection === 'menus' && 'Beheer menu\'s en hun structuur'}
+                  {activeSection === 'footers' && 'Beheer footer layouts voor je website'}
+                  {activeSection === 'ai-content' && 'Generate travel content with AI'}
+                  {activeSection === 'ai-travelbro' && 'Your AI travel assistant'}
+                  {activeSection === 'ai-import' && 'Import travel data with AI'}
+                  {activeSection === 'social-media' && 'Manage your social media presence'}
+                  {activeSection === 'roadmap' && 'Vote on features and track development progress'}
+                </p>
+              </div>
 
-            {activeSection === 'websites' && (
-              <button className="text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-orange-700 transition-colors" style={{ backgroundColor: '#ff7700' }}>
-                <Plus size={16} />
-                <span>New Website</span>
-              </button>
-            )}
-          </div>
-        </header>
+              {activeSection === 'websites' && (
+                <button className="text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-orange-700 transition-colors" style={{ backgroundColor: '#ff7700' }}>
+                  <Plus size={16} />
+                  <span>New Website</span>
+                </button>
+              )}
+            </div>
+          </header>
+        )}
 
         <main className="flex-1 overflow-auto">
           {activeSection === 'dashboard' && (
@@ -572,7 +572,11 @@ export function BrandDashboard() {
             </div>
           )}
           {activeSection === 'settings' && <BrandSettings />}
-          {activeSection === 'nieuwsbeheer' && <NewsApproval />}
+          {activeSection === 'nieuwsbeheer' && (
+            <div className="p-6">
+              <NewsApproval />
+            </div>
+          )}
           {activeSection === 'ai-content' && <AIContentGenerator />}
           {activeSection === 'ai-travelbro' && <TravelBro />}
           {activeSection === 'social-media' && <SocialMedia />}
