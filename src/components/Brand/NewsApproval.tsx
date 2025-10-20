@@ -171,7 +171,10 @@ export function NewsApproval() {
       const builderBaseUrl = 'https://www.ai-websitestudio.nl';
       const apiBaseUrl = jwtResponse.api_url || import.meta.env.VITE_SUPABASE_URL;
       const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const returnUrl = `${window.location.origin}/#/brand/content/news`;
+
+      // Use the API base URL to construct the return URL (BOLT app, not WebContainer)
+      const boltBaseUrl = apiBaseUrl.replace('/functions/v1', '').replace('https://', 'https://bolt.');
+      const returnUrl = `${boltBaseUrl}/#/brand/content/news`;
 
       const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&slug=${assignment.news_item.slug}&content_type=news&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
 
@@ -223,7 +226,10 @@ export function NewsApproval() {
       const builderBaseUrl = 'https://www.ai-websitestudio.nl';
       const apiBaseUrl = jwtResponse.api_url || import.meta.env.VITE_SUPABASE_URL;
       const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const returnUrl = `${window.location.origin}/#/brand/content/news`;
+
+      // Use the API base URL to construct the return URL (BOLT app, not WebContainer)
+      const boltBaseUrl = apiBaseUrl.replace('/functions/v1', '').replace('https://', 'https://bolt.');
+      const returnUrl = `${boltBaseUrl}/#/brand/content/news`;
 
       const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=news&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
 
@@ -262,25 +268,31 @@ export function NewsApproval() {
         </div>
       ) : (
         <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-        <table className="w-full">
-          <thead className="bg-gray-50 border-b">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Titel</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Datum</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Type</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Publiceren</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acties</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Titel</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datum</th>
+              <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+              <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Publiceren</th>
+              <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acties</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
+          <tbody className="bg-white divide-y divide-gray-200">
             {assignments.map((assignment) => (
-              <tr key={assignment.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">
-                  <div className="font-medium text-gray-900">{assignment.news_item.title}</div>
-                  <div className="text-sm text-gray-500">{assignment.news_item.slug}</div>
+              <tr key={assignment.id} className="hover:bg-gray-50 transition-colors">
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-start flex-col">
+                    <div className="font-medium text-gray-900">{assignment.news_item.title}</div>
+                    <div className="text-sm text-gray-500">{assignment.news_item.slug}</div>
+                  </div>
                 </td>
-                <td className="px-6 py-4 text-sm text-gray-500">
-                  {new Date(assignment.assigned_at).toLocaleDateString('nl-NL')}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {new Date(assignment.assigned_at).toLocaleDateString('nl-NL', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                  })}
                 </td>
                 <td className="px-6 py-4 text-center">
                   <span className={`px-2 py-1 text-xs rounded-full ${
@@ -293,56 +305,58 @@ export function NewsApproval() {
                      'Optioneel'}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-center">
+                <td className="px-6 py-4 whitespace-nowrap text-center">
                   {assignment.status === 'mandatory' ? (
-                    <div className="flex items-center justify-center gap-2">
+                    <div className="flex items-center justify-center">
                       <button
-                        className="relative inline-flex h-6 w-11 items-center rounded-full bg-green-500 opacity-75 cursor-not-allowed"
+                        className="relative inline-flex h-6 w-11 items-center rounded-full bg-green-600 opacity-60 cursor-not-allowed"
                         disabled={true}
                         title="Verplichte nieuwsberichten zijn altijd gepubliceerd"
                       >
-                        <span className="inline-block h-4 w-4 transform rounded-full bg-white translate-x-6" />
+                        <span className="inline-block h-4 w-4 transform rounded-full bg-white shadow-sm translate-x-6 transition-transform" />
                       </button>
                     </div>
                   ) : (
-                    <button
-                      onClick={() => handleTogglePublish(assignment.id, assignment.is_published, assignment)}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                        assignment.is_published ? 'bg-green-500' : 'bg-gray-300'
-                      }`}
-                    >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          assignment.is_published ? 'translate-x-6' : 'translate-x-1'
+                    <div className="flex items-center justify-center">
+                      <button
+                        onClick={() => handleTogglePublish(assignment.id, assignment.is_published, assignment)}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 ${
+                          assignment.is_published ? 'bg-green-600' : 'bg-gray-200'
                         }`}
-                      />
-                    </button>
+                      >
+                        <span
+                          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                            assignment.is_published ? 'translate-x-6' : 'translate-x-1'
+                          }`}
+                        />
+                      </button>
+                    </div>
                   )}
                 </td>
-                <td className="px-6 py-4">
-                  <div className="flex items-center justify-center gap-2">
+                <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                  <div className="flex items-center justify-center gap-3">
                     <button
                       onClick={() => openPreview(assignment.news_item.slug)}
-                      className="text-blue-600 hover:text-blue-800"
+                      className="text-blue-600 hover:text-blue-900 transition-colors"
                       title="Preview"
                     >
-                      <Eye className="w-4 h-4" />
+                      <Eye className="w-5 h-5" />
                     </button>
                     {assignment.status === 'brand' && assignment.page_id && (
                       <>
                         <button
                           onClick={() => handleEdit(assignment)}
-                          className="text-orange-600 hover:text-orange-800"
+                          className="text-orange-600 hover:text-orange-900 transition-colors"
                           title="Bewerken"
                         >
-                          <Pencil className="w-4 h-4" />
+                          <Pencil className="w-5 h-5" />
                         </button>
                         <button
                           onClick={() => handleDelete(assignment)}
-                          className="text-red-600 hover:text-red-800"
+                          className="text-red-600 hover:text-red-900 transition-colors"
                           title="Verwijderen"
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-5 h-5" />
                         </button>
                       </>
                     )}
