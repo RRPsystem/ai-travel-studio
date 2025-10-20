@@ -117,7 +117,13 @@ function corsHeaders(req?: Request): Headers {
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, { status: 200, headers: corsHeaders(req) });
+    console.log("[CORS] OPTIONS request from:", req.headers.get('origin'));
+    const headers = corsHeaders(req);
+    console.log("[CORS] Responding with headers:", Object.fromEntries(headers.entries()));
+    return new Response(null, {
+      status: 200,
+      headers: headers
+    });
   }
 
   try {
@@ -130,7 +136,6 @@ Deno.serve(async (req: Request) => {
     const pathParts = url.pathname.split("/").filter(Boolean);
     let contentType = url.searchParams.get("type") || pathParts[pathParts.length - 2];
 
-    // Map "news" alias to "news_items" for builder compatibility
     if (contentType === "news") {
       contentType = "news_items";
     }
