@@ -19,7 +19,6 @@ interface NewsAssignment {
     featured_image: string;
     is_mandatory: boolean;
     published_at: string;
-    tags: string[];
   };
 }
 
@@ -30,17 +29,6 @@ export function NewsApproval() {
 
   useEffect(() => {
     loadAssignments();
-  }, [user]);
-
-  useEffect(() => {
-    const handleFocus = () => {
-      loadAssignments();
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => {
-      window.removeEventListener('focus', handleFocus);
-    };
   }, [user]);
 
   const loadAssignments = async () => {
@@ -55,7 +43,6 @@ export function NewsApproval() {
           status,
           is_published,
           assigned_at,
-          page_id,
           news_items!inner (
             id,
             title,
@@ -63,8 +50,7 @@ export function NewsApproval() {
             excerpt,
             featured_image,
             is_mandatory,
-            published_at,
-            tags
+            published_at
           )
         `)
         .eq('brand_id', user.brand_id)
@@ -72,126 +58,168 @@ export function NewsApproval() {
 
       if (assignmentError) throw assignmentError;
 
-      const typedAssignments = (assignmentData || []).map((item: any) => ({
+      const formattedAssignments = (assignmentData || []).map(item => ({
         id: item.id,
         news_id: item.news_id,
         status: item.status,
-        is_published: item.is_published,
+        is_published: item.is_published || false,
         assigned_at: item.assigned_at,
-        page_id: item.page_id,
-        news_item: item.news_items
+        news_item: Array.isArray(item.news_items) ? item.news_items[0] : item.news_items
       }));
 
-      setAssignments(typedAssignments);
+      const { data: brandNewsData, error: brandNewsError } = await supabase
+        .from('news_items')
+        .select('id, title, slug, excerpt, featured_image, created_at, published_at, status')
+        .eq('author_type', 'brand')
+        .eq('brand_id', user.brand_id)
+        .order('created_at', { ascending: false });
+
+      if (brandNewsError) throw brandNewsError;
+
+      const formattedBrandNews = (brandNewsData || []).map(item => ({
+        id: `brand-news-${item.id}`,
+        news_id: item.id,
+        page_id: item.id,
+        status: 'brand' as const,
+        is_published: item.status === 'published',
+        assigned_at: item.created_at,
+        news_item: {
+          id: item.id,
+          title: item.title,
+          slug: item.slug,
+          excerpt: item.excerpt || '',
+          featured_image: item.featured_image || '',
+          is_mandatory: false,
+          published_at: item.published_at
+        }
+      }));
+
+      const allNews = [...formattedAssignments, ...formattedBrandNews].sort((a, b) =>
+        new Date(b.assigned_at).getTime() - new Date(a.assigned_at).getTime()
+      );
+
+      setAssignments(allNews);
     } catch (error) {
-      console.error('Error loading news assignments:', error);
+      console.error('Error loading assignments:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEdit = async (assignment: NewsAssignment) => {
+  const handleTogglePublish = async (assignmentId: string, currentValue: boolean, assignment: NewsAssignment) => {
     try {
-      let pageId = assignment.page_id;
+      if (assignment.status === 'brand' && assignment.news_id) {
+        const { error } = await supabase
+          .from('news_items')
+          .update({ status: !currentValue ? 'published' : 'draft' })
+          .eq('id', assignment.news_id);
 
-      if (!pageId) {
-        const { data: website } = await supabase
-          .from('websites')
-          .select('id')
-          .eq('brand_id', user?.brand_id)
-          .maybeSingle();
-
-        if (!website) {
-          console.error('No website found for brand');
-          alert('Kan geen website vinden voor jouw merk. Maak eerst een website aan.');
-          return;
-        }
-
-        const { data: newPage, error: pageError } = await supabase
-          .from('website_pages')
-          .insert({
-            website_id: website.id,
-            title: assignment.news_item.title,
-            slug: assignment.news_item.slug,
-            content_type: 'news',
-            is_published: assignment.is_published,
-            page_data: {
-              title: assignment.news_item.title,
-              excerpt: assignment.news_item.excerpt,
-              featured_image: assignment.news_item.featured_image,
-              tags: assignment.news_item.tags
-            }
-          })
-          .select('id')
-          .single();
-
-        if (pageError) {
-          console.error('Error creating page:', pageError);
-          alert('Kon geen pagina aanmaken');
-          return;
-        }
-
-        pageId = newPage.id;
-
-        const { error: updateError } = await supabase
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
           .from('news_brand_assignments')
-          .update({ page_id: pageId })
-          .eq('id', assignment.id);
+          .update({
+            is_published: !currentValue,
+            status: !currentValue ? 'accepted' : 'pending'
+          })
+          .eq('id', assignmentId);
 
-        if (updateError) {
-          console.error('Error updating assignment with page_id:', updateError);
-        }
+        if (error) throw error;
       }
+      await loadAssignments();
+    } catch (error) {
+      console.error('Error toggling publish:', error);
+      alert('Failed to update');
+    }
+  };
 
-      const returnUrl = `${window.location.origin}${window.location.pathname}#/brand/content/news`;
+  const handleToggleApprove = async (assignmentId: string, currentStatus: string) => {
+    try {
+      const newStatus = currentStatus === 'approved' ? 'pending' : 'approved';
 
-      const jwtResponse = await generateBuilderJWT({
-        page_id: pageId,
-        return_url: returnUrl,
-        scopes: ['content:read', 'content:write'],
-        mode: 'edit'
-      });
+      const { error } = await supabase
+        .from('news_brand_assignments')
+        .update({
+          status: newStatus,
+          acknowledged_at: new Date().toISOString()
+        })
+        .eq('id', assignmentId);
 
-      if (jwtResponse.url) {
-        window.open(jwtResponse.url, '_blank');
-      }
+      if (error) throw error;
+      loadAssignments();
+    } catch (error) {
+      console.error('Error toggling approval:', error);
+      alert('Failed to update');
+    }
+  };
+
+  const openPreview = (slug: string) => {
+    window.open(`/preview/news/${slug}`, '_blank');
+  };
+
+  const handleEdit = async (assignment: NewsAssignment) => {
+    if (!user?.brand_id || !user?.id) return;
+
+    try {
+      console.log('Opening builder for news item:', assignment.news_item);
+      const token = await generateBuilderJWT(user.brand_id, user.id, ['content:read', 'content:write']);
+      const builderBaseUrl = 'https://www.ai-websitestudio.nl/index.html';
+      const apiBaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${token}&slug=${assignment.news_item.slug}&content_type=news_items&author_type=brand&author_id=${user.id}#/mode/news`;
+
+      console.log('Generated deeplink:', deeplink);
+      window.open(deeplink, '_blank');
     } catch (error) {
       console.error('Error opening builder:', error);
-      alert('Er ging iets mis bij het openen van de editor');
+      alert('Kon de website builder niet openen');
     }
   };
 
-  const handleTogglePublish = async (assignmentId: string, currentStatus: boolean) => {
+  const handleDelete = async (assignment: NewsAssignment) => {
+    if (!confirm(`Weet je zeker dat je "${assignment.news_item.title}" wilt verwijderen?`)) {
+      return;
+    }
+
     try {
-      const { error } = await supabase
-        .from('news_brand_assignments')
-        .update({ is_published: !currentStatus })
-        .eq('id', assignmentId);
+      if (assignment.status === 'brand' && assignment.news_id) {
+        const { error } = await supabase
+          .from('news_items')
+          .delete()
+          .eq('id', assignment.news_id);
 
-      if (error) throw error;
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('news_brand_assignments')
+          .delete()
+          .eq('id', assignment.id);
 
-      setAssignments(prev => prev.map(a =>
-        a.id === assignmentId ? { ...a, is_published: !currentStatus } : a
-      ));
+        if (error) throw error;
+      }
+      await loadAssignments();
     } catch (error) {
-      console.error('Error toggling publish status:', error);
+      console.error('Error deleting:', error);
+      alert('Failed to delete');
     }
   };
 
-  const handleDelete = async (assignmentId: string) => {
-    if (!confirm('Weet je zeker dat je dit nieuwsbericht wilt verwijderen?')) return;
+  const createNewArticle = async () => {
+    if (!user?.brand_id || !user?.id) return;
 
     try {
-      const { error } = await supabase
-        .from('news_brand_assignments')
-        .delete()
-        .eq('id', assignmentId);
+      const token = await generateBuilderJWT(user.brand_id, user.id, ['content:read', 'content:write']);
+      const builderBaseUrl = 'https://www.ai-websitestudio.nl/index.html';
+      const apiBaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-      if (error) throw error;
+      const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${token}&content_type=news_items&author_type=brand&author_id=${user.id}#/mode/news`;
 
-      setAssignments(prev => prev.filter(a => a.id !== assignmentId));
+      window.open(deeplink, '_blank');
     } catch (error) {
-      console.error('Error deleting assignment:', error);
+      console.error('Error opening builder:', error);
+      alert('Kon de website builder niet openen');
     }
   };
 
@@ -203,106 +231,11 @@ export function NewsApproval() {
     );
   }
 
-  const handleCreateNew = async () => {
-    try {
-      const { data: website } = await supabase
-        .from('websites')
-        .select('id')
-        .eq('brand_id', user?.brand_id)
-        .maybeSingle();
-
-      if (!website) {
-        alert('Maak eerst een website aan voordat je nieuws kunt toevoegen.');
-        return;
-      }
-
-      const newSlug = `nieuws-${Date.now()}`;
-
-      const { data: newPage, error: pageError } = await supabase
-        .from('website_pages')
-        .insert({
-          website_id: website.id,
-          title: 'Nieuw Nieuwsbericht',
-          slug: newSlug,
-          content_type: 'news',
-          is_published: false,
-          page_data: {
-            title: 'Nieuw Nieuwsbericht',
-            excerpt: '',
-            featured_image: '',
-            tags: []
-          }
-        })
-        .select('id')
-        .single();
-
-      if (pageError) {
-        console.error('Error creating page:', pageError);
-        alert('Kon geen pagina aanmaken');
-        return;
-      }
-
-      const { data: newsItem, error: newsError } = await supabase
-        .from('news_items')
-        .insert({
-          title: 'Nieuw Nieuwsbericht',
-          slug: newSlug,
-          excerpt: '',
-          content: '',
-          featured_image: '',
-          is_mandatory: false,
-          tags: []
-        })
-        .select('id')
-        .single();
-
-      if (newsError) {
-        console.error('Error creating news item:', newsError);
-        alert('Kon geen nieuwsbericht aanmaken');
-        return;
-      }
-
-      const { error: assignmentError } = await supabase
-        .from('news_brand_assignments')
-        .insert({
-          news_id: newsItem.id,
-          brand_id: user?.brand_id,
-          status: 'brand',
-          is_published: false,
-          page_id: newPage.id
-        });
-
-      if (assignmentError) {
-        console.error('Error creating assignment:', assignmentError);
-        alert('Kon geen toewijzing aanmaken');
-        return;
-      }
-
-      loadAssignments();
-
-      const returnUrl = `${window.location.origin}${window.location.pathname}#/brand/content/news`;
-
-      const jwtResponse = await generateBuilderJWT({
-        page_id: newPage.id,
-        return_url: returnUrl,
-        scopes: ['content:read', 'content:write'],
-        mode: 'edit'
-      });
-
-      if (jwtResponse.url) {
-        window.open(jwtResponse.url, '_blank');
-      }
-    } catch (error) {
-      console.error('Error creating new news item:', error);
-      alert('Er ging iets mis bij het aanmaken van het nieuwsbericht');
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex justify-end items-center">
         <button
-          onClick={handleCreateNew}
+          onClick={createNewArticle}
           className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
         >
           <Plus className="h-5 w-5 mr-2" />
@@ -317,76 +250,97 @@ export function NewsApproval() {
           <p className="mt-1 text-sm text-gray-500">Er zijn nog geen nieuwsberichten beschikbaar.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {assignments.map((assignment) => (
-            <div key={assignment.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
-              {assignment.news_item.featured_image && (
-                <img
-                  src={assignment.news_item.featured_image}
-                  alt={assignment.news_item.title}
-                  className="w-full h-48 object-cover"
-                />
-              )}
-              <div className="p-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  {assignment.news_item.title}
-                </h3>
-                <p className="text-sm text-gray-600 mb-4 line-clamp-3">
-                  {assignment.news_item.excerpt}
-                </p>
-
-                {assignment.news_item.tags && assignment.news_item.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {assignment.news_item.tags.map((tag, idx) => (
-                      <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between mb-4">
-                  <span className={`px-3 py-1 text-xs font-medium rounded-full ${
-                    assignment.news_item.is_mandatory
-                      ? 'bg-red-100 text-red-800'
-                      : 'bg-green-100 text-green-800'
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Titel</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Datum</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Type</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Publiceren</th>
+              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acties</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {assignments.map((assignment) => (
+              <tr key={assignment.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">
+                  <div className="font-medium text-gray-900">{assignment.news_item.title}</div>
+                  <div className="text-sm text-gray-500">{assignment.news_item.slug}</div>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500">
+                  {new Date(assignment.assigned_at).toLocaleDateString('nl-NL')}
+                </td>
+                <td className="px-6 py-4 text-center">
+                  <span className={`px-2 py-1 text-xs rounded-full ${
+                    assignment.status === 'mandatory' ? 'bg-red-100 text-red-800' :
+                    assignment.status === 'brand' ? 'bg-purple-100 text-purple-800' :
+                    'bg-blue-100 text-blue-800'
                   }`}>
-                    {assignment.news_item.is_mandatory ? 'Verplicht' : 'Optioneel'}
+                    {assignment.status === 'mandatory' ? 'Verplicht' :
+                     assignment.status === 'brand' ? 'Eigen Nieuws' :
+                     'Optioneel'}
                   </span>
-
-                  <label className="flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={assignment.is_published}
-                      onChange={() => handleTogglePublish(assignment.id, assignment.is_published)}
-                      className="sr-only peer"
-                    />
-                    <div className="relative w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                    <span className="ms-3 text-sm font-medium text-gray-700">
-                      {assignment.is_published ? 'Gepubliceerd' : 'Concept'}
-                    </span>
-                  </label>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleEdit(assignment)}
-                    className="flex-1 inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                  >
-                    <Pencil className="h-4 w-4 mr-2" />
-                    Bewerken
-                  </button>
-
-                  <button
-                    onClick={() => handleDelete(assignment.id)}
-                    className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+                </td>
+                <td className="px-6 py-4 text-center">
+                  {assignment.status === 'mandatory' ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        className="relative inline-flex h-6 w-11 items-center rounded-full bg-green-500 opacity-75 cursor-not-allowed"
+                        disabled={true}
+                        title="Verplichte nieuwsberichten zijn altijd gepubliceerd"
+                      >
+                        <span className="inline-block h-4 w-4 transform rounded-full bg-white translate-x-6" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleTogglePublish(assignment.id, assignment.is_published, assignment)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        assignment.is_published ? 'bg-green-500' : 'bg-gray-300'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          assignment.is_published ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  )}
+                </td>
+                <td className="px-6 py-4">
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => openPreview(assignment.news_item.slug)}
+                      className="text-blue-600 hover:text-blue-800"
+                      title="Preview"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    {assignment.status === 'brand' && assignment.page_id && (
+                      <>
+                        <button
+                          onClick={() => handleEdit(assignment)}
+                          className="text-orange-600 hover:text-orange-800"
+                          title="Bewerken"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(assignment)}
+                          className="text-red-600 hover:text-red-800"
+                          title="Verwijderen"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
         </div>
       )}
     </div>
