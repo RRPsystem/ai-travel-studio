@@ -108,8 +108,8 @@ function corsHeaders(req?: Request): Headers {
 
   headers.set('Access-Control-Allow-Origin', allowOrigin);
   headers.set('Vary', 'Origin');
-  headers.set('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS,PATCH');
-  headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type, apikey');
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
+  headers.set('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
   headers.set('Access-Control-Max-Age', '86400');
   headers.set('Content-Type', 'application/json');
   return headers;
