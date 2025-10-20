@@ -92,15 +92,61 @@ export function NewsApproval() {
 
   const handleEdit = async (assignment: NewsAssignment) => {
     try {
-      if (!assignment.page_id) {
-        console.error('No page_id found for this assignment');
-        return;
+      let pageId = assignment.page_id;
+
+      if (!pageId) {
+        const { data: website } = await supabase
+          .from('websites')
+          .select('id')
+          .eq('brand_id', user?.brand_id)
+          .maybeSingle();
+
+        if (!website) {
+          console.error('No website found for brand');
+          alert('Kan geen website vinden voor jouw merk. Maak eerst een website aan.');
+          return;
+        }
+
+        const { data: newPage, error: pageError } = await supabase
+          .from('website_pages')
+          .insert({
+            website_id: website.id,
+            title: assignment.news_item.title,
+            slug: assignment.news_item.slug,
+            content_type: 'news',
+            is_published: assignment.is_published,
+            page_data: {
+              title: assignment.news_item.title,
+              excerpt: assignment.news_item.excerpt,
+              featured_image: assignment.news_item.featured_image,
+              tags: assignment.news_item.tags
+            }
+          })
+          .select('id')
+          .single();
+
+        if (pageError) {
+          console.error('Error creating page:', pageError);
+          alert('Kon geen pagina aanmaken');
+          return;
+        }
+
+        pageId = newPage.id;
+
+        const { error: updateError } = await supabase
+          .from('news_brand_assignments')
+          .update({ page_id: pageId })
+          .eq('id', assignment.id);
+
+        if (updateError) {
+          console.error('Error updating assignment with page_id:', updateError);
+        }
       }
 
       const returnUrl = `${window.location.origin}${window.location.pathname}#/brand/content/news`;
 
       const jwtResponse = await generateBuilderJWT({
-        page_id: assignment.page_id,
+        page_id: pageId,
         return_url: returnUrl,
         scopes: ['content:read', 'content:write'],
         mode: 'edit'
@@ -111,6 +157,7 @@ export function NewsApproval() {
       }
     } catch (error) {
       console.error('Error opening builder:', error);
+      alert('Er ging iets mis bij het openen van de editor');
     }
   };
 
