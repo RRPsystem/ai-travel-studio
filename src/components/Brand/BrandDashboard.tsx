@@ -6,7 +6,7 @@ import { TravelBro } from './AITools/TravelBro';
 import { SocialMedia } from './AITools/SocialMedia';
 import { BrandSettings } from './BrandSettings';
 import { HelpBot } from '../shared/HelpBot';
-import { NewsManagement } from '../Admin/NewsManagement';
+import { NewsManagement as AdminNewsManagement } from '../Admin/NewsManagement';
 import { PageManagement } from './PageManagement';
 import { Users, Settings, Plus, Bot, Sparkles, Import as FileImport, ChevronDown, ChevronRight, LayoutGrid as Layout, FileText, Globe, Newspaper, MapPin, Plane, Share2, Map, ArrowRight } from 'lucide-react';
 import RoadmapBoard from './RoadmapBoard';
@@ -570,7 +570,7 @@ export function BrandDashboard() {
             </div>
           )}
           {activeSection === 'settings' && <BrandSettings />}
-          {activeSection === 'nieuwsbeheer' && <NewsManagement />}
+          {activeSection === 'nieuwsbeheer' && <AdminNewsManagement />}
           {activeSection === 'ai-content' && <AIContentGenerator />}
           {activeSection === 'ai-travelbro' && <TravelBro />}
           {activeSection === 'social-media' && <SocialMedia />}
