@@ -101,7 +101,13 @@ Deno.serve(async (req: Request) => {
   try {
     const url = new URL(req.url);
     const contentType = url.searchParams.get("type");
-    const action = url.searchParams.get("action");
+    let action = url.searchParams.get("action");
+
+    // If no action specified but method is POST, default to save
+    if (!action && req.method === "POST") {
+      action = "save";
+      console.log("[CONTENT-API] No action parameter, using default 'save' for POST request");
+    }
 
     console.log("[CONTENT-API] Request:", {
       method: req.method,
