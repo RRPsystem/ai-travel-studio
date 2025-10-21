@@ -204,9 +204,10 @@ export function NewsApproval() {
       const returnUrl = `${window.location.origin}/#/brand/content/news`;
 
       const newsSlug = assignment.news_item.slug;
-      console.log('[NewsApproval] Building deeplink with slug:', newsSlug);
+      const newsId = assignment.news_item.id;
+      console.log('[NewsApproval] Building deeplink with slug:', newsSlug, 'id:', newsId);
 
-      const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=news_items&news_slug=${encodeURIComponent(newsSlug)}&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
+      const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=news_items&news_slug=${encodeURIComponent(newsSlug)}&news_id=${encodeURIComponent(newsId)}&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
 
       console.log('[NewsApproval] Opening deeplink for editing:', deeplink);
       console.log('[NewsApproval] Article details:', {
