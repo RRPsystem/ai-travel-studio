@@ -204,10 +204,9 @@ export function NewsApproval() {
       const returnUrl = `${window.location.origin}/#/brand/content/news`;
 
       const newsSlug = assignment.news_item.slug;
-      const newsId = assignment.news_item.id;
-      console.log('[NewsApproval] Building deeplink with slug:', newsSlug, 'id:', newsId);
+      console.log('[NewsApproval] Building deeplink with slug:', newsSlug);
 
-      const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=news_items&action=load_news&id=${encodeURIComponent(newsId)}&slug=${encodeURIComponent(newsSlug)}&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
+      const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=news_items&news_slug=${encodeURIComponent(newsSlug)}&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
 
       console.log('[NewsApproval] Opening deeplink for editing:', deeplink);
       console.log('[NewsApproval] Article details:', {
@@ -273,8 +272,9 @@ export function NewsApproval() {
         console.log('[NewsApproval] Assignment deleted successfully:', data);
       }
 
-      // Refresh the assignments list immediately
+      // Refresh the assignments list immediately with loading state
       console.log('[NewsApproval] Refreshing assignments list...');
+      setLoading(true);
       await loadAssignments();
       console.log('[NewsApproval] Assignments reloaded successfully');
     } catch (error) {
