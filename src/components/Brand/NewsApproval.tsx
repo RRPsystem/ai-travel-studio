@@ -201,7 +201,7 @@ export function NewsApproval() {
 
       // Use configured app URL for return (not window.location which could be builder URL)
       const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-      const returnUrl = `${appUrl}/#/brand/content/news`;
+      const returnUrl = appUrl; // Don't include hash, browser will handle that
 
       const newsSlug = assignment.news_item.slug;
       console.log('[NewsApproval] Building deeplink with slug:', newsSlug, 'type:', typeof newsSlug);
@@ -270,7 +270,7 @@ export function NewsApproval() {
 
       // Use configured app URL for return (not window.location which could be builder URL)
       const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-      const returnUrl = `${appUrl}/#/brand/content/news`;
+      const returnUrl = appUrl; // Don't include hash, browser will handle that
 
       const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=news_items&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
 
