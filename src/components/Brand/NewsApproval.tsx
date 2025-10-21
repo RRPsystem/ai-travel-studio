@@ -201,8 +201,8 @@ export function NewsApproval() {
 
       // Use configured app URL for return (not window.location which could be builder URL)
       const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-      // Include hash in return URL for proper navigation after save
-      const returnUrl = `${appUrl}#/brand/content/news`;
+      // Don't include hash - builder handles redirect and browser maintains hash state
+      const returnUrl = appUrl;
 
       const newsSlug = assignment.news_item.slug;
       console.log('[NewsApproval] Building deeplink with slug:', newsSlug, 'type:', typeof newsSlug);
@@ -234,25 +234,42 @@ export function NewsApproval() {
     }
 
     try {
+      console.log('[NewsApproval] Deleting assignment:', {
+        status: assignment.status,
+        news_id: assignment.news_id,
+        assignment_id: assignment.id
+      });
+
       if (assignment.status === 'brand' && assignment.news_id) {
+        console.log('[NewsApproval] Deleting news item:', assignment.news_id);
         const { error } = await supabase
           .from('news_items')
           .delete()
           .eq('id', assignment.news_id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('[NewsApproval] Delete error:', error);
+          throw error;
+        }
+        console.log('[NewsApproval] News item deleted successfully');
       } else {
+        console.log('[NewsApproval] Deleting assignment:', assignment.id);
         const { error } = await supabase
           .from('news_brand_assignments')
           .delete()
           .eq('id', assignment.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error('[NewsApproval] Delete assignment error:', error);
+          throw error;
+        }
+        console.log('[NewsApproval] Assignment deleted successfully');
       }
       await loadAssignments();
+      console.log('[NewsApproval] Assignments reloaded');
     } catch (error) {
-      console.error('Error deleting:', error);
-      alert('Failed to delete');
+      console.error('[NewsApproval] Error deleting:', error);
+      alert(`Fout bij verwijderen: ${error instanceof Error ? error.message : 'Onbekende fout'}`);
     }
   };
 
@@ -271,8 +288,8 @@ export function NewsApproval() {
 
       // Use configured app URL for return (not window.location which could be builder URL)
       const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-      // Include hash in return URL for proper navigation after save
-      const returnUrl = `${appUrl}#/brand/content/news`;
+      // Don't include hash - builder handles redirect and browser maintains hash state
+      const returnUrl = appUrl;
 
       const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=news_items&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
 
