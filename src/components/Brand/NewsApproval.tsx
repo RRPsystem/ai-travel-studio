@@ -194,9 +194,8 @@ export function NewsApproval() {
       const apiBaseUrl = jwtResponse.api_url || import.meta.env.VITE_SUPABASE_URL;
       const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-      // Use the API base URL to construct the return URL (BOLT app, not WebContainer)
-      const boltBaseUrl = apiBaseUrl.replace('/functions/v1', '').replace('https://', 'https://bolt.');
-      const returnUrl = `${boltBaseUrl}/#/brand/content/news`;
+      // Use the current origin for the return URL
+      const returnUrl = `${window.location.origin}/#/brand/content/news`;
 
       const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=news_items&news_slug=${assignment.news_item.slug}&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
 
@@ -254,9 +253,8 @@ export function NewsApproval() {
       const apiBaseUrl = jwtResponse.api_url || import.meta.env.VITE_SUPABASE_URL;
       const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-      // Use the API base URL to construct the return URL (BOLT app, not WebContainer)
-      const boltBaseUrl = apiBaseUrl.replace('/functions/v1', '').replace('https://', 'https://bolt.');
-      const returnUrl = `${boltBaseUrl}/#/brand/content/news`;
+      // Use the current origin for the return URL
+      const returnUrl = `${window.location.origin}/#/brand/content/news`;
 
       const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=news_items&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
 
@@ -385,7 +383,7 @@ export function NewsApproval() {
                     >
                       <Eye className="w-5 h-5" />
                     </button>
-                    {assignment.status === 'brand' && assignment.page_id && (
+                    {assignment.status === 'brand' && (
                       <>
                         <button
                           onClick={() => handleEdit(assignment)}
