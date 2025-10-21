@@ -153,8 +153,7 @@ Deno.serve(async (req: Request) => {
             updated_at,
             news_brand_assignments!inner(
               brand_id,
-              is_published,
-              published_at
+              is_published
             )
           `)
           .eq("news_brand_assignments.brand_id", brandId)
@@ -178,7 +177,6 @@ Deno.serve(async (req: Request) => {
           created_at: item.created_at,
           updated_at: item.updated_at,
           is_published: item.news_brand_assignments[0]?.is_published || false,
-          published_at: item.news_brand_assignments[0]?.published_at || null,
         })) || [];
 
         return new Response(JSON.stringify(transformedData), {
@@ -225,8 +223,7 @@ Deno.serve(async (req: Request) => {
             *,
             news_brand_assignments!inner(
               brand_id,
-              is_published,
-              published_at
+              is_published
             )
           `)
           .eq("id", id)
@@ -248,7 +245,6 @@ Deno.serve(async (req: Request) => {
         const transformedData = {
           ...data,
           is_published: data.news_brand_assignments[0]?.is_published || false,
-          published_at: data.news_brand_assignments[0]?.published_at || null,
         };
 
         return new Response(JSON.stringify(transformedData), {
@@ -324,8 +320,7 @@ Deno.serve(async (req: Request) => {
               *,
               news_brand_assignments!inner(
                 brand_id,
-                is_published,
-                published_at
+                is_published
               )
             `)
             .eq("id", itemId)
@@ -333,15 +328,13 @@ Deno.serve(async (req: Request) => {
             .maybeSingle();
 
           if (fetchError) {
-            console.error("[CONTENT-API] Fetch error:", fetchError);
-            throw fetchError;
+            console.error("[CONTENT-API] Fetch error:", fetchError);            throw fetchError;
           }
 
           return new Response(
             JSON.stringify({
               ...updatedItem,
               is_published: updatedItem?.news_brand_assignments[0]?.is_published || false,
-              published_at: updatedItem?.news_brand_assignments[0]?.published_at || null,
             }),
             {
               status: 200,
@@ -377,7 +370,7 @@ Deno.serve(async (req: Request) => {
           const { error: assignmentError } = await supabase
             .from("news_brand_assignments")
             .insert({
-              news_item_id: newItem.id,
+              news_id: newItem.id,
               brand_id: brandId,
               is_published: false,
             });
@@ -393,7 +386,6 @@ Deno.serve(async (req: Request) => {
             JSON.stringify({
               ...newItem,
               is_published: false,
-              published_at: null,
             }),
             {
               status: 201,
@@ -470,7 +462,7 @@ Deno.serve(async (req: Request) => {
         const { error: assignmentError } = await supabase
           .from("news_brand_assignments")
           .delete()
-          .eq("news_item_id", id)
+          .eq("news_id", id)
           .eq("brand_id", payload.brand_id);
 
         if (assignmentError) {
@@ -481,7 +473,7 @@ Deno.serve(async (req: Request) => {
         const { data: remainingAssignments } = await supabase
           .from("news_brand_assignments")
           .select("id")
-          .eq("news_item_id", id);
+          .eq("news_id", id);
 
         if (!remainingAssignments || remainingAssignments.length === 0) {
           const { error: deleteError } = await supabase
@@ -532,9 +524,8 @@ Deno.serve(async (req: Request) => {
           .from("news_brand_assignments")
           .update({
             is_published: isPublished,
-            published_at: isPublished ? new Date().toISOString() : null,
           })
-          .eq("news_item_id", itemId)
+          .eq("news_id", itemId)
           .eq("brand_id", payload.brand_id);
 
         if (updateError) {
