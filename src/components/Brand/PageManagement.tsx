@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CreditCard as Edit, Copy, Trash2, Eye, Plus, RefreshCw, Upload, FileX } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { generateBuilderJWT, generateBuilderDeeplink } from '../../lib/jwtHelper';
+import { openBuilder, generateBuilderJWT } from '../../lib/jwtHelper';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface Page {
@@ -62,8 +62,8 @@ export function PageManagement() {
 
     try {
       console.log('Opening builder for page:', pageId);
-      const token = await generateBuilderJWT(user.brand_id, user.id);
-      const deeplink = generateBuilderDeeplink(user.brand_id, token, { pageId });
+      const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}#/brand/website/pages`;
+      const deeplink = await openBuilder(user.brand_id, user.id, { pageId, returnUrl });
 
       const newWindow = window.open(deeplink, '_blank');
       if (!newWindow) {
@@ -79,8 +79,8 @@ export function PageManagement() {
     if (!user || !user.brand_id) return;
 
     try {
-      const token = await generateBuilderJWT(user.brand_id, user.id);
-      const deeplink = generateBuilderDeeplink(user.brand_id, token);
+      const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}#/brand/website/pages`;
+      const deeplink = await openBuilder(user.brand_id, user.id, { returnUrl });
       window.open(deeplink, '_blank');
     } catch (error) {
       console.error('Error generating deeplink:', error);

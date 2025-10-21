@@ -155,6 +155,53 @@ export function generateBuilderDeeplink(
 }
 
 /**
+ * Helper function to open the builder with proper JWT token and return URL
+ * Use this to prevent bugs where the wrong type is passed to generateBuilderDeeplink
+ */
+export async function openBuilder(
+  brandId: string,
+  userId: string,
+  options: {
+    pageId?: string;
+    templateId?: string;
+    menuId?: string;
+    headerId?: string;
+    footerId?: string;
+    returnUrl?: string;
+    scopes?: string[];
+  } = {}
+): Promise<string> {
+  const scopes = options.scopes || [
+    'pages:read',
+    'pages:write',
+    'layouts:read',
+    'layouts:write',
+    'menus:read',
+    'menus:write',
+    'content:read',
+    'content:write'
+  ];
+
+  const jwtOptions: any = {};
+  if (options.pageId) jwtOptions.pageId = options.pageId;
+  if (options.templateId) jwtOptions.templateId = options.templateId;
+  if (options.menuId) jwtOptions.menuId = options.menuId;
+  if (options.returnUrl) jwtOptions.returnUrl = options.returnUrl;
+
+  const jwtResponse = await generateBuilderJWT(brandId, userId, scopes, jwtOptions);
+
+  const deeplinkOptions: any = {};
+  if (options.pageId) deeplinkOptions.pageId = options.pageId;
+  if (options.templateId) deeplinkOptions.templateId = options.templateId;
+  if (options.menuId) deeplinkOptions.menuId = options.menuId;
+  if (options.headerId) deeplinkOptions.headerId = options.headerId;
+  if (options.footerId) deeplinkOptions.footerId = options.footerId;
+  if (options.returnUrl) deeplinkOptions.returnUrl = options.returnUrl;
+
+  return generateBuilderDeeplink(brandId, jwtResponse.token, deeplinkOptions);
+}
+
+/**
  * Extract JWT token and brand_id from deeplink URL
  * Call this when Builder receives a deeplink from Bolt.new
  */

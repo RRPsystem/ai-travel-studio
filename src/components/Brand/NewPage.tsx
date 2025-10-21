@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Grid3x3, Wrench, Search, Plus, Eye } from 'lucide-react';
-import { generateBuilderJWT, generateBuilderDeeplink } from '../../lib/jwtHelper';
+import { openBuilder } from '../../lib/jwtHelper';
 import { useAuth } from '../../contexts/AuthContext';
 
 const templateCategories = [
@@ -69,13 +69,7 @@ export function NewPage() {
     if (!user || !user.brand_id) return;
 
     const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}#/brand/website/pages`;
-    const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, undefined, {
-      returnUrl
-    });
-    const deeplink = generateBuilderDeeplink(user.brand_id, jwtResponse.token, {
-      returnUrl
-    });
-
+    const deeplink = await openBuilder(user.brand_id, user.id, { returnUrl });
     window.open(deeplink, '_blank');
   };
 
@@ -83,15 +77,10 @@ export function NewPage() {
     if (!user || !user.brand_id) return;
 
     const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}#/brand/website/pages`;
-    const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, undefined, {
+    const deeplink = await openBuilder(user.brand_id, user.id, {
       templateId: templateId.toString(),
       returnUrl
     });
-    const deeplink = generateBuilderDeeplink(user.brand_id, jwtResponse.token, {
-      templateId: templateId.toString(),
-      returnUrl
-    });
-
     window.open(deeplink, '_blank');
   };
 
