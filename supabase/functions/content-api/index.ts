@@ -103,9 +103,20 @@ Deno.serve(async (req: Request) => {
     const contentType = url.searchParams.get("type");
     let action = url.searchParams.get("action");
 
+    // Default action for POST requests
     if (!action && req.method === "POST") {
       action = "save";
       console.log("[CONTENT-API] No action parameter, using default 'save' for POST request");
+    }
+
+    // Default action for GET requests with slug or id parameter
+    if (!action && req.method === "GET") {
+      const slug = url.searchParams.get("slug");
+      const id = url.searchParams.get("id");
+      if (slug || id) {
+        action = "list";
+        console.log("[CONTENT-API] No action parameter, using default 'list' for GET request with slug/id");
+      }
     }
 
     console.log("[CONTENT-API] Request:", {
