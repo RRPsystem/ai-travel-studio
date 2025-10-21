@@ -200,8 +200,9 @@ export function NewsApproval() {
       const apiBaseUrl = jwtResponse.api_url || import.meta.env.VITE_SUPABASE_URL;
       const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-      // Use current window origin as return URL
-      const returnUrl = `${window.location.origin}/#/brand/content/news`;
+      // Use configured app URL as return URL
+      const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+      const returnUrl = `${appUrl}/#/brand/content/news`;
 
       const newsSlug = assignment.news_item.slug;
       const newsId = assignment.news_item.id;
