@@ -201,13 +201,14 @@ export function NewsApproval() {
 
       // Use configured app URL for return (not window.location which could be builder URL)
       const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-      // Don't include hash - builder handles redirect and browser maintains hash state
-      const returnUrl = appUrl;
+      // Include hash to return to correct page
+      const returnUrl = `${appUrl}/#/brand/content/news`;
 
       const newsSlug = assignment.news_item.slug;
-      console.log('[NewsApproval] Building deeplink with slug:', newsSlug, 'type:', typeof newsSlug);
+      const newsId = assignment.news_item.id;
+      console.log('[NewsApproval] Building deeplink with slug:', newsSlug, 'id:', newsId);
 
-      const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=news_items&news_slug=${encodeURIComponent(newsSlug)}&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
+      const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=news_items&id=${encodeURIComponent(newsId)}&slug=${encodeURIComponent(newsSlug)}&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
 
       console.log('[NewsApproval] Opening deeplink for editing:', deeplink);
       console.log('[NewsApproval] Article details:', {
@@ -237,33 +238,40 @@ export function NewsApproval() {
       console.log('[NewsApproval] Deleting assignment:', {
         status: assignment.status,
         news_id: assignment.news_id,
+        news_item_id: assignment.news_item.id,
         assignment_id: assignment.id
       });
 
-      if (assignment.status === 'brand' && assignment.news_id) {
-        console.log('[NewsApproval] Deleting news item:', assignment.news_id);
-        const { error } = await supabase
+      if (assignment.status === 'brand') {
+        const newsId = assignment.news_id || assignment.news_item.id;
+        console.log('[NewsApproval] Deleting news item:', newsId);
+
+        const { data, error } = await supabase
           .from('news_items')
           .delete()
-          .eq('id', assignment.news_id);
+          .eq('id', newsId)
+          .select();
 
         if (error) {
           console.error('[NewsApproval] Delete error:', error);
+          alert(`Fout bij verwijderen: ${error.message}`);
           throw error;
         }
-        console.log('[NewsApproval] News item deleted successfully');
+        console.log('[NewsApproval] News item deleted successfully:', data);
       } else {
         console.log('[NewsApproval] Deleting assignment:', assignment.id);
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from('news_brand_assignments')
           .delete()
-          .eq('id', assignment.id);
+          .eq('id', assignment.id)
+          .select();
 
         if (error) {
           console.error('[NewsApproval] Delete assignment error:', error);
+          alert(`Fout bij verwijderen: ${error.message}`);
           throw error;
         }
-        console.log('[NewsApproval] Assignment deleted successfully');
+        console.log('[NewsApproval] Assignment deleted successfully:', data);
       }
       await loadAssignments();
       console.log('[NewsApproval] Assignments reloaded');
