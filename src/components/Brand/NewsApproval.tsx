@@ -69,16 +69,21 @@ export function NewsApproval() {
         news_item: Array.isArray(item.news_items) ? item.news_items[0] : item.news_items
       }));
 
+      // Get all news_item IDs that are already in assignments to avoid duplicates
+      const assignedNewsIds = new Set(formattedAssignments.map(a => a.news_id));
+
       const { data: brandNewsData, error: brandNewsError } = await supabase
         .from('news_items')
         .select('id, title, slug, excerpt, featured_image, created_at, published_at, status, tags')
-        .eq('author_type', 'brand')
         .eq('brand_id', user.brand_id)
         .order('created_at', { ascending: false });
 
       if (brandNewsError) throw brandNewsError;
 
-      const formattedBrandNews = (brandNewsData || []).map(item => ({
+      // Filter out news items that are already in assignments
+      const filteredBrandNews = (brandNewsData || []).filter(item => !assignedNewsIds.has(item.id));
+
+      const formattedBrandNews = filteredBrandNews.map(item => ({
         id: `brand-news-${item.id}`,
         news_id: item.id,
         page_id: item.id,
@@ -194,8 +199,9 @@ export function NewsApproval() {
       const apiBaseUrl = jwtResponse.api_url || import.meta.env.VITE_SUPABASE_URL;
       const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-      // Use the current origin for the return URL
-      const returnUrl = `${window.location.origin}/#/brand/content/news`;
+      // Construct return URL using Supabase project URL (which points to Bolt app)
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL.replace('/functions/v1', '');
+      const returnUrl = `${supabaseUrl}/#/brand/content/news`;
 
       const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=news_items&news_slug=${assignment.news_item.slug}&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
 
@@ -253,8 +259,9 @@ export function NewsApproval() {
       const apiBaseUrl = jwtResponse.api_url || import.meta.env.VITE_SUPABASE_URL;
       const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-      // Use the current origin for the return URL
-      const returnUrl = `${window.location.origin}/#/brand/content/news`;
+      // Construct return URL using Supabase project URL (which points to Bolt app)
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL.replace('/functions/v1', '');
+      const returnUrl = `${supabaseUrl}/#/brand/content/news`;
 
       const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=news_items&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
 

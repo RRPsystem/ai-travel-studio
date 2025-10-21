@@ -328,7 +328,8 @@ Deno.serve(async (req: Request) => {
             .maybeSingle();
 
           if (fetchError) {
-            console.error("[CONTENT-API] Fetch error:", fetchError);            throw fetchError;
+            console.error("[CONTENT-API] Fetch error:", fetchError);
+            throw fetchError;
           }
 
           return new Response(
@@ -366,21 +367,6 @@ Deno.serve(async (req: Request) => {
           }
 
           console.log("[CONTENT-API] News item created:", newItem.id);
-
-          const { error: assignmentError } = await supabase
-            .from("news_brand_assignments")
-            .insert({
-              news_id: newItem.id,
-              brand_id: brandId,
-              is_published: false,
-            });
-
-          if (assignmentError) {
-            console.error("[CONTENT-API] Assignment error:", assignmentError);
-            throw assignmentError;
-          }
-
-          console.log("[CONTENT-API] Brand assignment created");
 
           return new Response(
             JSON.stringify({
