@@ -85,30 +85,17 @@ function corsHeaders(req?: Request): Headers {
   const headers = new Headers();
 
   const origin = req?.headers.get('origin') ?? '*';
-  const allowedOrigins = [
-    'https://www.ai-websitestudio.nl',
-    'https://ai-websitestudio.nl',
-    'https://www.ai-travelstudio.nl',
-    'https://ai-travelstudio.nl',
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'http://localhost:8000'
-  ];
 
-  const isAllowed = allowedOrigins.includes(origin) ||
-                   origin.includes('ai-websitestudio.nl') ||
-                   origin.includes('ai-travelstudio.nl') ||
-                   origin.includes('localhost') ||
-                   origin.includes('127.0.0.1');
-
-  const allowOrigin = isAllowed ? origin : '*';
-
-  headers.set('Access-Control-Allow-Origin', allowOrigin);
-  headers.set('Vary', 'Origin');
+  headers.set('Access-Control-Allow-Origin', origin === 'null' ? '*' : origin);
   headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS, PATCH');
-  headers.set('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type');
+  headers.set('Access-Control-Allow-Headers', 'authorization, x-client-info, apikey, content-type, x-requested-with');
   headers.set('Access-Control-Max-Age', '86400');
-  headers.set('Content-Type', 'application/json');
+  headers.set('Access-Control-Allow-Credentials', 'true');
+
+  if (req?.method !== 'OPTIONS') {
+    headers.set('Content-Type', 'application/json');
+  }
+
   return headers;
 }
 
@@ -119,9 +106,9 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     console.log("[CORS] Handling OPTIONS preflight request");
     const headers = corsHeaders(req);
-    console.log("[CORS] Responding with status 204 and headers:", Object.fromEntries(headers.entries()));
-    return new Response(null, {
-      status: 204,
+    console.log("[CORS] Responding with status 200 and headers:", Object.fromEntries(headers.entries()));
+    return new Response('ok', {
+      status: 200,
       headers: headers
     });
   }
