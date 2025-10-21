@@ -269,12 +269,11 @@ export function NewsApproval() {
           ? assignment.news_id
           : assignment.id;
 
-        console.log('[NewsApproval] Deleting assignment:', assignmentId);
+        console.log('[NewsApproval] Deleting assignment:', assignmentId, 'for brand:', user?.brand_id);
         const { data, error } = await supabase
           .from('news_brand_assignments')
           .delete()
           .eq('id', assignmentId)
-          .eq('brand_id', user?.brand_id)
           .select();
 
         if (error) {
@@ -284,7 +283,7 @@ export function NewsApproval() {
         }
 
         if (!data || data.length === 0) {
-          console.error('[NewsApproval] No assignment rows deleted - not found');
+          console.error('[NewsApproval] No assignment rows deleted - not found. Assignment ID:', assignmentId);
           alert('Assignment kon niet worden verwijderd');
           return;
         }
