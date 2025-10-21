@@ -272,11 +272,10 @@ export function NewsApproval() {
         console.log('[NewsApproval] Assignment deleted successfully:', data);
       }
 
-      // Refresh the assignments list immediately with loading state
-      console.log('[NewsApproval] Refreshing assignments list...');
-      setLoading(true);
-      await loadAssignments();
-      console.log('[NewsApproval] Assignments reloaded successfully');
+      // Remove from state immediately for instant UI feedback
+      console.log('[NewsApproval] Removing from UI...');
+      setAssignments(prev => prev.filter(a => a.id !== assignment.id));
+      console.log('[NewsApproval] Item removed from UI');
     } catch (error) {
       console.error('[NewsApproval] Error deleting:', error);
       alert(`Fout bij verwijderen: ${error instanceof Error ? error.message : 'Onbekende fout'}`);

@@ -103,7 +103,6 @@ Deno.serve(async (req: Request) => {
     const contentType = url.searchParams.get("type");
     let action = url.searchParams.get("action");
 
-    // If no action specified but method is POST, default to save
     if (!action && req.method === "POST") {
       action = "save";
       console.log("[CONTENT-API] No action parameter, using default 'save' for POST request");
@@ -291,7 +290,6 @@ Deno.serve(async (req: Request) => {
 
           console.log("[CONTENT-API] News item updated successfully");
 
-          // Ensure brand assignment exists
           const { error: upsertError } = await supabase
             .from("news_brand_assignments")
             .upsert(
@@ -366,7 +364,6 @@ Deno.serve(async (req: Request) => {
 
           console.log("[CONTENT-API] News item created:", newItem.id);
 
-          // Create brand assignment
           const { error: assignmentError } = await supabase
             .from("news_brand_assignments")
             .insert({
@@ -440,6 +437,48 @@ Deno.serve(async (req: Request) => {
             headers: corsHeaders(req),
           });
         }
+      }
+    }
+
+    if (action === "load" || action === "load_news") {
+      const payload = await verifyBearerToken(req, "content:read");
+      const brandId = url.searchParams.get("brand_id") || payload.brand_id;
+      const slug = url.searchParams.get("slug");
+
+      console.log("[CONTENT-API] Loading news by slug:", slug, "for brand:", brandId);
+
+      if (!slug) {
+        return new Response(JSON.stringify({ error: "Missing slug parameter" }), {
+          status: 400,
+          headers: corsHeaders(req),
+        });
+      }
+
+      if (contentType === "news_items") {
+        const { data, error } = await supabase
+          .from("news_items")
+          .select("*")
+          .eq("brand_id", brandId)
+          .eq("slug", slug)
+          .maybeSingle();
+
+        if (error) {
+          console.error("[CONTENT-API] Database error:", error);
+          throw error;
+        }
+
+        if (!data) {
+          return new Response(JSON.stringify({ error: "News item not found" }), {
+            status: 404,
+            headers: corsHeaders(req),
+          });
+        }
+
+        console.log("[CONTENT-API] Found news item:", data.id);
+        return new Response(JSON.stringify(data), {
+          status: 200,
+          headers: corsHeaders(req),
+        });
       }
     }
 
