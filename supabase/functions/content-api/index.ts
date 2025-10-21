@@ -39,44 +39,41 @@ async function verifyBearerToken(req: Request, requiredScope?: string): Promise<
 
   console.log("[AUTH DEBUG] Token extracted:", token.substring(0, 30) + "...");
 
-  const jwtSecret = Deno.env.get("JWT_SECRET");
-  if (!jwtSecret) {
-    console.error("[AUTH DEBUG] JWT_SECRET not configured in environment!");
-    const error = new Error("JWT_SECRET not configured");
+  const JWT_SECRET = Deno.env.get("JWT_SECRET");
+  if (!JWT_SECRET) {
+    console.error("[AUTH DEBUG] JWT_SECRET not configured");
+    const error = new Error("Server configuration error");
     (error as any).statusCode = 500;
     throw error;
   }
-  console.log("[AUTH DEBUG] JWT_SECRET found, length:", jwtSecret.length);
 
-  const encoder = new TextEncoder();
-  const secretKey = encoder.encode(jwtSecret);
+  console.log("[AUTH DEBUG] JWT_SECRET found, length:", JWT_SECRET.length);
+
+  const secretKey = new TextEncoder().encode(JWT_SECRET);
+
   try {
-    console.log("[AUTH DEBUG] Attempting to verify JWT...");
-    const { payload } = await jwtVerify(token, secretKey, { algorithms: ["HS256"] });
-    console.log("[AUTH DEBUG] JWT verified successfully! Payload:", JSON.stringify(payload, null, 2));
+    console.log("[AUTH DEBUG] Attempting to verify token...");
+    const { payload } = await jwtVerify(token, secretKey, {
+      algorithms: ["HS256"],
+    });
 
-    if (!payload.brand_id) {
-      console.error("[AUTH DEBUG] Token missing brand_id in payload");
-      const error = new Error("Invalid token: missing brand_id");
-      (error as any).statusCode = 401;
-      throw error;
-    }
+    console.log("[AUTH DEBUG] Token verified successfully!");
+    console.log("[AUTH DEBUG] Payload:", JSON.stringify(payload, null, 2));
 
     if (requiredScope) {
       const scopes = (payload.scope as string[]) || [];
-      console.log("[AUTH DEBUG] Checking scope:", requiredScope, "Available scopes:", scopes);
+      console.log("[AUTH DEBUG] Required scope:", requiredScope);
+      console.log("[AUTH DEBUG] Token scopes:", scopes);
       if (!scopes.includes(requiredScope)) {
-        console.error("[AUTH DEBUG] Insufficient permissions");
-        const error = new Error(`Insufficient permissions: ${requiredScope} required`);
+        const error = new Error(`Missing required scope: ${requiredScope}`);
         (error as any).statusCode = 403;
         throw error;
       }
     }
 
-    console.log("[AUTH DEBUG] Authorization successful!");
     return payload as JWTPayload;
   } catch (err) {
-    console.error("[AUTH DEBUG] JWT verification failed:", err);
+    console.error("[AUTH DEBUG] Token verification failed:", err);
     if ((err as any).statusCode) throw err;
     const error = new Error("Invalid or expired token");
     (error as any).statusCode = 401;
@@ -140,524 +137,470 @@ Deno.serve(async (req: Request) => {
       contentType = "news_items";
     }
 
-    const validTypes = ["news_items", "destinations", "trips"];
-    if (!validTypes.includes(contentType)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid content type. Must be: news_items, destinations, or trips" }),
-        { status: 400, headers: corsHeaders(req) }
-      );
-    }
+    const action = pathParts[pathParts.length - 1];
+    console.log("[CONTENT-API] Request:", req.method, url.pathname);
+    console.log("[CONTENT-API] Content type:", contentType);
+    console.log("[CONTENT-API] Action:", action);
 
-    if (req.method === "POST" && (pathParts.includes("save") || url.pathname.includes("/save"))) {
-      const body = await req.json();
-      const claims = await verifyBearerToken(req, "content:write");
-      const { brand_id, id, title, slug, content, author_type, author_id, ...otherFields } = body;
+    if (action === "list") {
+      const payload = await verifyBearerToken(req, "content:read");
+      const brandId = url.searchParams.get("brand_id") || payload.brand_id;
 
-      console.log('[SAVE DEBUG] Body:', JSON.stringify(body, null, 2));
-      console.log('[SAVE DEBUG] Claims:', JSON.stringify(claims, null, 2));
-      console.log('[SAVE DEBUG] Author type from body:', author_type);
-      console.log('[SAVE DEBUG] Author ID from body:', author_id);
+      console.log("[CONTENT-API] Listing content for brand:", brandId);
 
-      const SYSTEM_BRAND_ID = '00000000-0000-0000-0000-000000000999';
-      const isSystemBrand = claims.brand_id === SYSTEM_BRAND_ID;
-
-      if (!isSystemBrand && claims.brand_id !== brand_id) {
-        return new Response(
-          JSON.stringify({ error: "Unauthorized" }),
-          { status: 403, headers: corsHeaders(req) }
-        );
-      }
-
-      if (!brand_id || !title || !slug) {
-        return new Response(
-          JSON.stringify({ error: "brand_id, title, and slug required" }),
-          { status: 400, headers: corsHeaders(req) }
-        );
-      }
-
-      let result;
-      const isAdminNews = author_type === 'admin';
-
-      if (id) {
-        const updateData: any = {
-          title,
-          slug,
-          content,
-          ...otherFields,
-          updated_at: new Date().toISOString(),
-        };
-
-        if (contentType === 'news_items') {
-          if (isAdminNews) {
-            updateData.author_type = 'admin';
-            updateData.author_id = author_id || claims.user_id || claims.sub;
-          } else {
-            updateData.author_type = 'brand';
-            updateData.author_id = claims.user_id || claims.sub;
-          }
-        }
-
+      if (contentType === "news_items") {
         const { data, error } = await supabase
-          .from(contentType)
-          .update(updateData)
-          .eq("id", id)
-          .select("id, slug")
-          .maybeSingle();
-
-        if (error) throw error;
-        result = data;
-      } else {
-        const { data: existing } = await supabase
-          .from(contentType)
-          .select("id")
-          .eq("brand_id", brand_id)
-          .eq("slug", slug)
-          .maybeSingle();
-
-        if (existing) {
-          const updateData: any = {
-            title,
-            content,
-            ...otherFields,
-            updated_at: new Date().toISOString(),
-          };
-
-          if (contentType === 'news_items') {
-            if (isAdminNews) {
-              updateData.author_type = 'admin';
-              updateData.author_id = author_id || claims.user_id || claims.sub;
-            } else {
-              updateData.author_type = 'brand';
-              updateData.author_id = claims.user_id || claims.sub;
-            }
-          }
-
-          const { data, error } = await supabase
-            .from(contentType)
-            .update(updateData)
-            .eq("id", existing.id)
-            .select("id, slug")
-            .maybeSingle();
-
-          if (error) throw error;
-          result = data;
-        } else {
-          const insertData: any = {
-            brand_id,
+          .from("news_items")
+          .select(`
+            id,
             title,
             slug,
+            intro,
             content,
-            status: "draft",
-            ...otherFields,
-          };
-
-          if (contentType === 'news_items') {
-            if (isAdminNews) {
-              insertData.author_type = 'admin';
-              insertData.author_id = author_id || claims.user_id || claims.sub;
-            } else {
-              insertData.author_type = 'brand';
-              insertData.author_id = author_id || claims.user_id || claims.sub;
-            }
-            console.log('[SAVE DEBUG] Setting author_type:', insertData.author_type, 'author_id:', insertData.author_id);
-          }
-
-          console.log('[SAVE DEBUG] Insert data:', JSON.stringify(insertData, null, 2));
-
-          const { data, error } = await supabase
-            .from(contentType)
-            .insert(insertData)
-            .select("id, slug")
-            .maybeSingle();
-
-          if (error) throw error;
-          result = data;
-        }
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          id: result.id,
-          slug: result.slug,
-          status: "draft",
-          message: "Content saved successfully"
-        }),
-        { status: 200, headers: corsHeaders(req) }
-      );
-    }
-
-    if (req.method === "PUT") {
-      const body = await req.json();
-      const claims = await verifyBearerToken(req, "content:write");
-      const brandId = url.searchParams.get("brand_id");
-      const slugParam = url.searchParams.get("slug");
-      const itemId = pathParts[pathParts.length - 1];
-
-      const { content: bodyContent, ...otherFields } = body;
-
-      const SYSTEM_BRAND_ID = '00000000-0000-0000-0000-000000000999';
-      const isSystemBrand = claims.brand_id === SYSTEM_BRAND_ID;
-
-      if (!brandId || (!isSystemBrand && claims.brand_id !== brandId)) {
-        return new Response(
-          JSON.stringify({ error: "Unauthorized" }),
-          { status: 403, headers: corsHeaders(req) }
-        );
-      }
-
-      let targetId: string | null = null;
-
-      if (slugParam) {
-        const { data: bySlug } = await supabase
-          .from(contentType)
-          .select("id")
-          .eq("brand_id", brandId)
-          .eq("slug", slugParam)
-          .maybeSingle();
-        targetId = bySlug?.id || null;
-      } else if (itemId && itemId !== "content-api") {
-        const { data: bySlug } = await supabase
-          .from(contentType)
-          .select("id")
-          .eq("brand_id", brandId)
-          .eq("slug", itemId)
-          .maybeSingle();
-
-        if (bySlug) {
-          targetId = bySlug.id;
-        } else {
-          targetId = itemId;
-        }
-      }
-
-      if (!targetId) {
-        return new Response(
-          JSON.stringify({ error: "Content not found" }),
-          { status: 404, headers: corsHeaders(req) }
-        );
-      }
-
-      const updateData: any = {
-        content: bodyContent,
-        ...otherFields,
-        updated_at: new Date().toISOString(),
-      };
-
-      const { data, error } = await supabase
-        .from(contentType)
-        .update(updateData)
-        .eq("id", targetId)
-        .eq("brand_id", brandId)
-        .select("id, slug")
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!data) {
-        return new Response(
-          JSON.stringify({ error: "Content not found or unauthorized" }),
-          { status: 404, headers: corsHeaders(req) }
-        );
-      }
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          id: data.id,
-          slug: data.slug,
-          message: "Content updated successfully"
-        }),
-        { status: 200, headers: corsHeaders(req) }
-      );
-    }
-
-    if (req.method === "POST" && (pathParts.includes("publish") || url.pathname.includes("/publish"))) {
-      const body = await req.json();
-      const claims = await verifyBearerToken(req, "content:write");
-
-      let brand_id = body.brand_id || url.searchParams.get("brand_id") || claims.brand_id;
-      let id = body.id || url.searchParams.get("id");
-      let slug = body.slug || url.searchParams.get("slug");
-
-      console.log("[PUBLISH DEBUG] Extracted params:", { brand_id, id, slug, body, query: Object.fromEntries(url.searchParams) });
-
-      const SYSTEM_BRAND_ID = '00000000-0000-0000-0000-000000000999';
-      const isSystemBrand = claims.brand_id === SYSTEM_BRAND_ID;
-
-      if (!isSystemBrand && claims.brand_id !== brand_id) {
-        console.error("[PUBLISH DEBUG] Brand mismatch:", { claimsBrandId: claims.brand_id, providedBrandId: brand_id });
-        return new Response(
-          JSON.stringify({ error: "Unauthorized" }),
-          { status: 403, headers: corsHeaders(req) }
-        );
-      }
-
-      if (!brand_id || (!id && !slug)) {
-        console.error("[PUBLISH DEBUG] Missing required params:", { brand_id, id, slug });
-        return new Response(
-          JSON.stringify({ error: "brand_id and (id or slug) required" }),
-          { status: 400, headers: corsHeaders(req) }
-        );
-      }
-
-      let query = supabase.from(contentType).select("id, slug, author_type");
-
-      if (id) {
-        query = query.eq("id", id);
-      } else {
-        query = query.eq("brand_id", brand_id).eq("slug", slug);
-      }
-
-      const { data: item } = await query.maybeSingle();
-
-      if (!item) {
-        return new Response(
-          JSON.stringify({ error: "Content not found" }),
-          { status: 404, headers: corsHeaders(req) }
-        );
-      }
-
-      const authorType = item.author_type || 'brand';
-      let assignmentUpdated = false;
-      let responseKind = 'brand';
-
-      if (contentType === 'news_items' && authorType === 'admin') {
-        responseKind = 'admin';
-
-        const { data: assignment } = await supabase
-          .from('news_brand_assignments')
-          .select('id')
-          .eq('news_id', item.id)
-          .eq('brand_id', brand_id)
-          .maybeSingle();
-
-        if (assignment) {
-          const { error: assignError } = await supabase
-            .from('news_brand_assignments')
-            .update({
-              is_published: true,
-              status: 'accepted',
-              acknowledged_at: new Date().toISOString()
-            })
-            .eq('id', assignment.id);
-
-          if (assignError) throw assignError;
-          assignmentUpdated = true;
-        }
-      }
-
-      const { data, error } = await supabase
-        .from(contentType)
-        .update({
-          status: "published",
-          published_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", item.id)
-        .select("id, slug, status")
-        .maybeSingle();
-
-      if (error) throw error;
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          id: data.id,
-          slug: data.slug,
-          status: data.status,
-          kind: responseKind,
-          assignment_updated: assignmentUpdated,
-          message: "Content published successfully"
-        }),
-        { status: 200, headers: corsHeaders(req) }
-      );
-    }
-
-    if (req.method === "DELETE") {
-      const claims = await verifyBearerToken(req, "content:write");
-      const itemId = pathParts[pathParts.length - 1];
-
-      if (!itemId || itemId === "content-api") {
-        return new Response(
-          JSON.stringify({ error: "id is required" }),
-          { status: 400, headers: corsHeaders(req) }
-        );
-      }
-
-      const { data: item } = await supabase
-        .from(contentType)
-        .select("brand_id")
-        .eq("id", itemId)
-        .maybeSingle();
-
-      if (!item) {
-        return new Response(
-          JSON.stringify({ error: "Content not found" }),
-          { status: 404, headers: corsHeaders(req) }
-        );
-      }
-
-      const SYSTEM_BRAND_ID = '00000000-0000-0000-0000-000000000999';
-      const isSystemBrand = claims.brand_id === SYSTEM_BRAND_ID;
-
-      if (!isSystemBrand && claims.brand_id !== item.brand_id) {
-        return new Response(
-          JSON.stringify({ error: "Unauthorized" }),
-          { status: 403, headers: corsHeaders(req) }
-        );
-      }
-
-      const { error } = await supabase
-        .from(contentType)
-        .delete()
-        .eq("id", itemId);
-
-      if (error) throw error;
-
-      return new Response(
-        JSON.stringify({ success: true, message: "Content deleted successfully" }),
-        { status: 200, headers: corsHeaders(req) }
-      );
-    }
-
-    if (req.method === "GET" && pathParts.includes("list")) {
-      const brandId = url.searchParams.get("brand_id");
-      const status = url.searchParams.get("status");
-      const includeAssigned = url.searchParams.get("include_assigned") === "true";
-
-      if (!brandId) {
-        return new Response(
-          JSON.stringify({ error: "brand_id is required" }),
-          { status: 400, headers: corsHeaders(req) }
-        );
-      }
-
-      if (contentType === "news_items" && includeAssigned) {
-        const { data: ownNews, error: ownError } = await supabase
-          .from("news_items")
-          .select("*, author_type, is_mandatory")
-          .eq("brand_id", brandId)
-          .order("updated_at", { ascending: false });
-
-        if (ownError) throw ownError;
-
-        const { data: assignments, error: assignError } = await supabase
-          .from("news_brand_assignments")
-          .select(`
-            news_id,
-            status,
-            news_items!inner (
-              id,
-              title,
-              slug,
-              content,
-              excerpt,
-              featured_image,
-              status,
-              author_type,
-              is_mandatory,
-              published_at,
-              created_at,
-              updated_at
+            featured_image,
+            is_featured,
+            author_name,
+            author_email,
+            tags,
+            created_at,
+            updated_at,
+            news_brand_assignments!inner(
+              brand_id,
+              is_published,
+              published_at
             )
           `)
-          .eq("brand_id", brandId)
-          .in("status", ["accepted", "mandatory"]);
+          .eq("news_brand_assignments.brand_id", brandId)
+          .order("created_at", { ascending: false });
 
-        if (assignError) throw assignError;
+        if (error) {
+          console.error("[CONTENT-API] Database error:", error);
+          throw error;
+        }
 
-        const assignedNews = (assignments || []).map(a => {
-          const newsItem = Array.isArray(a.news_items) ? a.news_items[0] : a.news_items;
-          return {
-            ...newsItem,
-            author_type: newsItem.author_type || "admin",
-            is_mandatory: newsItem.is_mandatory || false
-          };
+        console.log("[CONTENT-API] Found", data?.length || 0, "news items");
+
+        const transformedData = data?.map((item: any) => ({
+          id: item.id,
+          title: item.title,
+          slug: item.slug,
+          intro: item.intro,
+          content: item.content,
+          featured_image: item.featured_image,
+          is_featured: item.is_featured,
+          author_name: item.author_name,
+          author_email: item.author_email,
+          tags: item.tags,
+          created_at: item.created_at,
+          updated_at: item.updated_at,
+          is_published: item.news_brand_assignments[0]?.is_published || false,
+          published_at: item.news_brand_assignments[0]?.published_at || null,
+        })) || [];
+
+        return new Response(JSON.stringify(transformedData), {
+          status: 200,
+          headers: corsHeaders(req),
         });
-
-        const allNews = [...(ownNews || []), ...assignedNews];
-
-        return new Response(JSON.stringify({ items: allNews }), { status: 200, headers: corsHeaders(req) });
-      }
-
-      let query = supabase
-        .from(contentType)
-        .select("*")
-        .eq("brand_id", brandId);
-
-      if (status) {
-        query = query.eq("status", status);
-      }
-
-      const { data, error } = await query.order("updated_at", { ascending: false });
-      if (error) throw error;
-
-      return new Response(JSON.stringify({ items: data || [] }), { status: 200, headers: corsHeaders(req) });
-    }
-
-    if (req.method === "GET") {
-      const brandId = url.searchParams.get("brand_id");
-      const slugParam = url.searchParams.get("slug");
-      const itemId = pathParts[pathParts.length - 1];
-
-      if (!brandId) {
-        return new Response(
-          JSON.stringify({ error: "brand_id is required" }),
-          { status: 400, headers: corsHeaders(req) }
-        );
-      }
-
-      let query = supabase.from(contentType).select("*").eq("brand_id", brandId);
-
-      if (slugParam) {
-        query = query.eq("slug", slugParam);
-      }
-      else if (itemId && itemId !== "content-api") {
-        const { data: bySlug } = await supabase
+      } else {
+        const { data, error } = await supabase
           .from(contentType)
           .select("*")
           .eq("brand_id", brandId)
-          .eq("slug", itemId)
-          .maybeSingle();
+          .order("created_at", { ascending: false });
 
-        if (bySlug) {
-          return new Response(JSON.stringify({ item: bySlug }), { status: 200, headers: corsHeaders(req) });
+        if (error) {
+          console.error("[CONTENT-API] Database error:", error);
+          throw error;
         }
 
-        query = query.eq("id", itemId);
+        console.log("[CONTENT-API] Found", data?.length || 0, "items");
+        return new Response(JSON.stringify(data), {
+          status: 200,
+          headers: corsHeaders(req),
+        });
+      }
+    }
+
+    if (action === "get") {
+      const payload = await verifyBearerToken(req, "content:read");
+      const id = url.searchParams.get("id");
+
+      if (!id) {
+        return new Response(JSON.stringify({ error: "Missing id parameter" }), {
+          status: 400,
+          headers: corsHeaders(req),
+        });
+      }
+
+      console.log("[CONTENT-API] Getting item:", id);
+
+      if (contentType === "news_items") {
+        const { data, error } = await supabase
+          .from("news_items")
+          .select(`
+            *,
+            news_brand_assignments!inner(
+              brand_id,
+              is_published,
+              published_at
+            )
+          `)
+          .eq("id", id)
+          .eq("news_brand_assignments.brand_id", payload.brand_id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("[CONTENT-API] Database error:", error);
+          throw error;
+        }
+
+        if (!data) {
+          return new Response(JSON.stringify({ error: "Item not found" }), {
+            status: 404,
+            headers: corsHeaders(req),
+          });
+        }
+
+        const transformedData = {
+          ...data,
+          is_published: data.news_brand_assignments[0]?.is_published || false,
+          published_at: data.news_brand_assignments[0]?.published_at || null,
+        };
+
+        return new Response(JSON.stringify(transformedData), {
+          status: 200,
+          headers: corsHeaders(req),
+        });
       } else {
-        return new Response(
-          JSON.stringify({ error: "slug or id is required" }),
-          { status: 400, headers: corsHeaders(req) }
-        );
+        const { data, error } = await supabase
+          .from(contentType)
+          .select("*")
+          .eq("id", id)
+          .eq("brand_id", payload.brand_id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("[CONTENT-API] Database error:", error);
+          throw error;
+        }
+
+        if (!data) {
+          return new Response(JSON.stringify({ error: "Item not found" }), {
+            status: 404,
+            headers: corsHeaders(req),
+          });
+        }
+
+        return new Response(JSON.stringify(data), {
+          status: 200,
+          headers: corsHeaders(req),
+        });
+      }
+    }
+
+    if (action === "save") {
+      const payload = await verifyBearerToken(req, "content:write");
+      const body = await req.json();
+
+      console.log("[CONTENT-API] Saving content:", JSON.stringify(body, null, 2));
+
+      const brandId = body.brand_id || payload.brand_id;
+      const itemId = body.id;
+
+      if (contentType === "news_items") {
+        if (itemId) {
+          console.log("[CONTENT-API] Updating news item:", itemId);
+
+          const { error: updateError } = await supabase
+            .from("news_items")
+            .update({
+              title: body.title,
+              slug: body.slug,
+              intro: body.intro,
+              content: body.content,
+              featured_image: body.featured_image,
+              is_featured: body.is_featured || false,
+              author_name: body.author_name,
+              author_email: body.author_email,
+              tags: body.tags,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", itemId);
+
+          if (updateError) {
+            console.error("[CONTENT-API] Update error:", updateError);
+            throw updateError;
+          }
+
+          console.log("[CONTENT-API] News item updated successfully");
+
+          const { data: updatedItem, error: fetchError } = await supabase
+            .from("news_items")
+            .select(`
+              *,
+              news_brand_assignments!inner(
+                brand_id,
+                is_published,
+                published_at
+              )
+            `)
+            .eq("id", itemId)
+            .eq("news_brand_assignments.brand_id", brandId)
+            .maybeSingle();
+
+          if (fetchError) {
+            console.error("[CONTENT-API] Fetch error:", fetchError);
+            throw fetchError;
+          }
+
+          return new Response(
+            JSON.stringify({
+              ...updatedItem,
+              is_published: updatedItem?.news_brand_assignments[0]?.is_published || false,
+              published_at: updatedItem?.news_brand_assignments[0]?.published_at || null,
+            }),
+            {
+              status: 200,
+              headers: corsHeaders(req),
+            }
+          );
+        } else {
+          console.log("[CONTENT-API] Creating new news item");
+
+          const { data: newItem, error: insertError } = await supabase
+            .from("news_items")
+            .insert({
+              title: body.title,
+              slug: body.slug,
+              intro: body.intro,
+              content: body.content,
+              featured_image: body.featured_image,
+              is_featured: body.is_featured || false,
+              author_name: body.author_name,
+              author_email: body.author_email,
+              tags: body.tags,
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error("[CONTENT-API] Insert error:", insertError);
+            throw insertError;
+          }
+
+          console.log("[CONTENT-API] News item created:", newItem.id);
+
+          const { error: assignmentError } = await supabase
+            .from("news_brand_assignments")
+            .insert({
+              news_item_id: newItem.id,
+              brand_id: brandId,
+              is_published: false,
+            });
+
+          if (assignmentError) {
+            console.error("[CONTENT-API] Assignment error:", assignmentError);
+            throw assignmentError;
+          }
+
+          console.log("[CONTENT-API] Brand assignment created");
+
+          return new Response(
+            JSON.stringify({
+              ...newItem,
+              is_published: false,
+              published_at: null,
+            }),
+            {
+              status: 201,
+              headers: corsHeaders(req),
+            }
+          );
+        }
+      } else {
+        if (itemId) {
+          console.log("[CONTENT-API] Updating item:", itemId);
+
+          const { data: updatedItem, error: updateError } = await supabase
+            .from(contentType)
+            .update({
+              ...body,
+              brand_id: brandId,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", itemId)
+            .eq("brand_id", brandId)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error("[CONTENT-API] Update error:", updateError);
+            throw updateError;
+          }
+
+          console.log("[CONTENT-API] Item updated successfully");
+          return new Response(JSON.stringify(updatedItem), {
+            status: 200,
+            headers: corsHeaders(req),
+          });
+        } else {
+          console.log("[CONTENT-API] Creating new item");
+
+          const { data: newItem, error: insertError } = await supabase
+            .from(contentType)
+            .insert({
+              ...body,
+              brand_id: brandId,
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error("[CONTENT-API] Insert error:", insertError);
+            throw insertError;
+          }
+
+          console.log("[CONTENT-API] Item created successfully");
+          return new Response(JSON.stringify(newItem), {
+            status: 201,
+            headers: corsHeaders(req),
+          });
+        }
+      }
+    }
+
+    if (action === "delete") {
+      const payload = await verifyBearerToken(req, "content:write");
+      const id = url.searchParams.get("id");
+
+      if (!id) {
+        return new Response(JSON.stringify({ error: "Missing id parameter" }), {
+          status: 400,
+          headers: corsHeaders(req),
+        });
       }
 
-      const { data, error } = await query.maybeSingle();
+      console.log("[CONTENT-API] Deleting item:", id);
 
-      if (error) throw error;
-      if (!data) {
-        return new Response(
-          JSON.stringify({ error: "Content not found" }),
-          { status: 404, headers: corsHeaders(req) }
-        );
+      if (contentType === "news_items") {
+        const { error: assignmentError } = await supabase
+          .from("news_brand_assignments")
+          .delete()
+          .eq("news_item_id", id)
+          .eq("brand_id", payload.brand_id);
+
+        if (assignmentError) {
+          console.error("[CONTENT-API] Assignment delete error:", assignmentError);
+          throw assignmentError;
+        }
+
+        const { data: remainingAssignments } = await supabase
+          .from("news_brand_assignments")
+          .select("id")
+          .eq("news_item_id", id);
+
+        if (!remainingAssignments || remainingAssignments.length === 0) {
+          const { error: deleteError } = await supabase
+            .from("news_items")
+            .delete()
+            .eq("id", id);
+
+          if (deleteError) {
+            console.error("[CONTENT-API] Delete error:", deleteError);
+            throw deleteError;
+          }
+
+          console.log("[CONTENT-API] News item deleted (no remaining assignments)");
+        } else {
+          console.log("[CONTENT-API] Assignment removed (item has other assignments)");
+        }
+      } else {
+        const { error: deleteError } = await supabase
+          .from(contentType)
+          .delete()
+          .eq("id", id)
+          .eq("brand_id", payload.brand_id);
+
+        if (deleteError) {
+          console.error("[CONTENT-API] Delete error:", deleteError);
+          throw deleteError;
+        }
+
+        console.log("[CONTENT-API] Item deleted successfully");
       }
 
-      return new Response(JSON.stringify({ item: data }), { status: 200, headers: corsHeaders(req) });
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: corsHeaders(req),
+      });
+    }
+
+    if (action === "publish") {
+      const payload = await verifyBearerToken(req, "content:write");
+      const body = await req.json();
+      const itemId = body.id;
+      const isPublished = body.is_published;
+
+      console.log("[CONTENT-API] Publishing item:", itemId, "published:", isPublished);
+
+      if (contentType === "news_items") {
+        const { error: updateError } = await supabase
+          .from("news_brand_assignments")
+          .update({
+            is_published: isPublished,
+            published_at: isPublished ? new Date().toISOString() : null,
+          })
+          .eq("news_item_id", itemId)
+          .eq("brand_id", payload.brand_id);
+
+        if (updateError) {
+          console.error("[CONTENT-API] Publish error:", updateError);
+          throw updateError;
+        }
+
+        console.log("[CONTENT-API] News item publish status updated");
+      } else {
+        const { error: updateError } = await supabase
+          .from(contentType)
+          .update({
+            is_published: isPublished,
+            published_at: isPublished ? new Date().toISOString() : null,
+          })
+          .eq("id", itemId)
+          .eq("brand_id", payload.brand_id);
+
+        if (updateError) {
+          console.error("[CONTENT-API] Publish error:", updateError);
+          throw updateError;
+        }
+
+        console.log("[CONTENT-API] Item publish status updated");
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
+        status: 200,
+        headers: corsHeaders(req),
+      });
     }
 
     return new Response(
-      JSON.stringify({ error: "Not found" }),
-      { status: 404, headers: corsHeaders(req) }
+      JSON.stringify({ error: "Unknown action" }),
+      {
+        status: 400,
+        headers: corsHeaders(req),
+      }
     );
-  } catch (error) {
-    console.error("Error:", error);
-    const statusCode = (error as any).statusCode || 500;
+  } catch (err) {
+    console.error("[CONTENT-API] Error:", err);
+    const statusCode = (err as any).statusCode || 500;
+    const message = err instanceof Error ? err.message : "Internal server error";
+
     return new Response(
-      JSON.stringify({
-        error: error.message || "Internal server error",
-        timestamp: new Date().toISOString()
-      }),
-      { status: statusCode, headers: corsHeaders(req) }
+      JSON.stringify({ error: message }),
+      {
+        status: statusCode,
+        headers: corsHeaders(req),
+      }
     );
   }
 });
