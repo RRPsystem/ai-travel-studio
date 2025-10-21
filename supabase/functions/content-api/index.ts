@@ -301,20 +301,23 @@ Deno.serve(async (req: Request) => {
         if (itemId) {
           console.log("[CONTENT-API] Updating news item:", itemId);
 
+          const updateData: any = {
+            title: body.title,
+            slug: body.slug,
+            intro: body.intro || body.excerpt,
+            content: body.content,
+            featured_image: body.featured_image,
+            is_featured: body.is_featured || false,
+            tags: body.tags,
+            updated_at: new Date().toISOString(),
+          };
+
+          if (body.author_name) updateData.author_name = body.author_name;
+          if (body.author_email) updateData.author_email = body.author_email;
+
           const { error: updateError } = await supabase
             .from("news_items")
-            .update({
-              title: body.title,
-              slug: body.slug,
-              intro: body.intro,
-              content: body.content,
-              featured_image: body.featured_image,
-              is_featured: body.is_featured || false,
-              author_name: body.author_name,
-              author_email: body.author_email,
-              tags: body.tags,
-              updated_at: new Date().toISOString(),
-            })
+            .update(updateData)
             .eq("id", itemId);
 
           if (updateError) {
@@ -357,19 +360,22 @@ Deno.serve(async (req: Request) => {
         } else {
           console.log("[CONTENT-API] Creating new news item");
 
+          const insertData: any = {
+            title: body.title,
+            slug: body.slug,
+            intro: body.intro || body.excerpt,
+            content: body.content,
+            featured_image: body.featured_image,
+            is_featured: body.is_featured || false,
+            tags: body.tags,
+          };
+
+          if (body.author_name) insertData.author_name = body.author_name;
+          if (body.author_email) insertData.author_email = body.author_email;
+
           const { data: newItem, error: insertError } = await supabase
             .from("news_items")
-            .insert({
-              title: body.title,
-              slug: body.slug,
-              intro: body.intro,
-              content: body.content,
-              featured_image: body.featured_image,
-              is_featured: body.is_featured || false,
-              author_name: body.author_name,
-              author_email: body.author_email,
-              tags: body.tags,
-            })
+            .insert(insertData)
             .select()
             .single();
 
