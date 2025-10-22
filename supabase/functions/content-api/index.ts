@@ -226,17 +226,19 @@ Deno.serve(async (req: Request) => {
 
         console.log("[CONTENT-API] ✅ Template loaded:", data.id);
 
-        // Transform to Builder format
+        // Transform to Builder format - Builder expects content_json directly at root
         const transformedData = {
           id: data.id,
           title: data.title,
           slug: data.slug,
-          content: { json: data.content_json },
+          ...data.content_json,
           template_category: data.template_category,
           preview_image_url: data.preview_image_url,
           status: data.status,
+          _raw_content_json: data.content_json,
         };
 
+        console.log("[CONTENT-API] Transformed data keys:", Object.keys(transformedData));
         return new Response(JSON.stringify(transformedData), {
           status: 200,
           headers: corsHeaders(req),
