@@ -31,7 +31,7 @@ export function TemplateManager() {
     title: '',
     slug: '',
     template_category: 'general',
-    preview_image_url: '',
+    preview_image_url: '/image copy copy.png',
   });
 
   useEffect(() => {
@@ -89,7 +89,7 @@ export function TemplateManager() {
         title: '',
         slug: '',
         template_category: 'general',
-        preview_image_url: '',
+        preview_image_url: '/image copy copy.png',
       });
     } catch (error) {
       console.error('Error creating template:', error);
