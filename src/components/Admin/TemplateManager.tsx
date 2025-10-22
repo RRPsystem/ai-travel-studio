@@ -179,11 +179,13 @@ export function TemplateManager() {
         throw error;
       }
 
-      console.log('Save successful! Updated record:', updatedData);
-      console.log('Reloading templates...');
+      console.log('✅ Save successful! Updated record:', updatedData);
+      console.log('🔄 Reloading templates...');
       await loadTemplates();
+      console.log('✅ Templates reloaded');
       setEditingTemplate(null);
       setSelectedFileName('');
+      console.log('✅ Modal closed');
       alert('Template metadata succesvol bijgewerkt!');
     } catch (error: any) {
       console.error('Error updating template metadata:', error);
