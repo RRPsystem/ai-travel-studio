@@ -10,4 +10,10 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 1000,
   },
+  server: {
+    fs: {
+      // Exclude supabase functions from being served
+      deny: ['**/supabase/functions/**'],
+    },
+  },
 });
