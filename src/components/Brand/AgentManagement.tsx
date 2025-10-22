@@ -126,11 +126,7 @@ export function AgentManagement() {
 
   return (
     <div className="p-6">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Agent Beheer</h2>
-          <p className="text-gray-600 mt-1">Beheer de agents die voor jouw reisbureau werken</p>
-        </div>
+      <div className="mb-6 flex items-center justify-end">
         <button
           onClick={() => setShowAddModal(true)}
           className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
