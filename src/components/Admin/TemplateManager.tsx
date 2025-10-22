@@ -43,15 +43,28 @@ export function TemplateManager() {
   useEffect(() => {
     loadTemplates();
 
+    let isSelectingFile = false;
+
     const handleFocus = () => {
+      if (isSelectingFile) {
+        console.log('⏸️  Focus event ignored - user is selecting file');
+        isSelectingFile = false;
+        return;
+      }
       console.log('Template Manager regained focus, reloading templates...');
       loadTemplates();
     };
 
+    const markFileSelection = () => {
+      isSelectingFile = true;
+    };
+
     window.addEventListener('focus', handleFocus);
+    window.addEventListener('file-select-start', markFileSelection);
 
     return () => {
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('file-select-start', markFileSelection);
     };
   }, []);
 
@@ -541,6 +554,8 @@ export function TemplateManager() {
                         type="button"
                         onClick={() => {
                           console.log('🔵 Button clicked!');
+                          console.log('🎯 Marking file selection to prevent reload');
+                          window.dispatchEvent(new Event('file-select-start'));
                           const input = (window as any).imageUploadInput;
                           if (input) {
                             console.log('🔵 Triggering file input click');
