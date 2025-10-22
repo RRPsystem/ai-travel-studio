@@ -102,33 +102,18 @@ Deno.serve(async (req: Request) => {
 
   try {
     const url = new URL(req.url);
+    const action = url.pathname.split("/").pop();
     const contentType = url.searchParams.get("type");
-    let action = url.searchParams.get("action");
-
-    if (!action && req.method === "POST") {
-      action = "save";
-      console.log("[CONTENT-API] No action parameter, using default 'save' for POST request");
-    }
-
-    if (!action && req.method === "GET") {
-      const slug = url.searchParams.get("slug");
-      const id = url.searchParams.get("id");
-      if (slug || id) {
-        action = "list";
-        console.log("[CONTENT-API] No action parameter, using default 'list' for GET request with slug/id");
-      }
-    }
 
     console.log("[CONTENT-API] Request:", {
       method: req.method,
-      contentType,
       action,
-      url: req.url,
+      contentType,
     });
 
     if (!contentType) {
       return new Response(
-        JSON.stringify({ error: "Missing type parameter" }),
+        JSON.stringify({ error: "Missing 'type' query parameter" }),
         {
           status: 400,
           headers: corsHeaders(req),
@@ -136,13 +121,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error("[CONTENT-API] Missing Supabase credentials");
       return new Response(
-        JSON.stringify({ error: "Server configuration error" }),
+        JSON.stringify({
+          error: "Missing Supabase configuration",
+        }),
         {
           status: 500,
           headers: corsHeaders(req),
@@ -181,6 +167,33 @@ Deno.serve(async (req: Request) => {
         }
 
         console.log("[CONTENT-API] Found", data?.length || 0, "items");
+        return new Response(JSON.stringify(data), {
+          status: 200,
+          headers: corsHeaders(req),
+        });
+      } else if (contentType === "destinations") {
+        const slugFilter = url.searchParams.get("slug");
+        console.log("[CONTENT-API] Listing destinations, slug filter:", slugFilter);
+
+        let query = supabase
+          .from("destinations")
+          .select("*")
+          .eq("brand_id", brandId);
+
+        if (slugFilter) {
+          query = query.eq("slug", slugFilter);
+        } else {
+          query = query.order("created_at", { ascending: false });
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error("[CONTENT-API] Database error:", error);
+          throw error;
+        }
+
+        console.log("[CONTENT-API] Found", data?.length || 0, "destinations");
         return new Response(JSON.stringify(data), {
           status: 200,
           headers: corsHeaders(req),
@@ -272,6 +285,41 @@ Deno.serve(async (req: Request) => {
         const transformedData = {
           ...data,
           is_published: data.news_brand_assignments[0]?.is_published || false,
+        };
+
+        return new Response(JSON.stringify(transformedData), {
+          status: 200,
+          headers: corsHeaders(req),
+        });
+      } else if (contentType === "destinations") {
+        const { data, error } = await supabase
+          .from("destinations")
+          .select(`
+            *,
+            destination_brand_assignments!inner(
+              brand_id,
+              is_published
+            )
+          `)
+          .eq("id", id)
+          .eq("destination_brand_assignments.brand_id", payload.brand_id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("[CONTENT-API] Database error:", error);
+          throw error;
+        }
+
+        if (!data) {
+          return new Response(JSON.stringify({ error: "Destination not found" }), {
+            status: 404,
+            headers: corsHeaders(req),
+          });
+        }
+
+        const transformedData = {
+          ...data,
+          is_published: data.destination_brand_assignments[0]?.is_published || false,
         };
 
         return new Response(JSON.stringify(transformedData), {
@@ -519,6 +567,112 @@ Deno.serve(async (req: Request) => {
             }
           );
         }
+      } else if (contentType === "destinations") {
+        const authorType = body.author_type || (payload as any).author_type || 'brand';
+        const authorId = body.author_id || (payload as any).author_id || payload.sub || payload.user_id;
+
+        if (itemId) {
+          console.log("[CONTENT-API] Updating destination:", itemId);
+
+          const updateData: any = {
+            title: body.title,
+            slug: body.slug,
+            description: body.description || body.excerpt || '',
+            content: body.content,
+            featured_image: body.featured_image || '',
+            country: body.country || '',
+            region: body.region || '',
+            gallery: body.gallery || [],
+            brand_id: brandId,
+            author_type: authorType,
+            author_id: authorId,
+            updated_at: new Date().toISOString(),
+          };
+
+          const { data: updatedItem, error: updateError } = await supabase
+            .from("destinations")
+            .update(updateData)
+            .eq("id", itemId)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error("[CONTENT-API] Update error:", updateError);
+            throw updateError;
+          }
+
+          console.log("[CONTENT-API] Destination updated successfully");
+
+          const { error: upsertError } = await supabase
+            .from("destination_brand_assignments")
+            .upsert(
+              {
+                destination_id: itemId,
+                brand_id: brandId,
+              },
+              {
+                onConflict: "destination_id,brand_id",
+              }
+            );
+
+          if (upsertError) {
+            console.error("[CONTENT-API] Destination assignment upsert error:", upsertError);
+          } else {
+            console.log("[CONTENT-API] Destination assignment ensured:", itemId);
+          }
+
+          return new Response(JSON.stringify(updatedItem), {
+            status: 200,
+            headers: corsHeaders(req),
+          });
+        } else {
+          console.log("[CONTENT-API] Creating new destination");
+
+          const insertData: any = {
+            title: body.title,
+            slug: body.slug,
+            description: body.description || body.excerpt || '',
+            content: body.content,
+            featured_image: body.featured_image || '',
+            country: body.country || '',
+            region: body.region || '',
+            gallery: body.gallery || [],
+            brand_id: brandId,
+            author_type: authorType,
+            author_id: authorId,
+          };
+
+          const { data: newItem, error: insertError } = await supabase
+            .from("destinations")
+            .insert(insertData)
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error("[CONTENT-API] Insert error:", insertError);
+            throw insertError;
+          }
+
+          console.log("[CONTENT-API] Destination created:", newItem.id);
+
+          const { error: assignmentError } = await supabase
+            .from("destination_brand_assignments")
+            .insert({
+              destination_id: newItem.id,
+              brand_id: brandId,
+            });
+
+          if (assignmentError) {
+            console.error("[CONTENT-API] Destination assignment creation error:", assignmentError);
+          } else {
+            console.log("[CONTENT-API] Destination assignment created:", newItem.id);
+          }
+
+          return new Response(JSON.stringify(newItem), {
+            status: 201,
+            headers: corsHeaders(req),
+          });
+        }
       } else {
         if (itemId) {
           console.log("[CONTENT-API] Updating item:", itemId);
@@ -588,9 +742,15 @@ Deno.serve(async (req: Request) => {
       if (contentType === "news_items") {
         const { data, error } = await supabase
           .from("news_items")
-          .select("*")
-          .eq("brand_id", brandId)
+          .select(`
+            *,
+            news_brand_assignments!inner(
+              brand_id,
+              is_published
+            )
+          `)
           .eq("slug", slug)
+          .eq("news_brand_assignments.brand_id", brandId)
           .maybeSingle();
 
         if (error) {
@@ -599,68 +759,42 @@ Deno.serve(async (req: Request) => {
         }
 
         if (!data) {
+          console.log("[CONTENT-API] News item not found for slug:", slug);
           return new Response(JSON.stringify({ error: "News item not found" }), {
             status: 404,
             headers: corsHeaders(req),
           });
         }
 
-        console.log("[CONTENT-API] Found news item:", data.id);
-        return new Response(JSON.stringify(data), {
+        const transformedData = {
+          ...data,
+          is_published: data.news_brand_assignments[0]?.is_published || false,
+        };
+
+        console.log("[CONTENT-API] News item loaded successfully");
+        return new Response(JSON.stringify(transformedData), {
           status: 200,
           headers: corsHeaders(req),
         });
       }
     }
 
-    if (action === "delete") {
-      const payload = await verifyBearerToken(req, "content:write");
-      const id = url.searchParams.get("id");
-
-      if (!id) {
-        return new Response(JSON.stringify({ error: "Missing id parameter" }), {
-          status: 400,
-          headers: corsHeaders(req),
-        });
-      }
-
-      console.log("[CONTENT-API] Deleting item:", id);
-
-      const { error } = await supabase
-        .from(contentType)
-        .delete()
-        .eq("id", id)
-        .eq("brand_id", payload.brand_id);
-
-      if (error) {
-        console.error("[CONTENT-API] Delete error:", error);
-        throw error;
-      }
-
-      console.log("[CONTENT-API] Item deleted successfully");
-      return new Response(JSON.stringify({ success: true }), {
-        status: 200,
-        headers: corsHeaders(req),
-      });
-    }
-
     return new Response(
-      JSON.stringify({ error: "Invalid action" }),
+      JSON.stringify({ error: "Unknown action or content type" }),
       {
         status: 400,
         headers: corsHeaders(req),
       }
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error("[CONTENT-API] Error:", error);
-
-    const statusCode = (error as any).statusCode || 500;
-    const message = error instanceof Error ? error.message : "Internal server error";
-
     return new Response(
-      JSON.stringify({ error: message }),
+      JSON.stringify({
+        error: error.message || "Internal server error",
+        details: error.toString(),
+      }),
       {
-        status: statusCode,
+        status: error.statusCode || 500,
         headers: corsHeaders(req),
       }
     );
