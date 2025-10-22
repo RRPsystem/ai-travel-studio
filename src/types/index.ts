@@ -80,18 +80,19 @@ export interface UnsplashImage {
   };
 }
 
-export type ComponentType = 
-  | 'hero' 
-  | 'text' 
-  | 'image' 
-  | 'gallery' 
-  | 'booking-form' 
-  | 'testimonial' 
+export type ComponentType =
+  | 'hero'
+  | 'text'
+  | 'image'
+  | 'gallery'
+  | 'booking-form'
+  | 'testimonial'
   | 'destination-card'
   | 'tour-package'
   | 'contact-form'
   | 'youtube-video'
-  | 'map';
+  | 'map'
+  | 'news-overview';
 
 export interface DragItem {
   id: string;
