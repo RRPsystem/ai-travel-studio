@@ -218,12 +218,14 @@ export function TemplateManager() {
     console.log('Selected file:', file.name, file.size, file.type);
 
     if (!file.type.startsWith('image/')) {
-      alert('Selecteer een geldige afbeelding');
+      setNotification({ type: 'error', message: 'Selecteer een geldige afbeelding' });
+      setTimeout(() => setNotification(null), 3000);
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert('Afbeelding mag maximaal 5MB zijn');
+      setNotification({ type: 'error', message: 'Afbeelding mag maximaal 5MB zijn' });
+      setTimeout(() => setNotification(null), 3000);
       return;
     }
 
@@ -231,45 +233,36 @@ export function TemplateManager() {
     setUploading(true);
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${editingTemplate.id}-${Date.now()}.${fileExt}`;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        console.log('✅ Image converted to base64, length:', result.length);
 
-      console.log('Uploading to storage:', fileName);
-
-      const { error: uploadError } = await supabase.storage
-        .from('template-previews')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: true
+        setEditingTemplate({
+          ...editingTemplate,
+          preview_image_url: result
         });
 
-      if (uploadError) {
-        console.error('Storage upload error:', uploadError);
-        throw new Error(uploadError.message);
-      }
-
-      const { data: publicUrlData } = supabase.storage
-        .from('template-previews')
-        .getPublicUrl(fileName);
-
-      const publicUrl = publicUrlData.publicUrl;
-      console.log('Public URL generated:', publicUrl);
-
-      const updatedTemplate = {
-        ...editingTemplate,
-        preview_image_url: publicUrl
+        setUploading(false);
+        setNotification({ type: 'success', message: 'Afbeelding succesvol geüpload!' });
+        setTimeout(() => setNotification(null), 3000);
       };
 
-      console.log('Updated template object:', updatedTemplate);
-      setEditingTemplate(updatedTemplate);
+      reader.onerror = () => {
+        console.error('❌ FileReader error');
+        setUploading(false);
+        setSelectedFileName('');
+        setNotification({ type: 'error', message: 'Upload mislukt' });
+        setTimeout(() => setNotification(null), 3000);
+      };
 
-      setUploading(false);
-      console.log('Upload complete - image ready for save. Preview URL:', publicUrl);
+      reader.readAsDataURL(file);
     } catch (error: any) {
-      console.error('Upload failed:', error);
-      alert(`Upload mislukt: ${error?.message || 'Onbekende fout'}`);
+      console.error('❌ Upload error:', error);
       setUploading(false);
       setSelectedFileName('');
+      setNotification({ type: 'error', message: `Upload mislukt: ${error?.message || 'Onbekende fout'}` });
+      setTimeout(() => setNotification(null), 5000);
     }
   };
 
