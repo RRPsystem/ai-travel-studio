@@ -101,12 +101,11 @@ export function TemplateManager() {
     if (!user) return;
 
     try {
-      const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}#/admin/templates`;
-
+      // Tijdelijk ZONDER returnUrl om errors te kunnen zien
       const deeplink = await openTemplateBuilder(user.id, {
         mode: 'edit-template',
         pageId: templateId,
-        returnUrl,
+        // returnUrl: `${import.meta.env.VITE_APP_URL || window.location.origin}#/admin/templates`,
       });
 
       window.open(deeplink, '_blank');
