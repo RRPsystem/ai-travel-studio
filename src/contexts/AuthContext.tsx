@@ -91,9 +91,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(error.error || 'Failed to fetch profile');
       }
 
-      const { user } = await response.json();
-      console.log('🔐 User profile loaded:', { id: user.id, role: user.role, email: user.email });
-      setUser(user);
+      const { user: fetchedUser } = await response.json();
+      console.log('🔐 User profile loaded:', { id: fetchedUser.id, role: fetchedUser.role, email: fetchedUser.email });
+
+      setUser(prevUser => {
+        if (prevUser?.id === fetchedUser.id && prevUser?.role === fetchedUser.role) {
+          console.log('🔐 User unchanged, skipping state update');
+          return prevUser;
+        }
+        return fetchedUser;
+      });
     } catch (error) {
       console.error('🔐 Error fetching user profile:', error);
       setUser(null);
