@@ -138,32 +138,47 @@ export function TemplateManager() {
   };
 
   const handleOpenEditMetadata = (template: Template) => {
-    setEditingTemplate(template);
+    setEditingTemplate({
+      ...template,
+      sort_order: template.sort_order ?? 0,
+      theme_label: template.theme_label ?? null
+    });
   };
 
   const handleSaveMetadata = async () => {
     if (!editingTemplate) return;
 
     try {
+      console.log('Saving template metadata:', {
+        id: editingTemplate.id,
+        title: editingTemplate.title,
+        sort_order: editingTemplate.sort_order,
+        theme_label: editingTemplate.theme_label
+      });
+
       const { error } = await supabase
         .from('pages')
         .update({
           title: editingTemplate.title,
           template_category: editingTemplate.template_category,
           preview_image_url: editingTemplate.preview_image_url,
-          sort_order: editingTemplate.sort_order,
+          sort_order: editingTemplate.sort_order ?? 0,
           theme_label: editingTemplate.theme_label || null,
         })
         .eq('id', editingTemplate.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Save error:', error);
+        throw error;
+      }
 
+      console.log('Save successful, reloading templates...');
       await loadTemplates();
       setEditingTemplate(null);
       alert('Template metadata succesvol bijgewerkt!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating template metadata:', error);
-      alert('Er is een fout opgetreden bij het bijwerken van de metadata');
+      alert(`Opslaan mislukt: ${error?.message || 'Onbekende fout'}`);
     }
   };
 
@@ -383,7 +398,7 @@ export function TemplateManager() {
                     <div className="flex items-start justify-between mb-1">
                       <h3 className="font-semibold text-gray-900">{template.title}</h3>
                       <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
-                        #{template.sort_order}
+                        #{template.sort_order ?? 0}
                       </span>
                     </div>
                     <p className="text-sm text-gray-600">
