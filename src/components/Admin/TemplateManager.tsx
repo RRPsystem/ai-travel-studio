@@ -12,6 +12,8 @@ interface Template {
   preview_image_url: string | null;
   status: string;
   created_at: string;
+  sort_order: number;
+  theme_label: string | null;
 }
 
 const categories = [
@@ -58,6 +60,7 @@ export function TemplateManager() {
         .from('pages')
         .select('*')
         .eq('is_template', true)
+        .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -148,6 +151,8 @@ export function TemplateManager() {
           title: editingTemplate.title,
           template_category: editingTemplate.template_category,
           preview_image_url: editingTemplate.preview_image_url,
+          sort_order: editingTemplate.sort_order,
+          theme_label: editingTemplate.theme_label || null,
         })
         .eq('id', editingTemplate.id);
 
@@ -166,6 +171,7 @@ export function TemplateManager() {
     if (!e.target.files || e.target.files.length === 0 || !editingTemplate) return;
 
     const file = e.target.files[0];
+    console.log('Selected file:', file.name, file.type, file.size);
 
     // Validate file type
     if (!file.type.startsWith('image/')) {
@@ -187,20 +193,29 @@ export function TemplateManager() {
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       const filePath = `${fileName}`;
 
+      console.log('Uploading to:', filePath);
+
       // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
         .from('template-previews')
         .upload(filePath, file, {
           cacheControl: '3600',
           upsert: false
         });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw uploadError;
+      }
+
+      console.log('Upload success:', uploadData);
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
         .from('template-previews')
         .getPublicUrl(filePath);
+
+      console.log('Public URL:', publicUrl);
 
       // Update the editing template with the new URL
       setEditingTemplate({
@@ -209,9 +224,9 @@ export function TemplateManager() {
       });
 
       alert('Afbeelding succesvol geüpload!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading image:', error);
-      alert('Er is een fout opgetreden bij het uploaden van de afbeelding');
+      alert(`Er is een fout opgetreden: ${error?.message || 'Onbekende fout'}`);
     } finally {
       setUploading(false);
     }
@@ -332,11 +347,23 @@ export function TemplateManager() {
                 )}
 
                 <div className="p-4">
-                  <div className="mb-2">
-                    <h3 className="font-semibold text-gray-900">{template.title}</h3>
+                  <div className="mb-3">
+                    <div className="flex items-start justify-between mb-1">
+                      <h3 className="font-semibold text-gray-900">{template.title}</h3>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                        #{template.sort_order}
+                      </span>
+                    </div>
                     <p className="text-sm text-gray-600">
                       {categories.find(c => c.value === template.template_category)?.label || template.template_category}
                     </p>
+                    {template.theme_label && (
+                      <div className="mt-2">
+                        <span className="inline-block text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full">
+                          🏷️ {template.theme_label}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex space-x-2">
@@ -383,34 +410,67 @@ export function TemplateManager() {
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Titel
-                  </label>
-                  <input
-                    type="text"
-                    value={editingTemplate.title}
-                    onChange={(e) => setEditingTemplate({ ...editingTemplate, title: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                    placeholder="Bijv: Home 2"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Titel
+                    </label>
+                    <input
+                      type="text"
+                      value={editingTemplate.title}
+                      onChange={(e) => setEditingTemplate({ ...editingTemplate, title: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder="Bijv: Home 2"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Volgorde
+                      <span className="text-xs text-gray-500 ml-2">(laag = eerst getoond)</span>
+                    </label>
+                    <input
+                      type="number"
+                      value={editingTemplate.sort_order}
+                      onChange={(e) => setEditingTemplate({ ...editingTemplate, sort_order: parseInt(e.target.value) || 0 })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder="0"
+                      min="0"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Categorie
-                  </label>
-                  <select
-                    value={editingTemplate.template_category}
-                    onChange={(e) => setEditingTemplate({ ...editingTemplate, template_category: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                  >
-                    {categories.map((cat) => (
-                      <option key={cat.value} value={cat.value}>
-                        {cat.label}
-                      </option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Categorie
+                    </label>
+                    <select
+                      value={editingTemplate.template_category}
+                      onChange={(e) => setEditingTemplate({ ...editingTemplate, template_category: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    >
+                      {categories.map((cat) => (
+                        <option key={cat.value} value={cat.value}>
+                          {cat.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Theme Label
+                      <span className="text-xs text-gray-500 ml-2">(optioneel, bijv: "Golf")</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={editingTemplate.theme_label || ''}
+                      onChange={(e) => setEditingTemplate({ ...editingTemplate, theme_label: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      placeholder="Bijv: Golf, Travel, Business"
+                    />
+                  </div>
                 </div>
 
                 <div>
