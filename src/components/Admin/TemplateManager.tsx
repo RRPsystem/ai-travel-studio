@@ -212,34 +212,47 @@ export function TemplateManager() {
       return;
     }
 
-    console.log('Starting upload...');
+    console.log('Starting upload to Supabase storage...');
     setUploading(true);
 
     try {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        console.log('FileReader onload triggered');
-        const result = event.target?.result as string;
-        console.log('Result length:', result?.length);
-        console.log('Result preview:', result?.substring(0, 50));
-        setEditingTemplate({
-          ...editingTemplate,
-          preview_image_url: result
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${editingTemplate.id}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      console.log('Uploading to path:', filePath);
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('template-previews')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: true
         });
-        console.log('Updated editing template with preview');
-        setUploading(false);
-      };
-      reader.onerror = (error) => {
-        console.error('FileReader error:', error);
-        alert('Fout bij het lezen van de afbeelding');
-        setUploading(false);
-        setSelectedFileName('');
-      };
-      console.log('Starting readAsDataURL...');
-      reader.readAsDataURL(file);
-    } catch (error) {
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw uploadError;
+      }
+
+      console.log('Upload successful:', uploadData);
+
+      const { data: publicUrlData } = supabase.storage
+        .from('template-previews')
+        .getPublicUrl(filePath);
+
+      const publicUrl = publicUrlData.publicUrl;
+      console.log('Public URL:', publicUrl);
+
+      setEditingTemplate({
+        ...editingTemplate,
+        preview_image_url: publicUrl
+      });
+
+      console.log('Updated editing template with storage URL');
+      setUploading(false);
+    } catch (error: any) {
       console.error('Upload exception:', error);
-      alert('Upload mislukt');
+      alert(`Upload mislukt: ${error?.message || 'Onbekende fout'}`);
       setUploading(false);
       setSelectedFileName('');
     }
