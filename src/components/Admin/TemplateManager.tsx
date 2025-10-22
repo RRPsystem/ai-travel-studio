@@ -185,44 +185,60 @@ export function TemplateManager() {
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('=== handleImageUpload called ===');
+    console.log('Files:', e.target.files);
+    console.log('Editing template:', editingTemplate);
+
     if (!e.target.files || e.target.files.length === 0 || !editingTemplate) {
+      console.log('No files or no editing template, returning');
       return;
     }
 
     const file = e.target.files[0];
+    console.log('Selected file:', file.name, file.size, file.type);
     setSelectedFileName(file.name);
 
     if (!file.type.startsWith('image/')) {
+      console.log('Invalid file type');
       alert('Selecteer een geldige afbeelding');
       setSelectedFileName('');
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
+      console.log('File too large');
       alert('Afbeelding mag maximaal 5MB zijn');
       setSelectedFileName('');
       return;
     }
 
+    console.log('Starting upload...');
     setUploading(true);
 
     try {
       const reader = new FileReader();
       reader.onload = (event) => {
+        console.log('FileReader onload triggered');
         const result = event.target?.result as string;
+        console.log('Result length:', result?.length);
+        console.log('Result preview:', result?.substring(0, 50));
         setEditingTemplate({
           ...editingTemplate,
           preview_image_url: result
         });
+        console.log('Updated editing template with preview');
         setUploading(false);
       };
-      reader.onerror = () => {
+      reader.onerror = (error) => {
+        console.error('FileReader error:', error);
         alert('Fout bij het lezen van de afbeelding');
         setUploading(false);
         setSelectedFileName('');
       };
+      console.log('Starting readAsDataURL...');
       reader.readAsDataURL(file);
     } catch (error) {
+      console.error('Upload exception:', error);
       alert('Upload mislukt');
       setUploading(false);
       setSelectedFileName('');
