@@ -28,6 +28,7 @@ export function TemplateManager() {
   const { user } = useAuth();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedFileName, setSelectedFileName] = useState<string>('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -175,6 +176,7 @@ export function TemplateManager() {
       console.log('Save successful, reloading templates...');
       await loadTemplates();
       setEditingTemplate(null);
+      setSelectedFileName('');
       alert('Template metadata succesvol bijgewerkt!');
     } catch (error: any) {
       console.error('Error updating template metadata:', error);
@@ -188,14 +190,17 @@ export function TemplateManager() {
     }
 
     const file = e.target.files[0];
+    setSelectedFileName(file.name);
 
     if (!file.type.startsWith('image/')) {
       alert('Selecteer een geldige afbeelding');
+      setSelectedFileName('');
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
       alert('Afbeelding mag maximaal 5MB zijn');
+      setSelectedFileName('');
       return;
     }
 
@@ -214,11 +219,13 @@ export function TemplateManager() {
       reader.onerror = () => {
         alert('Fout bij het lezen van de afbeelding');
         setUploading(false);
+        setSelectedFileName('');
       };
       reader.readAsDataURL(file);
     } catch (error) {
       alert('Upload mislukt');
       setUploading(false);
+      setSelectedFileName('');
     }
   };
 
@@ -392,7 +399,10 @@ export function TemplateManager() {
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xl font-semibold text-gray-900">Template Metadata Bewerken</h3>
                 <button
-                  onClick={() => setEditingTemplate(null)}
+                  onClick={() => {
+                    setEditingTemplate(null);
+                    setSelectedFileName('');
+                  }}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
                   <X size={24} />
@@ -488,6 +498,11 @@ export function TemplateManager() {
                         <Upload size={18} />
                         <span>{uploading ? 'Uploaden...' : 'Upload Afbeelding'}</span>
                       </label>
+                      {selectedFileName && (
+                        <p className="text-sm text-green-600 mt-2">
+                          ✓ {selectedFileName}
+                        </p>
+                      )}
                       <p className="text-xs text-gray-500 mt-1">
                         Max 5MB - JPEG, PNG, GIF of WebP
                       </p>
@@ -533,7 +548,10 @@ export function TemplateManager() {
                   <span>Opslaan</span>
                 </button>
                 <button
-                  onClick={() => setEditingTemplate(null)}
+                  onClick={() => {
+                    setEditingTemplate(null);
+                    setSelectedFileName('');
+                  }}
                   className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg hover:bg-gray-300 transition-colors"
                 >
                   Annuleren
