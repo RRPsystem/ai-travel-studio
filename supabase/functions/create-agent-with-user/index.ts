@@ -46,12 +46,12 @@ Deno.serve(async (req: Request) => {
 
     const { data: userData, error: dbError } = await supabaseClient
       .from('users')
-      .select('role')
+      .select('role, brand_id')
       .eq('id', user.id)
       .single();
 
-    if (dbError || !userData || userData.role !== 'admin') {
-      throw new Error('Unauthorized: Admin access required');
+    if (dbError || !userData) {
+      throw new Error('Unauthorized: User not found');
     }
 
     const body = await req.json();
@@ -69,6 +69,14 @@ Deno.serve(async (req: Request) => {
 
     if (password.length < 6) {
       throw new Error('Password must be at least 6 characters');
+    }
+
+    if (userData.role === 'brand') {
+      if (userData.brand_id !== brand_id) {
+        throw new Error('Unauthorized: Brand users can only create agents for their own brand');
+      }
+    } else if (userData.role !== 'admin' && userData.role !== 'operator') {
+      throw new Error('Unauthorized: Only admins, operators, and brand users can create agents');
     }
 
     const { data: brand } = await supabaseAdmin

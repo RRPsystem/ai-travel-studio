@@ -9,6 +9,7 @@ import { HelpBot } from '../shared/HelpBot';
 import { NewsApproval } from './NewsApproval';
 import { PageManagement } from './PageManagement';
 import { NewPage } from './NewPage';
+import { AgentManagement } from './AgentManagement';
 import { Users, Settings, Plus, Bot, Sparkles, Import as FileImport, ChevronDown, ChevronRight, LayoutGrid as Layout, FileText, Globe, Newspaper, MapPin, Plane, Share2, Map, ArrowRight } from 'lucide-react';
 import RoadmapBoard from './RoadmapBoard';
 
@@ -599,6 +600,7 @@ export function BrandDashboard() {
           {activeSection === 'ai-content' && <AIContentGenerator />}
           {activeSection === 'ai-travelbro' && <TravelBro />}
           {activeSection === 'social-media' && <SocialMedia />}
+          {activeSection === 'agents' && <AgentManagement />}
           {activeSection === 'roadmap' && <RoadmapBoard />}
 
           {activeSection === 'ai-import' && (
