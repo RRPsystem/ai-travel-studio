@@ -532,17 +532,12 @@ export function TemplateManager() {
                         type="file"
                         id="image-upload"
                         accept="image/*"
-                        onChange={(e) => {
-                          console.log('File input onChange triggered!', e.target.files);
-                          handleImageUpload(e);
-                        }}
-                        onClick={() => console.log('File input clicked')}
+                        onChange={handleImageUpload}
                         className="hidden"
                         disabled={uploading}
                       />
                       <label
                         htmlFor="image-upload"
-                        onClick={() => console.log('Label clicked')}
                         className={`inline-flex items-center space-x-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors ${
                           uploading ? 'opacity-50 cursor-not-allowed' : ''
                         }`}
