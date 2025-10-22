@@ -205,6 +205,7 @@ export function TemplateManager() {
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    alert('handleImageUpload aangeroepen!'); // TEST
     console.log('📸 === handleImageUpload called ===');
     console.log('📸 Files:', e.target.files);
     console.log('📸 Editing template:', editingTemplate);
