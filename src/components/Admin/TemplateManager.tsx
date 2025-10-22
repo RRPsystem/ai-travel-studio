@@ -28,6 +28,7 @@ export function TemplateManager() {
   const { user } = useAuth();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notification, setNotification] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [selectedFileName, setSelectedFileName] = useState<string>('');
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
@@ -56,6 +57,7 @@ export function TemplateManager() {
 
   const loadTemplates = async () => {
     try {
+      console.log('🔄 loadTemplates: Starting...');
       setLoading(true);
       const { data, error } = await supabase
         .from('pages')
@@ -64,12 +66,19 @@ export function TemplateManager() {
         .order('sort_order', { ascending: true })
         .order('created_at', { ascending: false });
 
+      console.log('🔄 loadTemplates: Query completed', { data, error });
+
       if (error) throw error;
       setTemplates(data || []);
+      console.log('✅ loadTemplates: Success, templates count:', data?.length || 0);
     } catch (error) {
-      console.error('Error loading templates:', error);
+      console.error('❌ loadTemplates: Error:', error);
+      setTemplates([]);
+      setNotification({ type: 'error', message: 'Fout bij laden van templates' });
+      setTimeout(() => setNotification(null), 5000);
     } finally {
       setLoading(false);
+      console.log('✅ loadTemplates: Complete, loading set to false');
     }
   };
 
@@ -186,10 +195,12 @@ export function TemplateManager() {
       setEditingTemplate(null);
       setSelectedFileName('');
       console.log('✅ Modal closed');
-      alert('Template metadata succesvol bijgewerkt!');
+      setNotification({ type: 'success', message: 'Template metadata succesvol bijgewerkt!' });
+      setTimeout(() => setNotification(null), 3000);
     } catch (error: any) {
       console.error('Error updating template metadata:', error);
-      alert(`Opslaan mislukt: ${error?.message || 'Onbekende fout'}`);
+      setNotification({ type: 'error', message: `Opslaan mislukt: ${error?.message || 'Onbekende fout'}` });
+      setTimeout(() => setNotification(null), 5000);
     }
   };
 
@@ -598,6 +609,14 @@ export function TemplateManager() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {notification && (
+        <div className={`fixed bottom-4 right-4 px-6 py-4 rounded-lg shadow-lg z-50 ${
+          notification.type === 'success' ? 'bg-green-500' : 'bg-red-500'
+        } text-white`}>
+          {notification.message}
         </div>
       )}
     </div>
