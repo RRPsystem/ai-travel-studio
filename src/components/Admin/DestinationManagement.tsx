@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { MapPin, Plus, Edit2, Trash2, Eye } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { generateBuilderJWT } from '../../lib/jwtHelper';
+import { generateBuilderJWT, generateBuilderDeeplink } from '../../lib/jwtHelper';
 
 interface Destination {
   id: string;
@@ -80,24 +80,18 @@ export function DestinationManagement() {
       });
 
       const builderBaseUrl = 'https://www.ai-websitestudio.nl';
-      const apiBaseUrl = jwtResponse.api_url || `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
-      const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
-
       const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}#/admin/destinations`;
 
-      const params = new URLSearchParams({
-        api: apiBaseUrl,
-        brand_id: SYSTEM_BRAND_ID,
-        token: jwtResponse.token,
-        apikey: apiKey,
-        author_type: 'admin',
-        author_id: user.id,
-        content_type: 'destinations',
-        return_url: returnUrl,
-        mode: 'destination'
+      const deeplink = generateBuilderDeeplink({
+        baseUrl: builderBaseUrl,
+        jwtResponse,
+        returnUrl,
+        mode: 'destination',
+        authorType: 'admin',
+        authorId: user.id,
+        contentType: 'destinations'
       });
 
-      const deeplink = `${builderBaseUrl}/?${params.toString()}#/mode/destination`;
       console.log('🔗 Opening destination builder deeplink:', deeplink);
 
       const newWindow = window.open(deeplink, '_blank');
@@ -132,25 +126,18 @@ export function DestinationManagement() {
       });
 
       const builderBaseUrl = 'https://www.ai-websitestudio.nl';
-      const apiBaseUrl = jwtResponse.api_url || `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
-      const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
-
       const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}#/admin/destinations`;
 
-      const params = new URLSearchParams({
-        api: apiBaseUrl,
-        brand_id: SYSTEM_BRAND_ID,
-        token: jwtResponse.token,
-        apikey: apiKey,
-        destination_slug: destination.slug,
-        author_type: 'admin',
-        author_id: user.id,
-        content_type: 'destinations',
-        return_url: returnUrl,
-        mode: 'destination'
+      const deeplink = generateBuilderDeeplink({
+        baseUrl: builderBaseUrl,
+        jwtResponse,
+        returnUrl,
+        mode: 'destination',
+        authorType: 'admin',
+        authorId: user.id,
+        contentType: 'destinations',
+        destinationSlug: destination.slug
       });
-
-      const deeplink = `${builderBaseUrl}?${params.toString()}`;
 
       console.log('🔗 Opening destination edit deeplink:', deeplink);
 

@@ -42,6 +42,7 @@ export async function generateBuilderJWT(
     authorId?: string;
     contentType?: string;
     newsSlug?: string;
+    destinationSlug?: string;
     mode?: string;
     returnUrl?: string;
   } = {}
@@ -82,6 +83,7 @@ export async function generateBuilderJWT(
   if (options.authorId) requestBody.author_id = options.authorId;
   if (options.contentType) requestBody.content_type = options.contentType;
   if (options.newsSlug) requestBody.news_slug = options.newsSlug;
+  if (options.destinationSlug) requestBody.destination_slug = options.destinationSlug;
   if (options.mode) requestBody.mode = options.mode;
   if (options.returnUrl) requestBody.return_url = options.returnUrl;
 
@@ -104,52 +106,60 @@ export async function generateBuilderJWT(
   return data;
 }
 
-export function generateBuilderDeeplink(
-  brandId: string,
-  token: string,
-  options: {
-    pageId?: string;
-    templateId?: string;
-    menuId?: string;
-    headerId?: string;
-    footerId?: string;
-    returnUrl?: string;
-  } = {}
-): string {
-  const builderBaseUrl = 'https://www.ai-websitestudio.nl';
-  const apiBaseUrl = `${import.meta.env.VITE_SUPABASE_URL || window.location.origin}/functions/v1`;
-  const apiKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+export function generateBuilderDeeplink({
+  baseUrl,
+  jwtResponse,
+  returnUrl,
+  pageId,
+  templateId,
+  menuId,
+  headerId,
+  footerId,
+  mode,
+  authorType,
+  authorId,
+  contentType,
+  newsSlug,
+  destinationSlug,
+}: {
+  baseUrl?: string;
+  jwtResponse: GenerateJWTResponse;
+  returnUrl?: string;
+  pageId?: string;
+  templateId?: string;
+  menuId?: string;
+  headerId?: string;
+  footerId?: string;
+  mode?: string;
+  authorType?: string;
+  authorId?: string;
+  contentType?: string;
+  newsSlug?: string;
+  destinationSlug?: string;
+}): string {
+  const builderBaseUrl = baseUrl || 'https://www.ai-websitestudio.nl';
+  const apiBaseUrl = jwtResponse.api_url || `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+  const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
   const params = new URLSearchParams({
     api: apiBaseUrl,
-    brand_id: brandId,
-    token: token,
+    brand_id: jwtResponse.brand_id,
+    token: jwtResponse.token,
     apikey: apiKey
   });
 
-  if (options.pageId) {
-    params.append('page_id', options.pageId);
-  }
-
-  if (options.templateId) {
-    params.append('template_id', options.templateId);
-  }
-
-  if (options.menuId) {
-    params.append('menu_id', options.menuId);
-  }
-
-  if (options.headerId) {
-    params.append('header_id', options.headerId);
-  }
-
-  if (options.footerId) {
-    params.append('footer_id', options.footerId);
-  }
-
-  if (options.returnUrl) {
-    params.append('return_url', options.returnUrl);
-  }
+  if (pageId) params.append('page_id', pageId);
+  if (templateId) params.append('template_id', templateId);
+  if (menuId) params.append('menu_id', menuId);
+  if (headerId) params.append('header_id', headerId);
+  if (footerId) params.append('footer_id', footerId);
+  if (returnUrl) params.append('return_url', returnUrl);
+  if (mode) params.append('mode', mode);
+  if (authorType) params.append('author_type', authorType);
+  if (authorId) params.append('author_id', authorId);
+  if (contentType) params.append('content_type', contentType);
+  if (newsSlug) params.append('news_slug', newsSlug);
+  if (destinationSlug) params.append('destination_slug', destinationSlug);
 
   return `${builderBaseUrl}/?${params.toString()}`;
 }

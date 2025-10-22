@@ -190,7 +190,8 @@ export function DestinationApproval() {
         mode: 'destination',
         authorType: 'brand',
         authorId: user.id,
-        contentType: 'destinations'
+        contentType: 'destinations',
+        destinationSlug: destination.slug
       });
 
       console.log('🔗 Opening destination builder deeplink:', deeplink);
