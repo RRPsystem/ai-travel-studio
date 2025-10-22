@@ -36,7 +36,7 @@ export function TemplateManager() {
     title: '',
     slug: '',
     template_category: 'general',
-    preview_image_url: '/image copy copy.png',
+    preview_image_url: '',
   });
 
   useEffect(() => {
@@ -95,7 +95,7 @@ export function TemplateManager() {
         title: '',
         slug: '',
         template_category: 'general',
-        preview_image_url: '/image copy copy.png',
+        preview_image_url: '',
       });
     } catch (error) {
       console.error('Error creating template:', error);
@@ -154,26 +154,33 @@ export function TemplateManager() {
         id: editingTemplate.id,
         title: editingTemplate.title,
         sort_order: editingTemplate.sort_order,
-        theme_label: editingTemplate.theme_label
+        theme_label: editingTemplate.theme_label,
+        preview_image_url: editingTemplate.preview_image_url
       });
 
-      const { error } = await supabase
+      const updateData = {
+        title: editingTemplate.title,
+        template_category: editingTemplate.template_category,
+        preview_image_url: editingTemplate.preview_image_url,
+        sort_order: editingTemplate.sort_order ?? 0,
+        theme_label: editingTemplate.theme_label || null,
+      };
+
+      console.log('Update data being sent:', updateData);
+
+      const { data: updatedData, error } = await supabase
         .from('pages')
-        .update({
-          title: editingTemplate.title,
-          template_category: editingTemplate.template_category,
-          preview_image_url: editingTemplate.preview_image_url,
-          sort_order: editingTemplate.sort_order ?? 0,
-          theme_label: editingTemplate.theme_label || null,
-        })
-        .eq('id', editingTemplate.id);
+        .update(updateData)
+        .eq('id', editingTemplate.id)
+        .select();
 
       if (error) {
         console.error('Save error:', error);
         throw error;
       }
 
-      console.log('Save successful, reloading templates...');
+      console.log('Save successful! Updated record:', updatedData);
+      console.log('Reloading templates...');
       await loadTemplates();
       setEditingTemplate(null);
       setSelectedFileName('');
@@ -233,13 +240,16 @@ export function TemplateManager() {
       const publicUrl = publicUrlData.publicUrl;
       console.log('Public URL generated:', publicUrl);
 
-      setEditingTemplate({
+      const updatedTemplate = {
         ...editingTemplate,
         preview_image_url: publicUrl
-      });
+      };
+
+      console.log('Updated template object:', updatedTemplate);
+      setEditingTemplate(updatedTemplate);
 
       setUploading(false);
-      console.log('Upload complete - image ready for save');
+      console.log('Upload complete - image ready for save. Preview URL:', publicUrl);
     } catch (error: any) {
       console.error('Upload failed:', error);
       alert(`Upload mislukt: ${error?.message || 'Onbekende fout'}`);
