@@ -31,11 +31,17 @@ export function PageManagement() {
   const loadPages = async (brandId: string, showLoading = true) => {
     try {
       if (showLoading) setLoading(true);
+
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('No active session');
+      }
+
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pages-api?brand_id=${brandId}`;
 
       const response = await fetch(apiUrl, {
         headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json',
         },
       });
