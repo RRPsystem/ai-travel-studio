@@ -158,8 +158,10 @@ export function generateBuilderDeeplink({
   if (authorType) params.append('author_type', authorType);
   if (authorId) params.append('author_id', authorId);
   if (contentType) params.append('content_type', contentType);
-  if (newsSlug) params.append('news_slug', newsSlug);
-  if (destinationSlug) params.append('destination_slug', destinationSlug);
+
+  // Use 'slug' for both news and destinations (builder expects 'slug' parameter)
+  if (newsSlug) params.append('slug', newsSlug);
+  if (destinationSlug) params.append('slug', destinationSlug);
 
   return `${builderBaseUrl}/?${params.toString()}`;
 }
