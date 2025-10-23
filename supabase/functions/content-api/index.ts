@@ -730,7 +730,7 @@ Deno.serve(async (req: Request) => {
       const brandId = url.searchParams.get("brand_id") || payload.brand_id;
       const slug = url.searchParams.get("slug");
 
-      console.log("[CONTENT-API] Loading news by slug:", slug, "for brand:", brandId);
+      console.log("[CONTENT-API] Loading by slug:", slug, "for brand:", brandId);
 
       if (!slug) {
         return new Response(JSON.stringify({ error: "Missing slug parameter" }), {
@@ -772,6 +772,55 @@ Deno.serve(async (req: Request) => {
         };
 
         console.log("[CONTENT-API] News item loaded successfully");
+        return new Response(JSON.stringify(transformedData), {
+          status: 200,
+          headers: corsHeaders(req),
+        });
+      } else if (contentType === "destinations") {
+        console.log("[CONTENT-API] Loading destination by slug:", slug, "for brand:", brandId);
+
+        const { data: destinationData, error: destError } = await supabase
+          .from("destinations")
+          .select("*")
+          .eq("slug", slug)
+          .maybeSingle();
+
+        if (destError) {
+          console.error("[CONTENT-API] Database error:", destError);
+          throw destError;
+        }
+
+        if (!destinationData) {
+          console.log("[CONTENT-API] Destination not found for slug:", slug);
+          return new Response(JSON.stringify({ error: "Destination not found" }), {
+            status: 404,
+            headers: corsHeaders(req),
+          });
+        }
+
+        const { data: assignmentData, error: assignmentError } = await supabase
+          .from("destination_brand_assignments")
+          .select("is_published, status")
+          .eq("destination_id", destinationData.id)
+          .eq("brand_id", brandId)
+          .maybeSingle();
+
+        if (assignmentError && assignmentError.code !== 'PGRST116') {
+          console.error("[CONTENT-API] Assignment error:", assignmentError);
+        }
+
+        const isBrandOwned = destinationData.brand_id === brandId;
+        const isPublished = isBrandOwned
+          ? destinationData.status === 'published'
+          : assignmentData?.is_published || false;
+
+        const transformedData = {
+          ...destinationData,
+          is_published: isPublished,
+          assignment_status: assignmentData?.status || (isBrandOwned ? 'brand' : null),
+        };
+
+        console.log("[CONTENT-API] Destination loaded successfully");
         return new Response(JSON.stringify(transformedData), {
           status: 200,
           headers: corsHeaders(req),
