@@ -90,6 +90,17 @@ export function DestinationApproval() {
 
       const filteredBrandDestinations = (brandDestinationsData || []).filter(item => !assignedDestinationIds.has(item.id));
 
+      const { data: availableDestinationsData, error: availableDestinationsError } = await supabase
+        .from('destinations')
+        .select('id, title, slug, description, featured_image, country, created_at, published_at, status, is_mandatory, enabled_for_brands, author_type')
+        .eq('enabled_for_brands', true)
+        .neq('brand_id', user.brand_id)
+        .order('created_at', { ascending: false });
+
+      if (availableDestinationsError) throw availableDestinationsError;
+
+      const filteredAvailableDestinations = (availableDestinationsData || []).filter(item => !assignedDestinationIds.has(item.id));
+
       const formattedBrandDestinations = filteredBrandDestinations.map(item => ({
         id: `brand-destination-${item.id}`,
         destination_id: item.id,
@@ -109,7 +120,25 @@ export function DestinationApproval() {
         }
       }));
 
-      const allDestinations = [...formattedAssignments, ...formattedBrandDestinations].sort((a, b) =>
+      const formattedAvailableDestinations = filteredAvailableDestinations.map(item => ({
+        id: `available-destination-${item.id}`,
+        destination_id: item.id,
+        status: item.is_mandatory ? 'mandatory' as const : 'pending' as const,
+        is_published: false,
+        assigned_at: item.created_at,
+        destination: {
+          id: item.id,
+          title: item.title,
+          slug: item.slug,
+          description: item.description || '',
+          featured_image: item.featured_image || '',
+          country: item.country || '',
+          is_mandatory: item.is_mandatory || false,
+          published_at: item.published_at
+        }
+      }));
+
+      const allDestinations = [...formattedAssignments, ...formattedBrandDestinations, ...formattedAvailableDestinations].sort((a, b) =>
         new Date(b.assigned_at).getTime() - new Date(a.assigned_at).getTime()
       );
 
@@ -131,6 +160,19 @@ export function DestinationApproval() {
           .eq('id', assignment.destination_id);
 
         if (error) throw error;
+      } else if (assignmentId.startsWith('available-destination-')) {
+        if (!currentValue) {
+          const { error } = await supabase
+            .from('destination_brand_assignments')
+            .insert({
+              brand_id: user!.brand_id,
+              destination_id: assignment.destination_id,
+              status: assignment.destination.is_mandatory ? 'mandatory' : 'accepted',
+              is_published: true
+            });
+
+          if (error) throw error;
+        }
       } else {
         const { error } = await supabase
           .from('destination_brand_assignments')
@@ -149,16 +191,29 @@ export function DestinationApproval() {
     }
   };
 
-  const handleRejectDestination = async (assignmentId: string) => {
+  const handleRejectDestination = async (assignmentId: string, assignment: DestinationAssignment) => {
     if (!confirm('Weet je zeker dat je deze bestemming wilt afwijzen?')) return;
 
     try {
-      const { error } = await supabase
-        .from('destination_brand_assignments')
-        .update({ status: 'rejected' })
-        .eq('id', assignmentId);
+      if (assignmentId.startsWith('available-destination-')) {
+        const { error } = await supabase
+          .from('destination_brand_assignments')
+          .insert({
+            brand_id: user!.brand_id,
+            destination_id: assignment.destination_id,
+            status: 'rejected',
+            is_published: false
+          });
 
-      if (error) throw error;
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('destination_brand_assignments')
+          .update({ status: 'rejected' })
+          .eq('id', assignmentId);
+
+        if (error) throw error;
+      }
       await loadAssignments();
     } catch (error) {
       console.error('Error rejecting destination:', error);
@@ -190,8 +245,7 @@ export function DestinationApproval() {
         mode: 'destination',
         authorType: 'brand',
         authorId: user.id,
-        contentType: 'destinations',
-        destinationSlug: destination.slug
+        contentType: 'destinations'
       });
 
       console.log('🔗 Opening destination builder deeplink:', deeplink);
@@ -382,12 +436,9 @@ export function DestinationApproval() {
                           type="checkbox"
                           checked={assignment.is_published}
                           onChange={() => handleTogglePublish(assignment.id, assignment.is_published, assignment)}
-                          disabled={assignment.status === 'pending'}
                           className="sr-only peer"
                         />
-                        <div className={`w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer ${
-                          assignment.status === 'pending' ? 'opacity-50 cursor-not-allowed' : ''
-                        } peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600`}></div>
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                       </label>
                     )}
                   </td>
@@ -411,7 +462,7 @@ export function DestinationApproval() {
                       )}
                       {assignment.status === 'pending' && (
                         <button
-                          onClick={() => handleRejectDestination(assignment.id)}
+                          onClick={() => handleRejectDestination(assignment.id, assignment)}
                           className="text-red-600 hover:text-red-900"
                           title="Afwijzen"
                         >
