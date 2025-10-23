@@ -121,9 +121,47 @@ export function NewPage() {
     if (!user || !user.brand_id) return;
 
     try {
+      // First, copy the template to create a new page for this brand
+      const { data: template, error: templateError } = await supabase
+        .from('pages')
+        .select('*')
+        .eq('id', templateId)
+        .maybeSingle();
+
+      if (templateError || !template) {
+        throw new Error('Template niet gevonden');
+      }
+
+      // Create a new page from the template
+      const newPage = {
+        title: template.title,
+        slug: `${template.slug}-${Date.now()}`,
+        content_json: template.content_json,
+        brand_id: user.brand_id,
+        status: 'draft',
+        version: 1,
+        content_type: 'page',
+        is_template: false,
+        owner_user_id: user.id,
+        created_by: user.id,
+        show_in_menu: false,
+        menu_order: 0,
+      };
+
+      const { data: newPageData, error: createError } = await supabase
+        .from('pages')
+        .insert(newPage)
+        .select('id')
+        .maybeSingle();
+
+      if (createError || !newPageData) {
+        throw new Error('Kon geen pagina aanmaken van template');
+      }
+
+      // Now open the builder with the new page
       const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}#/brand/website/pages`;
       const deeplink = await openBuilder(user.brand_id, user.id, {
-        templateId,
+        pageId: newPageData.id,
         returnUrl
       });
       window.open(deeplink, '_blank');
