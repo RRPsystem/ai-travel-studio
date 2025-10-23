@@ -128,6 +128,7 @@ export function PageManagement() {
       const token = await generateBuilderJWT(user.brand_id, user.id);
       const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pages-api/${pageId}`;
 
+      console.log('[PageManagement] Deleting page:', pageId);
       const response = await fetch(apiUrl, {
         method: 'DELETE',
         headers: {
@@ -137,12 +138,16 @@ export function PageManagement() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete page');
+        const errorText = await response.text();
+        console.error('[PageManagement] Delete failed:', response.status, errorText);
+        throw new Error(`Failed to delete page: ${response.status} ${errorText}`);
       }
 
+      console.log('[PageManagement] Page deleted successfully');
       await loadPages(user.brand_id);
     } catch (error) {
-      console.error('Error deleting page:', error);
+      console.error('[PageManagement] Error deleting page:', error);
+      alert('Kon pagina niet verwijderen: ' + error);
     }
   };
 
