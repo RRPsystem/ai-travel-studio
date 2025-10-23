@@ -545,6 +545,16 @@ Deno.serve(async (req: Request) => {
           );
         }
 
+        // Apply builder compatibility conversion
+        if (data.content_json && data.content_json.htmlSnapshot && !data.content_json.layout && !data.content_json.json) {
+          console.log("[DEBUG] Converting htmlSnapshot to layout for builder (anon query)");
+          data.content_json.layout = {
+            html: data.content_json.htmlSnapshot,
+            css: "",
+            js: ""
+          };
+        }
+
         return new Response(JSON.stringify(data), { status: 200, headers: corsHeaders() });
       }
 

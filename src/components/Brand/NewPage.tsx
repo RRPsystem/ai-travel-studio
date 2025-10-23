@@ -133,10 +133,33 @@ export function NewPage() {
       }
 
       // Create a new page from the template
+      // Ensure content_json has the correct structure for the builder
+      console.log('[NewPage] Template content_json:', template.content_json);
+
+      let contentJson = template.content_json || {};
+
+      // Apply the same conversion logic as the pages-api does for the builder
+      if (contentJson && contentJson.htmlSnapshot && !contentJson.layout && !contentJson.json) {
+        console.log('[NewPage] Converting htmlSnapshot to layout for builder compatibility');
+        contentJson = {
+          ...contentJson,
+          layout: {
+            html: contentJson.htmlSnapshot,
+            css: contentJson.css || '',
+            js: contentJson.js || ''
+          }
+        };
+      }
+
+      // Double-check: If content_json doesn't have the expected builder format, log a warning
+      if (contentJson && !contentJson.html && !contentJson.layout && !contentJson.components) {
+        console.warn('[NewPage] Warning: Template content_json may not have builder-compatible structure:', contentJson);
+      }
+
       const newPage = {
         title: template.title,
         slug: `${template.slug}-${Date.now()}`,
-        content_json: template.content_json,
+        content_json: contentJson,
         brand_id: user.brand_id,
         status: 'draft',
         version: 1,
