@@ -30,15 +30,15 @@ export function PreviewPage() {
         let data, error;
 
         if (brandId && slug) {
-          const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pages-api/preview?brand_id=${brandId}&slug=${slug}`;
-          const response = await fetch(apiUrl);
+          const result = await supabase
+            .from('pages')
+            .select('title, content_json, body_html, status')
+            .eq('brand_id', brandId)
+            .eq('slug', slug)
+            .maybeSingle();
 
-          if (!response.ok) {
-            throw new Error('Fout bij laden van pagina');
-          }
-
-          const result = await response.json();
-          data = result.page;
+          data = result.data;
+          error = result.error;
         } else if (pageId) {
           const result = await supabase
             .from('pages')
@@ -118,6 +118,10 @@ export function PreviewPage() {
     } else if (pageData.content_json) {
       if (typeof pageData.content_json === 'string') {
         htmlContent = pageData.content_json;
+      } else if (pageData.content_json.htmlSnapshot) {
+        htmlContent = pageData.content_json.htmlSnapshot;
+      } else if (pageData.content_json.layout?.html) {
+        htmlContent = pageData.content_json.layout.html;
       } else if (pageData.content_json.html) {
         htmlContent = pageData.content_json.html;
       } else if (pageData.content_json.pages?.[0]?.html) {
