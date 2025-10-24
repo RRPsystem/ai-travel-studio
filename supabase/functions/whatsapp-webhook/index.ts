@@ -1,0 +1,260 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
+};
+
+async function sendWhatsAppMessage(to: string, message: string, twilioAccountSid: string, twilioAuthToken: string, twilioWhatsAppNumber: string) {
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
+
+  const body = new URLSearchParams({
+    From: `whatsapp:${twilioWhatsAppNumber}`,
+    To: `whatsapp:${to}`,
+    Body: message,
+  });
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Basic ' + btoa(`${twilioAccountSid}:${twilioAuthToken}`),
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: body.toString(),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error('Twilio API error:', error);
+    throw new Error('Failed to send WhatsApp message');
+  }
+
+  return await response.json();
+}
+
+async function getOrCreateSession(supabase: any, tripId: string, phoneNumber: string) {
+  const { data: existingSession } = await supabase
+    .from('travel_whatsapp_sessions')
+    .select('*')
+    .eq('trip_id', tripId)
+    .eq('phone_number', phoneNumber)
+    .maybeSingle();
+
+  if (existingSession) {
+    await supabase
+      .from('travel_whatsapp_sessions')
+      .update({ last_message_at: new Date().toISOString() })
+      .eq('id', existingSession.id);
+
+    return existingSession;
+  }
+
+  const sessionToken = Array.from(crypto.getRandomValues(new Uint8Array(24)))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  const { data: newSession } = await supabase
+    .from('travel_whatsapp_sessions')
+    .insert({
+      trip_id: tripId,
+      phone_number: phoneNumber,
+      session_token: sessionToken,
+    })
+    .select()
+    .single();
+
+  await supabase
+    .from('travel_intakes')
+    .insert({
+      trip_id: tripId,
+      session_token: sessionToken,
+      travelers_count: 1,
+      intake_data: { source: 'whatsapp', phone_number: phoneNumber },
+    });
+
+  return newSession;
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 200,
+      headers: corsHeaders,
+    });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const formData = await req.formData();
+    const from = formData.get('From')?.toString().replace('whatsapp:', '') || '';
+    const body = formData.get('Body')?.toString() || '';
+    const to = formData.get('To')?.toString().replace('whatsapp:', '') || '';
+
+    console.log('WhatsApp message received:', { from, to, body });
+
+    if (!from || !body) {
+      return new Response('Missing required fields', { status: 400 });
+    }
+
+    const { data: trip } = await supabase
+      .from('travel_trips')
+      .select('*')
+      .eq('whatsapp_number', to)
+      .eq('whatsapp_enabled', true)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    if (!trip) {
+      console.log('No active trip found for WhatsApp number:', to);
+      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+        headers: { 'Content-Type': 'text/xml' },
+      });
+    }
+
+    const { data: apiSettings } = await supabase
+      .from('api_settings')
+      .select('twilio_account_sid, twilio_auth_token, twilio_whatsapp_number')
+      .eq('brand_id', trip.brand_id)
+      .maybeSingle();
+
+    if (!apiSettings?.twilio_account_sid || !apiSettings?.twilio_auth_token) {
+      console.error('Twilio credentials not configured for brand:', trip.brand_id);
+      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+        headers: { 'Content-Type': 'text/xml' },
+      });
+    }
+
+    const session = await getOrCreateSession(supabase, trip.id, from);
+
+    const isNewSession = !session.session_token;
+    if (isNewSession) {
+      await sendWhatsAppMessage(
+        from,
+        trip.whatsapp_welcome_message || 'Hoi! Ik ben je TravelBRO assistent. Stel me gerust je vragen over de reis!',
+        apiSettings.twilio_account_sid,
+        apiSettings.twilio_auth_token,
+        apiSettings.twilio_whatsapp_number || to
+      );
+
+      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+        headers: { 'Content-Type': 'text/xml' },
+      });
+    }
+
+    const { data: intake } = await supabase
+      .from('travel_intakes')
+      .select('*')
+      .eq('session_token', session.session_token)
+      .maybeSingle();
+
+    const { data: conversationHistory } = await supabase
+      .from('travel_conversations')
+      .select('*')
+      .eq('session_token', session.session_token)
+      .order('created_at', { ascending: true })
+      .limit(10);
+
+    await supabase
+      .from('travel_conversations')
+      .insert({
+        trip_id: trip.id,
+        session_token: session.session_token,
+        message: body,
+        role: 'user',
+      });
+
+    const hasValidTripData = trip.parsed_data && !trip.parsed_data.error;
+    const tripDataText = hasValidTripData
+      ? JSON.stringify(trip.parsed_data, null, 2)
+      : "Geen gedetailleerde reis informatie beschikbaar uit het reisdocument. Je kunt wel algemene tips geven over de bestemming en helpen met vragen.";
+
+    const systemPrompt = `Je bent TravelBRO, een vriendelijke en behulpzame Nederlandse reisassistent voor de reis "${trip.name}".
+
+Reis informatie:
+${tripDataText}
+
+${trip.source_urls && trip.source_urls.length > 0 ? `Extra informatie bronnen:\n${trip.source_urls.join("\n")}\n` : ''}
+
+Reiziger informatie:
+${intake ? JSON.stringify(intake.intake_data, null, 2) : "Geen intake data beschikbaar"}
+
+Je communiceert via WhatsApp, dus houd berichten kort, vriendelijk en conversationeel. Gebruik emoji's waar passend. Beantwoord vragen direct en bondig, maar blijf behulpzaam.`;
+
+    const messages = [
+      { role: "system", content: systemPrompt },
+    ];
+
+    if (conversationHistory && conversationHistory.length > 0) {
+      conversationHistory.forEach((conv: any) => {
+        messages.push({
+          role: conv.role,
+          content: conv.message,
+        });
+      });
+    }
+
+    messages.push({ role: "user", content: body });
+
+    if (!openaiApiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${openaiApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages,
+        max_tokens: 500,
+        temperature: 0.7,
+      }),
+    });
+
+    if (!openaiResponse.ok) {
+      const error = await openaiResponse.text();
+      console.error("OpenAI API error:", error);
+      throw new Error('Failed to get AI response');
+    }
+
+    const openaiData = await openaiResponse.json();
+    const aiResponse = openaiData.choices[0].message.content;
+
+    await supabase
+      .from('travel_conversations')
+      .insert({
+        trip_id: trip.id,
+        session_token: session.session_token,
+        message: aiResponse,
+        role: 'assistant',
+      });
+
+    await sendWhatsAppMessage(
+      from,
+      aiResponse,
+      apiSettings.twilio_account_sid,
+      apiSettings.twilio_auth_token,
+      apiSettings.twilio_whatsapp_number || to
+    );
+
+    return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+      headers: { 'Content-Type': 'text/xml' },
+    });
+
+  } catch (error) {
+    console.error("Error in whatsapp-webhook:", error);
+
+    return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+      headers: { 'Content-Type': 'text/xml' },
+    });
+  }
+});

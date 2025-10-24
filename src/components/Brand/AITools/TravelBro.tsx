@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { supabase } from '../../../lib/supabase';
-import { Plus, Upload, Link as LinkIcon, Eye, Trash2, Copy, Check, FileText, Users, MessageSquare } from 'lucide-react';
+import { Plus, Upload, Link as LinkIcon, Eye, Trash2, Copy, Check, FileText, Users, MessageSquare, Phone } from 'lucide-react';
 
 interface Trip {
   id: string;
@@ -12,6 +12,9 @@ interface Trip {
   share_token: string;
   is_active: boolean;
   intake_template: any;
+  whatsapp_number: string | null;
+  whatsapp_enabled: boolean;
+  whatsapp_welcome_message: string | null;
   created_at: string;
 }
 
@@ -426,7 +429,7 @@ function NewTripForm({ onBack }: { onBack: () => void }) {
 }
 
 function TripDetails({ trip, onBack }: { trip: Trip; onBack: () => void }) {
-  const [activeTab, setActiveTab] = useState<'settings' | 'intakes' | 'conversations' | 'intake-template'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'intakes' | 'conversations' | 'intake-template' | 'whatsapp'>('settings');
   const [intakes, setIntakes] = useState<any[]>([]);
   const [conversations, setConversations] = useState<any[]>([]);
   const [newUrls, setNewUrls] = useState<string[]>(['']);
@@ -595,6 +598,17 @@ function TripDetails({ trip, onBack }: { trip: Trip; onBack: () => void }) {
                 <FileText size={16} />
                 <span>Intake Template</span>
               </button>
+              <button
+                onClick={() => setActiveTab('whatsapp')}
+                className={`pb-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                  activeTab === 'whatsapp'
+                    ? 'border-orange-600 text-orange-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Phone size={16} />
+                <span>WhatsApp</span>
+              </button>
             </nav>
           </div>
 
@@ -724,6 +738,10 @@ function TripDetails({ trip, onBack }: { trip: Trip; onBack: () => void }) {
 
           {activeTab === 'intake-template' && (
             <IntakeTemplateEditor trip={trip} onSave={onBack} />
+          )}
+
+          {activeTab === 'whatsapp' && (
+            <WhatsAppSettings trip={trip} onSave={onBack} />
           )}
         </div>
       </div>
@@ -975,6 +993,163 @@ function IntakeTemplateEditor({ trip, onSave }: { trip: Trip; onSave: () => void
           style={{ backgroundColor: '#ff7700' }}
         >
           {saving ? 'Opslaan...' : 'Template Opslaan'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function WhatsAppSettings({ trip, onSave }: { trip: Trip; onSave: () => void }) {
+  const [whatsappEnabled, setWhatsappEnabled] = useState(trip.whatsapp_enabled || false);
+  const [whatsappNumber, setWhatsappNumber] = useState(trip.whatsapp_number || '');
+  const [welcomeMessage, setWelcomeMessage] = useState(
+    trip.whatsapp_welcome_message || 'Hoi! Ik ben je TravelBRO assistent. Stel me gerust je vragen over de reis!'
+  );
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+
+    try {
+      const { error } = await supabase
+        .from('travel_trips')
+        .update({
+          whatsapp_enabled: whatsappEnabled,
+          whatsapp_number: whatsappNumber || null,
+          whatsapp_welcome_message: welcomeMessage,
+        })
+        .eq('id', trip.id);
+
+      if (error) throw error;
+      alert('WhatsApp instellingen opgeslagen!');
+      onSave();
+    } catch (error) {
+      console.error('Error saving WhatsApp settings:', error);
+      alert('Fout bij opslaan');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h3 className="font-semibold text-blue-900 mb-2">WhatsApp Integratie via Twilio</h3>
+        <p className="text-sm text-blue-800 mb-3">
+          Klanten kunnen via WhatsApp met TravelBRO communiceren. Zo werkt het:
+        </p>
+        <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+          <li>Maak een Twilio account aan op <a href="https://www.twilio.com" target="_blank" rel="noopener" className="underline">twilio.com</a></li>
+          <li>Configureer je Twilio credentials in de Operator API Settings</li>
+          <li>Activeer WhatsApp Sandbox of koppel een WhatsApp Business nummer</li>
+          <li>Configureer onderstaande webhook URL in Twilio</li>
+          <li>Voeg het WhatsApp nummer toe en activeer de integratie</li>
+        </ol>
+      </div>
+
+      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+        <h4 className="font-medium text-gray-900 mb-2">Twilio Webhook URL</h4>
+        <p className="text-xs text-gray-600 mb-2">
+          Kopieer deze URL en voeg toe bij: Twilio Console → WhatsApp Sandbox Settings → When a message comes in
+        </p>
+        <div className="flex space-x-2">
+          <input
+            type="text"
+            value={webhookUrl}
+            readOnly
+            className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm font-mono"
+          />
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(webhookUrl);
+              alert('Webhook URL gekopieerd!');
+            }}
+            className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2"
+            style={{ backgroundColor: '#ff7700' }}
+          >
+            <Copy size={16} />
+            <span>Kopieer</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center space-x-3">
+          <input
+            type="checkbox"
+            id="whatsapp-enabled"
+            checked={whatsappEnabled}
+            onChange={(e) => setWhatsappEnabled(e.target.checked)}
+            className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+          />
+          <label htmlFor="whatsapp-enabled" className="text-sm font-medium text-gray-900">
+            WhatsApp integratie inschakelen
+          </label>
+        </div>
+
+        {whatsappEnabled && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                WhatsApp Nummer
+              </label>
+              <input
+                type="tel"
+                value={whatsappNumber}
+                onChange={(e) => setWhatsappNumber(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="+31612345678"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Het Twilio WhatsApp nummer (inclusief landcode, bijv. +14155238886 voor sandbox)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Welkomstbericht
+              </label>
+              <textarea
+                value={welcomeMessage}
+                onChange={(e) => setWelcomeMessage(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                rows={3}
+                placeholder="Hoi! Ik ben je TravelBRO assistent..."
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Dit bericht wordt verstuurd wanneer een klant voor het eerst een bericht stuurt
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <h4 className="font-medium text-yellow-900 mb-2">Let op: Twilio Credentials vereist</h4>
+        <p className="text-sm text-yellow-800">
+          Voor WhatsApp berichten heb je Twilio Account SID, Auth Token en WhatsApp nummer nodig.
+          Deze worden geconfigureerd in de <strong>Operator API Settings</strong> per brand.
+        </p>
+      </div>
+
+      <div className="flex space-x-3 pt-4">
+        <button
+          type="button"
+          onClick={() => onSave()}
+          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          Annuleer
+        </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving}
+          className="flex-1 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+          style={{ backgroundColor: '#ff7700' }}
+        >
+          {saving ? 'Opslaan...' : 'Instellingen Opslaan'}
         </button>
       </div>
     </div>

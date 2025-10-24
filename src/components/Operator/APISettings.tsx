@@ -26,15 +26,31 @@ interface APISetting {
 
 export function APISettings() {
   const [settings, setSettings] = useState<APISetting[]>([]);
+  const [brands, setBrands] = useState<any[]>([]);
+  const [selectedBrandId, setSelectedBrandId] = useState<string>('');
+  const [twilioSettings, setTwilioSettings] = useState({
+    twilio_account_sid: '',
+    twilio_auth_token: '',
+    twilio_whatsapp_number: ''
+  });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState<string | null>(null);
+  const [savingTwilio, setSavingTwilio] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
   const [showKey, setShowKey] = useState<Record<string, boolean>>({});
+  const [showTwilioToken, setShowTwilioToken] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     loadSettings();
+    loadBrands();
   }, []);
+
+  useEffect(() => {
+    if (selectedBrandId) {
+      loadTwilioSettings();
+    }
+  }, [selectedBrandId]);
 
   const loadSettings = async () => {
     setLoading(true);
@@ -52,6 +68,93 @@ export function APISettings() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadBrands = async () => {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('brands')
+        .select('id, name')
+        .order('name');
+
+      if (fetchError) throw fetchError;
+      setBrands(data || []);
+      if (data && data.length > 0) {
+        setSelectedBrandId(data[0].id);
+      }
+    } catch (err: any) {
+      console.error('Error loading brands:', err);
+    }
+  };
+
+  const loadTwilioSettings = async () => {
+    if (!selectedBrandId) return;
+
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('api_settings')
+        .select('twilio_account_sid, twilio_auth_token, twilio_whatsapp_number')
+        .eq('brand_id', selectedBrandId)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+      if (data) {
+        setTwilioSettings({
+          twilio_account_sid: data.twilio_account_sid || '',
+          twilio_auth_token: data.twilio_auth_token || '',
+          twilio_whatsapp_number: data.twilio_whatsapp_number || ''
+        });
+      } else {
+        setTwilioSettings({
+          twilio_account_sid: '',
+          twilio_auth_token: '',
+          twilio_whatsapp_number: ''
+        });
+      }
+    } catch (err: any) {
+      console.error('Error loading Twilio settings:', err);
+    }
+  };
+
+  const saveTwilioSettings = async () => {
+    if (!selectedBrandId) {
+      alert('Selecteer eerst een brand');
+      return;
+    }
+
+    setSavingTwilio(true);
+    try {
+      const { data: existing } = await supabase
+        .from('api_settings')
+        .select('id')
+        .eq('brand_id', selectedBrandId)
+        .maybeSingle();
+
+      if (existing) {
+        const { error: updateError } = await supabase
+          .from('api_settings')
+          .update(twilioSettings)
+          .eq('id', existing.id);
+
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from('api_settings')
+          .insert({
+            brand_id: selectedBrandId,
+            ...twilioSettings
+          });
+
+        if (insertError) throw insertError;
+      }
+
+      alert('Twilio instellingen opgeslagen!');
+    } catch (err: any) {
+      console.error('Error saving Twilio settings:', err);
+      alert(`Fout bij opslaan: ${err.message}`);
+    } finally {
+      setSavingTwilio(false);
     }
   };
 
@@ -319,6 +422,105 @@ export function APISettings() {
           <p className="text-gray-500">Geen API instellingen gevonden</p>
         </div>
       )}
+
+      <div className="mt-8 pt-8 border-t border-gray-200">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">Twilio WhatsApp Instellingen (per Brand)</h2>
+
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Selecteer Brand
+            </label>
+            <select
+              value={selectedBrandId}
+              onChange={(e) => setSelectedBrandId(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              {brands.map(brand => (
+                <option key={brand.id} value={brand.id}>{brand.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Twilio Account SID
+              </label>
+              <input
+                type="text"
+                value={twilioSettings.twilio_account_sid}
+                onChange={(e) => setTwilioSettings({ ...twilioSettings, twilio_account_sid: e.target.value })}
+                placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Twilio Auth Token
+              </label>
+              <div className="relative">
+                <input
+                  type={showTwilioToken ? 'text' : 'password'}
+                  value={twilioSettings.twilio_auth_token}
+                  onChange={(e) => setTwilioSettings({ ...twilioSettings, twilio_auth_token: e.target.value })}
+                  placeholder="********************************"
+                  className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowTwilioToken(!showTwilioToken)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  {showTwilioToken ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Twilio WhatsApp Number
+              </label>
+              <input
+                type="tel"
+                value={twilioSettings.twilio_whatsapp_number}
+                onChange={(e) => setTwilioSettings({ ...twilioSettings, twilio_whatsapp_number: e.target.value })}
+                placeholder="+14155238886"
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Het WhatsApp nummer van Twilio (inclusief landcode)
+              </p>
+            </div>
+
+            <button
+              onClick={saveTwilioSettings}
+              disabled={savingTwilio}
+              className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {savingTwilio ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Opslaan...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  Twilio Settings Opslaan
+                </>
+              )}
+            </button>
+          </div>
+
+          <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <p className="text-sm text-blue-800">
+              <strong>Info:</strong> Deze instellingen worden gebruikt door de WhatsApp webhook om berichten te versturen.
+              Configureer deze per brand die WhatsApp ondersteuning wil voor TravelBRO.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
