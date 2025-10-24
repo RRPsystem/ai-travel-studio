@@ -1,5 +1,4 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -44,7 +43,7 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           success: true,
-          message: '✅ Verbinding succesvol! Twilio credentials werken correct.',
+          message: '\u2705 Verbinding succesvol! Twilio credentials werken correct.',
           details: `Account ${accountSid} is geldig${whatsappNumber ? ` met nummer ${whatsappNumber}` : ''}`
         }),
         {
@@ -65,7 +64,7 @@ Deno.serve(async (req: Request) => {
       return new Response(
         JSON.stringify({
           success: false,
-          message: `❌ Verbinding mislukt: ${response.status}`,
+          message: `\u274c Verbinding mislukt: ${response.status}`,
           details: errorMessage
         }),
         {
@@ -80,7 +79,7 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         success: false,
-        message: `❌ Fout bij testen: ${error.message}`
+        message: `\u274c Fout bij testen: ${error.message}`
       }),
       {
         status: 500,
