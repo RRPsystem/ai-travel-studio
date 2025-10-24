@@ -31,6 +31,7 @@ export function DomainSettings() {
   const [selectedWebsiteId, setSelectedWebsiteId] = useState<string>('');
   const [error, setError] = useState('');
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [verifyingDomainId, setVerifyingDomainId] = useState<string | null>(null);
 
   useEffect(() => {
     loadDomains();
@@ -145,21 +146,37 @@ export function DomainSettings() {
   };
 
   const handleVerify = async (domainId: string) => {
-    try {
-      const { error: updateError } = await supabase
-        .from('brand_domains')
-        .update({
-          status: 'verified',
-          dns_verified_at: new Date().toISOString(),
-          ssl_enabled: true
-        })
-        .eq('id', domainId);
+    setError('');
+    setVerifyingDomainId(domainId);
 
-      if (updateError) throw updateError;
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/verify-domain`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({ domain_id: domainId }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        setError(result.error || 'Verificatie mislukt. Controleer of de DNS records correct zijn ingesteld.');
+        loadDomains();
+        return;
+      }
+
       loadDomains();
     } catch (err) {
       console.error('Error verifying domain:', err);
-      setError('Fout bij het verifiëren van domein');
+      setError('Fout bij het verifiëren van domein. Probeer het later opnieuw.');
+      loadDomains();
+    } finally {
+      setVerifyingDomainId(null);
     }
   };
 
@@ -281,9 +298,17 @@ export function DomainSettings() {
                     ) : (
                       <button
                         onClick={() => handleVerify(domain.id)}
-                        className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                        disabled={verifyingDomainId === domain.id}
+                        className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
                       >
-                        Verifiëren
+                        {verifyingDomainId === domain.id ? (
+                          <>
+                            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                            <span>Controleren...</span>
+                          </>
+                        ) : (
+                          <span>Verifiëren</span>
+                        )}
                       </button>
                     )}
                   </div>
