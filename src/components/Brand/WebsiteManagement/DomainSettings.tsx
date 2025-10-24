@@ -51,15 +51,32 @@ export function DomainSettings() {
   };
 
   const handleAddDomain = async () => {
-    const trimmedDomain = newDomain.trim().toLowerCase();
+    let trimmedDomain = newDomain.trim().toLowerCase();
 
     if (!trimmedDomain) {
       setError('Voer een domeinnaam in');
       return;
     }
 
+    trimmedDomain = trimmedDomain
+      .replace(/^https?:\/\//, '')
+      .replace(/^www\./, '')
+      .replace(/\/$/, '');
+
     if (trimmedDomain.includes('ai-travelstudio.nl')) {
       setError('Je hoeft het ai-travelstudio.nl subdomain niet toe te voegen - dit is al automatisch beschikbaar!');
+      return;
+    }
+
+    const domainRegex = /^[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9\-]{0,61}[a-z0-9])?)*$/;
+    if (!domainRegex.test(trimmedDomain)) {
+      setError('Ongeldige domeinnaam. Gebruik alleen je hoofddomein (bijv. jouwreisbureau.nl) zonder www of https://');
+      return;
+    }
+
+    const existingDomain = domains.find(d => d.domain === trimmedDomain);
+    if (existingDomain) {
+      setError('Dit domein is al toegevoegd aan je website');
       return;
     }
 
@@ -82,7 +99,7 @@ export function DomainSettings() {
         if (insertError.message?.includes('duplicate')) {
           setError('Dit domein is al toegevoegd');
         } else if (insertError.message?.includes('valid_domain')) {
-          setError('Ongeldige domeinnaam. Gebruik alleen je eigen domein (bijv. jouwreisbureau.nl)');
+          setError('Ongeldige domeinnaam. Gebruik alleen je hoofddomein (bijv. jouwreisbureau.nl)');
         } else {
           setError('Fout bij het toevoegen van domein: ' + insertError.message);
         }
@@ -366,8 +383,12 @@ export function DomainSettings() {
               <div className="flex items-start space-x-2">
                 <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5" />
                 <div className="text-xs text-blue-800">
-                  <p className="font-medium mb-1">Let op:</p>
-                  <p>Voeg hier alleen je <strong>eigen gekochte domein</strong> toe (bijv. jouwreisbureau.nl). Het ai-travelstudio.nl subdomain is al automatisch beschikbaar!</p>
+                  <p className="font-medium mb-1">Belangrijk:</p>
+                  <ul className="list-disc list-inside space-y-1 mt-2">
+                    <li>Voeg alleen je <strong>hoofddomein</strong> toe (bijv. jouwreisbureau.nl)</li>
+                    <li><strong>Niet</strong> www.jouwreisbureau.nl - www wordt automatisch ondersteund!</li>
+                    <li>Het ai-travelstudio.nl subdomain is al beschikbaar en hoeft niet toegevoegd te worden</li>
+                  </ul>
                 </div>
               </div>
             </div>
