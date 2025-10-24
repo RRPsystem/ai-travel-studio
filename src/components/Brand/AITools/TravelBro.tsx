@@ -429,15 +429,17 @@ function NewTripForm({ onBack }: { onBack: () => void }) {
 }
 
 function TripDetails({ trip, onBack }: { trip: Trip; onBack: () => void }) {
-  const [activeTab, setActiveTab] = useState<'settings' | 'intakes' | 'conversations' | 'intake-template' | 'whatsapp'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'intakes' | 'conversations' | 'intake-template' | 'whatsapp' | 'whatsapp-conversations'>('settings');
   const [intakes, setIntakes] = useState<any[]>([]);
   const [conversations, setConversations] = useState<any[]>([]);
+  const [whatsappSessions, setWhatsappSessions] = useState<any[]>([]);
   const [newUrls, setNewUrls] = useState<string[]>(['']);
   const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     loadIntakes();
     loadConversations();
+    loadWhatsAppSessions();
   }, []);
 
   const loadIntakes = async () => {
@@ -458,6 +460,16 @@ function TripDetails({ trip, onBack }: { trip: Trip; onBack: () => void }) {
       .order('created_at', { ascending: false });
 
     setConversations(data || []);
+  };
+
+  const loadWhatsAppSessions = async () => {
+    const { data } = await supabase
+      .from('travel_whatsapp_sessions')
+      .select('*')
+      .eq('trip_id', trip.id)
+      .order('created_at', { ascending: false });
+
+    setWhatsappSessions(data || []);
   };
 
   const handleAddUrls = async () => {
@@ -607,7 +619,18 @@ function TripDetails({ trip, onBack }: { trip: Trip; onBack: () => void }) {
                 }`}
               >
                 <Phone size={16} />
-                <span>WhatsApp</span>
+                <span>WhatsApp Setup</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('whatsapp-conversations')}
+                className={`pb-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                  activeTab === 'whatsapp-conversations'
+                    ? 'border-orange-600 text-orange-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <MessageSquare size={16} />
+                <span>WhatsApp Gesprekken ({whatsappSessions.length})</span>
               </button>
             </nav>
           </div>
@@ -742,6 +765,10 @@ function TripDetails({ trip, onBack }: { trip: Trip; onBack: () => void }) {
 
           {activeTab === 'whatsapp' && (
             <WhatsAppSettings trip={trip} onSave={onBack} />
+          )}
+
+          {activeTab === 'whatsapp-conversations' && (
+            <WhatsAppConversationsView sessions={whatsappSessions} />
           )}
         </div>
       </div>
@@ -1164,6 +1191,135 @@ function WhatsAppSettings({ trip, onSave }: { trip: Trip; onSave: () => void }) 
         >
           {saving ? 'Opslaan...' : 'Instellingen Opslaan'}
         </button>
+      </div>
+    </div>
+  );
+}
+
+function WhatsAppConversationsView({ sessions }: { sessions: any[] }) {
+  const [selectedSession, setSelectedSession] = useState<any | null>(null);
+
+  if (sessions.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Nog geen WhatsApp gesprekken</h3>
+        <p className="text-gray-600">
+          Zodra klanten via WhatsApp beginnen te chatten, verschijnen hun gesprekken hier.
+        </p>
+      </div>
+    );
+  }
+
+  if (selectedSession) {
+    return (
+      <div>
+        <button
+          onClick={() => setSelectedSession(null)}
+          className="mb-4 text-gray-600 hover:text-gray-900 flex items-center space-x-2"
+        >
+          <span>← Terug naar overzicht</span>
+        </button>
+
+        <div className="bg-gray-50 rounded-lg p-4 mb-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-900">
+                Telefoonnummer: {selectedSession.phone_number}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Laatste activiteit: {new Date(selectedSession.updated_at).toLocaleString('nl-NL')}
+              </p>
+            </div>
+            <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+              {selectedSession.message_count || 0} berichten
+            </span>
+          </div>
+        </div>
+
+        <div className="bg-white border border-gray-200 rounded-lg p-4 max-h-[600px] overflow-y-auto">
+          <h4 className="font-semibold text-gray-900 mb-4">Gespreksgeschiedenis</h4>
+          {selectedSession.conversation_history && selectedSession.conversation_history.length > 0 ? (
+            <div className="space-y-3">
+              {selectedSession.conversation_history.map((msg: any, idx: number) => (
+                <div
+                  key={idx}
+                  className={`p-3 rounded-lg ${
+                    msg.role === 'user'
+                      ? 'bg-gray-100 ml-8'
+                      : 'bg-orange-50 mr-8'
+                  }`}
+                >
+                  <p className="text-xs font-medium text-gray-500 mb-1">
+                    {msg.role === 'user' ? '👤 Klant' : '🤖 TravelBRO'}
+                  </p>
+                  <p className="text-sm text-gray-900 whitespace-pre-wrap">{msg.content}</p>
+                  {msg.timestamp && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      {new Date(msg.timestamp).toLocaleString('nl-NL')}
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-600 text-center py-8">Geen berichten beschikbaar</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+        <h3 className="font-semibold text-blue-900 mb-2">📱 WhatsApp Gesprekken Overzicht</h3>
+        <p className="text-sm text-blue-800">
+          Hier zie je alle WhatsApp gesprekken die klanten hebben gevoerd met TravelBRO voor deze trip.
+          Elk telefoonnummer heeft zijn eigen gespreksgeschiedenis die automatisch wordt opgeslagen.
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {sessions.map((session) => (
+          <div
+            key={session.id}
+            className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow cursor-pointer"
+            onClick={() => setSelectedSession(session)}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                  <Phone className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">{session.phone_number}</p>
+                  <p className="text-xs text-gray-500">
+                    Laatste bericht: {new Date(session.updated_at).toLocaleString('nl-NL')}
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  {session.message_count || 0} berichten
+                </span>
+                <p className="text-xs text-gray-500 mt-1">
+                  Gestart: {new Date(session.created_at).toLocaleDateString('nl-NL')}
+                </p>
+              </div>
+            </div>
+
+            {session.conversation_history && session.conversation_history.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <p className="text-sm text-gray-600 truncate">
+                  <span className="font-medium">Laatste bericht:</span> {
+                    session.conversation_history[session.conversation_history.length - 1]?.content?.substring(0, 100) || 'Geen preview beschikbaar'
+                  }...
+                </p>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

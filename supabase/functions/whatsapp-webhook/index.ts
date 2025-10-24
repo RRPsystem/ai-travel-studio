@@ -83,7 +83,7 @@ async function transcribeAudio(audioUrl: string, openaiApiKey: string, twilioAcc
   return result.text;
 }
 
-async function getOrCreateSession(supabase: any, tripId: string, phoneNumber: string) {
+async function getOrCreateSession(supabase: any, tripId: string, brandId: string, phoneNumber: string) {
   const { data: existingSession } = await supabase
     .from('travel_whatsapp_sessions')
     .select('*')
@@ -94,7 +94,10 @@ async function getOrCreateSession(supabase: any, tripId: string, phoneNumber: st
   if (existingSession) {
     await supabase
       .from('travel_whatsapp_sessions')
-      .update({ last_message_at: new Date().toISOString() })
+      .update({
+        last_message_at: new Date().toISOString(),
+        message_count: (existingSession.message_count || 0) + 1
+      })
       .eq('id', existingSession.id);
 
     return existingSession;
@@ -108,8 +111,10 @@ async function getOrCreateSession(supabase: any, tripId: string, phoneNumber: st
     .from('travel_whatsapp_sessions')
     .insert({
       trip_id: tripId,
+      brand_id: brandId,
       phone_number: phoneNumber,
       session_token: sessionToken,
+      message_count: 1,
     })
     .select()
     .single();
@@ -208,7 +213,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const session = await getOrCreateSession(supabase, trip.id, from);
+    const session = await getOrCreateSession(supabase, trip.id, trip.brand_id, from);
 
     const isNewSession = !session.session_token;
     if (isNewSession) {
@@ -248,38 +253,27 @@ Deno.serve(async (req: Request) => {
 Reis informatie:
 ${tripDataText}
 
-${trip.source_urls && trip.source_urls.length > 0 ? `Extra informatie bronnen:\n${trip.source_urls.join("\n")}\n` : ''}
+Extra bron URL's: ${trip.source_urls.join(', ') || 'Geen'}
 
-Reiziger informatie:
-${intake ? JSON.stringify(intake.intake_data, null, 2) : "Geen intake data beschikbaar"}
+${intake?.intake_data ? `Reiziger informatie:
+${JSON.stringify(intake.intake_data, null, 2)}` : ''}
 
-BELANGRIJKE INSTRUCTIES:
+Je taken:
+1. Beantwoord vragen over de reis (accommodatie, activiteiten, restaurants, tijden, etc.)
+2. Geef praktische tips en aanbevelingen
+3. Wees enthousiast maar realistisch
+4. Als je iets niet zeker weet, geef dat eerlijk toe
+5. Houd antwoorden kort en conversationeel (max 3-4 zinnen)
 
-Je communiceert via WhatsApp, dus:
-- Houd berichten kort (max 2-3 zinnen per antwoord tenzij expliciet meer detail wordt gevraagd)
-- Wees vriendelijk en conversationeel, alsof je met een vriend chat
-- Gebruik emoji's waar passend (maar niet overdrijven)
-- Stel follow-up vragen om het gesprek gaande te houden
-- Onthoud wat er eerder in het gesprek is gezegd en refereer ernaar
-- Als iemand een persoonlijke vraag stelt, geef persoonlijk advies op basis van hun eerdere berichten
-- Wees proactief: als je iets nuttigs weet over de reis, deel het!
+SPECIAAL: Als iemand vraagt om een foto/afbeelding, antwoord dan met [IMAGE:url] waar url een werkende afbeelding URL is.
+Voorbeeld: "Hier is het zwembad! [IMAGE:https://example.com/pool.jpg]"
 
-SPECIALE FUNCTIES:
-Als je wilt dat er een afbeelding, foto of Google Maps locatie wordt verstuurd, gebruik dan deze markers:
-- [IMAGE:https://url-naar-afbeelding.jpg] - om een foto te versturen (gebruik Pexels of echte foto URLs)
-- [LOCATION:latitude,longitude,naam] - om een Google Maps locatie te delen
-Voorbeeld: "Hier is het restaurant! [LOCATION:52.3676,4.9041,La Bella Vista]"
+SPECIAAL: Als iemand vraagt waar iets is (hotel, restaurant, attractie), geef dan de locatie met [LOCATION:lat,lng,naam].
+Voorbeeld: "Het hotel vind je hier: [LOCATION:52.3676,4.9041,Hotel Amsterdam]"
 
-Voorbeelden van goede antwoorden:
-\u274c SLECHT: "Hier is een uitgebreide lijst van alle restaurants in het gebied met hun openingstijden en prijzen..."
-\u2705 GOED: "Er is een leuke pizzeria op 5 min lopen! Zal ik de locatie doorsturen? \ud83c\udf55"
+Wees creatief maar realistisch met locaties en foto's. Gebruik alleen echte URLs die werken.`;
 
-\u274c SLECHT: "Dank u voor uw vraag. Ik zal u helpen met informatie over het zwembad."
-\u2705 GOED: "Ja! Het zwembad is er super \ud83d\ude0e Het heeft een apart kinderbad. Hoe laat wil je ongeveer gaan?"
-
-Als iemand vraagt om foto's of locaties, gebruik dan actief de [IMAGE:] en [LOCATION:] markers!`;
-
-    const messages = [
+    const messages: any[] = [
       { role: "system", content: systemPrompt },
     ];
 
@@ -358,6 +352,20 @@ Als iemand vraagt om foto's of locaties, gebruik dan actief de [IMAGE:] en [LOCA
         role: 'assistant',
       });
 
+    const updatedHistory = [
+      ...(session.conversation_history || []).slice(-19),
+      { role: 'user', content: body, timestamp: new Date().toISOString() },
+      { role: 'assistant', content: aiResponse, timestamp: new Date().toISOString() }
+    ];
+
+    await supabase
+      .from('travel_whatsapp_sessions')
+      .update({
+        conversation_history: updatedHistory,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', session.id);
+
     if (imageUrl) {
       await sendWhatsAppMessage(
         from,
@@ -395,9 +403,9 @@ Als iemand vraagt om foto's of locaties, gebruik dan actief de [IMAGE:] en [LOCA
     });
 
   } catch (error) {
-    console.error("Error in whatsapp-webhook:", error);
-
+    console.error('Error processing WhatsApp webhook:', error);
     return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+      status: 500,
       headers: { 'Content-Type': 'text/xml' },
     });
   }
