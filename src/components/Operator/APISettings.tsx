@@ -514,10 +514,29 @@ export function APISettings() {
           </div>
 
           <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <p className="text-sm text-blue-800">
-              <strong>Info:</strong> Deze instellingen worden gebruikt door de WhatsApp webhook om berichten te versturen.
-              Configureer deze per brand die WhatsApp ondersteuning wil voor TravelBRO.
-            </p>
+            <h4 className="font-semibold text-blue-900 mb-2">📱 Waar vind je deze gegevens?</h4>
+            <div className="text-sm text-blue-800 space-y-2">
+              <div>
+                <strong>1. Account SID & Auth Token:</strong>
+                <ul className="list-disc list-inside ml-2 mt-1">
+                  <li>Ga naar <a href="https://console.twilio.com" target="_blank" rel="noopener" className="underline hover:text-blue-900">Twilio Console</a></li>
+                  <li>Rechts bovenaan zie je: <strong>Account SID</strong> (34 tekens)</li>
+                  <li>Klik op "Show" bij <strong>Auth Token</strong> (32 tekens)</li>
+                </ul>
+              </div>
+              <div>
+                <strong>2. WhatsApp Number:</strong>
+                <ul className="list-disc list-inside ml-2 mt-1">
+                  <li>Ga naar: Messaging → Try it out → Send a WhatsApp message</li>
+                  <li>Kopieer <strong>Sandbox Phone Number</strong> (bijv. +1 415 523 8886)</li>
+                  <li>Voor productie: gebruik je eigen WhatsApp Business nummer</li>
+                </ul>
+              </div>
+              <div className="pt-2 border-t border-blue-300">
+                <strong>💡 Tip:</strong> Twilio Sandbox is GRATIS voor testen. WhatsApp Business kost ~€15/maand.
+                Zie <strong>TWILIO_WHATSAPP_SETUP.md</strong> voor volledige uitleg met screenshots.
+              </div>
+            </div>
           </div>
         </div>
       </div>

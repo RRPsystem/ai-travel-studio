@@ -1038,15 +1038,28 @@ function WhatsAppSettings({ trip, onSave }: { trip: Trip; onSave: () => void }) 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="font-semibold text-blue-900 mb-2">WhatsApp Integratie via Twilio</h3>
         <p className="text-sm text-blue-800 mb-3">
-          Klanten kunnen via WhatsApp met TravelBRO communiceren. Zo werkt het:
+          Klanten kunnen via WhatsApp met TravelBRO communiceren. Features:
         </p>
-        <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-          <li>Maak een Twilio account aan op <a href="https://www.twilio.com" target="_blank" rel="noopener" className="underline">twilio.com</a></li>
-          <li>Configureer je Twilio credentials in de Operator API Settings</li>
-          <li>Activeer WhatsApp Sandbox of koppel een WhatsApp Business nummer</li>
-          <li>Configureer onderstaande webhook URL in Twilio</li>
-          <li>Voeg het WhatsApp nummer toe en activeer de integratie</li>
-        </ol>
+        <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside mb-3">
+          <li>💬 <strong>Tekst berichten</strong> - Natuurlijke conversaties met AI</li>
+          <li>🎤 <strong>Spraakberichten</strong> - Automatisch getranscribeerd</li>
+          <li>📍 <strong>Locaties delen</strong> - Google Maps links naar hotels/restaurants</li>
+          <li>🖼️ <strong>Foto's versturen</strong> - AI stuurt relevante afbeeldingen</li>
+        </ul>
+        <div className="bg-white border border-blue-300 rounded p-3 mb-3">
+          <p className="text-xs font-semibold text-blue-900 mb-2">🚀 Snelle Setup (5 minuten):</p>
+          <ol className="text-xs text-blue-800 space-y-1 list-decimal list-inside">
+            <li>Maak gratis Twilio account: <a href="https://www.twilio.com/try-twilio" target="_blank" rel="noopener" className="underline font-medium hover:text-blue-900">twilio.com/try-twilio</a></li>
+            <li>Activeer WhatsApp Sandbox (Console → Messaging → Send WhatsApp)</li>
+            <li>Vraag Operator om Twilio credentials in te vullen (API Settings)</li>
+            <li>Kopieer webhook URL hieronder en plak in Twilio Sandbox Settings</li>
+            <li>Schakel WhatsApp in en test met je telefoon!</li>
+          </ol>
+        </div>
+        <div className="text-xs text-blue-700">
+          <strong>💡 Tip:</strong> Voor testen is Twilio Sandbox GRATIS. Voor productie heb je WhatsApp Business nodig (~€15/maand).
+          Zie TWILIO_WHATSAPP_SETUP.md voor complete uitleg.
+        </div>
       </div>
 
       <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
