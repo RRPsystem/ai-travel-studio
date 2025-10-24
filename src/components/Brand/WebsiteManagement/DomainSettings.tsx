@@ -275,21 +275,25 @@ export function DomainSettings() {
                         </li>
                         <li className="flex items-start">
                           <span className="font-bold mr-2 flex-shrink-0">3.</span>
-                          <span>Voeg onderstaande 3 DNS records toe (gebruik de kopieer-knoppen)</span>
+                          <span>Voeg onderstaande 2 DNS records toe (TXT + A record)</span>
                         </li>
                         <li className="flex items-start">
                           <span className="font-bold mr-2 flex-shrink-0">4.</span>
-                          <span>Wacht 2-48 uur tot de DNS-wijzigingen wereldwijd actief zijn</span>
+                          <span><strong>Optioneel:</strong> Voeg ook een A record toe voor www als je www.{domain.domain} wilt ondersteunen</span>
                         </li>
                         <li className="flex items-start">
                           <span className="font-bold mr-2 flex-shrink-0">5.</span>
+                          <span>Wacht 2-48 uur tot de DNS-wijzigingen wereldwijd actief zijn</span>
+                        </li>
+                        <li className="flex items-start">
+                          <span className="font-bold mr-2 flex-shrink-0">6.</span>
                           <span>Klik op de "Verifiëren" knop om je domein te activeren</span>
                         </li>
                       </ol>
                     </div>
 
                     <div>
-                      <h4 className="text-sm font-medium text-gray-900 mb-3">Voeg deze 3 DNS records toe:</h4>
+                      <h4 className="text-sm font-medium text-gray-900 mb-3">Voeg deze DNS records toe:</h4>
 
                       <div className="space-y-3">
                         <div className="bg-white rounded border border-gray-200 p-3">
@@ -334,14 +338,17 @@ export function DomainSettings() {
                           </div>
                         </div>
 
-                        <div className="bg-white rounded border border-gray-200 p-3">
+                        <div className="bg-white rounded border border-gray-200 p-3 opacity-75">
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-xs font-medium text-gray-700">CNAME Record (www)</span>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs font-medium text-gray-700">A Record (www)</span>
+                              <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">Optioneel</span>
+                            </div>
                             <button
-                              onClick={() => copyToClipboard(domain.domain, `cname-${domain.id}`)}
+                              onClick={() => copyToClipboard('185.199.108.153', `www-${domain.id}`)}
                               className="text-xs text-blue-600 hover:text-blue-700 flex items-center space-x-1"
                             >
-                              {copiedField === `cname-${domain.id}` ? (
+                              {copiedField === `www-${domain.id}` ? (
                                 <><Check size={12} /><span>Gekopieerd!</span></>
                               ) : (
                                 <><Copy size={12} /><span>Kopiëren</span></>
@@ -349,10 +356,10 @@ export function DomainSettings() {
                             </button>
                           </div>
                           <div className="text-xs text-gray-600 space-y-1">
-                            <div><span className="font-medium">Type:</span> CNAME</div>
+                            <div><span className="font-medium">Type:</span> A</div>
                             <div><span className="font-medium">Naam:</span> www</div>
-                            <div className="break-all"><span className="font-medium">Waarde:</span> {domain.domain}</div>
-                            <div className="text-xs text-gray-500 mt-2 italic">Dit zorgt ervoor dat www.{domain.domain} naar {domain.domain} verwijst</div>
+                            <div className="break-all"><span className="font-medium">Waarde:</span> 185.199.108.153</div>
+                            <div className="text-xs text-gray-500 mt-2 italic">💡 Voeg dit toe als je wilt dat www.{domain.domain} ook werkt</div>
                           </div>
                         </div>
                       </div>
