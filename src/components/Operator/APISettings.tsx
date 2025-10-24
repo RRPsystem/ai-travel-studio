@@ -125,8 +125,8 @@ export function APISettings() {
   };
 
   const testTwilioConnection = async () => {
-    if (!twilioSettings.twilio_account_sid || !twilioSettings.twilio_auth_token || !twilioSettings.twilio_whatsapp_number) {
-      setTwilioTestResult({ success: false, message: 'Vul eerst alle Twilio credentials in' });
+    if (!twilioSettings.twilio_account_sid || !twilioSettings.twilio_auth_token) {
+      setTwilioTestResult({ success: false, message: 'Vul eerst Account SID en Auth Token in' });
       return;
     }
 
@@ -134,25 +134,24 @@ export function APISettings() {
     setTwilioTestResult(null);
 
     try {
-      const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioSettings.twilio_account_sid}/Messages.json`, {
-        method: 'GET',
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-twilio`, {
+        method: 'POST',
         headers: {
-          'Authorization': 'Basic ' + btoa(`${twilioSettings.twilio_account_sid}:${twilioSettings.twilio_auth_token}`),
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          accountSid: twilioSettings.twilio_account_sid,
+          authToken: twilioSettings.twilio_auth_token,
+          whatsappNumber: twilioSettings.twilio_whatsapp_number
+        }),
       });
 
-      if (response.ok) {
-        setTwilioTestResult({
-          success: true,
-          message: '✅ Verbinding succesvol! Twilio credentials werken correct.'
-        });
-      } else {
-        const error = await response.text();
-        setTwilioTestResult({
-          success: false,
-          message: `❌ Verbinding mislukt: ${response.status} - Controleer je Account SID en Auth Token`
-        });
-      }
+      const data = await response.json();
+      setTwilioTestResult({
+        success: data.success,
+        message: data.details ? `${data.message}\n${data.details}` : data.message
+      });
     } catch (err: any) {
       setTwilioTestResult({
         success: false,
