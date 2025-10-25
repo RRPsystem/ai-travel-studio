@@ -94,11 +94,7 @@ export function TravelBro() {
 
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">TravelBRO Trips</h2>
-          <p className="text-gray-600 mt-1">Maak en beheer AI-gestuurde reis assistenten</p>
-        </div>
+      <div className="flex justify-end items-center mb-6">
         <button
           onClick={() => setShowNewTrip(true)}
           className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg flex items-center space-x-2 transition-colors"
