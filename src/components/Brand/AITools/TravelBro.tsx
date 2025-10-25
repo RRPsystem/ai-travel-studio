@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../contexts/AuthContext';
 import { supabase } from '../../../lib/supabase';
-import { Plus, Upload, Link as LinkIcon, Eye, Trash2, Copy, Check, FileText, Users, MessageSquare, Phone } from 'lucide-react';
+import { Plus, Upload, Link as LinkIcon, Eye, Trash2, Copy, Check, FileText, Users, MessageSquare, Phone, Send } from 'lucide-react';
 
 interface Trip {
   id: string;
@@ -429,7 +429,7 @@ function NewTripForm({ onBack }: { onBack: () => void }) {
 }
 
 function TripDetails({ trip, onBack }: { trip: Trip; onBack: () => void }) {
-  const [activeTab, setActiveTab] = useState<'settings' | 'intakes' | 'conversations' | 'intake-template' | 'whatsapp' | 'whatsapp-conversations'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'intakes' | 'conversations' | 'intake-template' | 'whatsapp' | 'whatsapp-conversations' | 'invite'>('settings');
   const [intakes, setIntakes] = useState<any[]>([]);
   const [conversations, setConversations] = useState<any[]>([]);
   const [whatsappSessions, setWhatsappSessions] = useState<any[]>([]);
@@ -632,6 +632,17 @@ function TripDetails({ trip, onBack }: { trip: Trip; onBack: () => void }) {
                 <MessageSquare size={16} />
                 <span>WhatsApp Gesprekken ({whatsappSessions.length})</span>
               </button>
+              <button
+                onClick={() => setActiveTab('invite')}
+                className={`pb-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                  activeTab === 'invite'
+                    ? 'border-orange-600 text-orange-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Send size={16} />
+                <span>Klant Uitnodigen</span>
+              </button>
             </nav>
           </div>
 
@@ -769,6 +780,10 @@ function TripDetails({ trip, onBack }: { trip: Trip; onBack: () => void }) {
 
           {activeTab === 'whatsapp-conversations' && (
             <WhatsAppConversationsView sessions={whatsappSessions} />
+          )}
+
+          {activeTab === 'invite' && (
+            <InviteClient trip={trip} />
           )}
         </div>
       </div>
@@ -1312,6 +1327,191 @@ function WhatsAppConversationsView({ sessions }: { sessions: any[] }) {
             )}
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function InviteClient({ trip }: { trip: Trip }) {
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [clientName, setClientName] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sentInvites, setSentInvites] = useState<any[]>([]);
+
+  useEffect(() => {
+    loadSentInvites();
+  }, []);
+
+  const loadSentInvites = async () => {
+    const { data } = await supabase
+      .from('travel_whatsapp_sessions')
+      .select('*')
+      .eq('trip_id', trip.id)
+      .order('created_at', { ascending: false });
+
+    setSentInvites(data || []);
+  };
+
+  const sendInvite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!phoneNumber.trim()) {
+      alert('Voer een telefoonnummer in');
+      return;
+    }
+
+    setSending(true);
+
+    try {
+      const baseUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+      const intakeLink = `${baseUrl}/travel/${trip.share_token}`;
+
+      const message = `Hoi${clientName ? ' ' + clientName : ''}! 👋\n\nJe reisagent heeft een persoonlijke TravelBRO assistent voor je klaargezet voor: *${trip.name}*\n\n🎯 Vul eerst even je reisgegevens in via deze link:\n${intakeLink}\n\nDaarna kun je direct hier in WhatsApp al je vragen stellen over de reis! ✈️\n\nIk ben 24/7 beschikbaar om je te helpen. Tot zo! 🌴`;
+
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'send',
+          to: phoneNumber,
+          message: message,
+          tripId: trip.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Fout bij versturen');
+      }
+
+      alert('Uitnodiging verstuurd! 🎉');
+      setPhoneNumber('');
+      setClientName('');
+      loadSentInvites();
+    } catch (error) {
+      console.error('Error sending invite:', error);
+      alert('Fout bij versturen: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-gradient-to-r from-orange-50 to-amber-50 border border-orange-200 rounded-lg p-6">
+        <h3 className="font-semibold text-orange-900 mb-2 flex items-center space-x-2">
+          <Send size={20} />
+          <span>Klant Uitnodigen via WhatsApp</span>
+        </h3>
+        <p className="text-sm text-orange-800 mb-4">
+          Stuur een WhatsApp bericht naar je klant met een persoonlijke uitnodiging om TravelBRO te gebruiken.
+          Ze ontvangen een link naar het intake formulier en kunnen daarna direct met TravelBRO chatten.
+        </p>
+
+        <form onSubmit={sendInvite} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Naam Klant (optioneel)
+            </label>
+            <input
+              type="text"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="Bijv: Jan de Vries"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Voor een persoonlijke aanspreekvorm in het bericht
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              WhatsApp Telefoonnummer *
+            </label>
+            <input
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="+31612345678"
+              required
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Inclusief landcode (bijv. +31 voor Nederland)
+            </p>
+          </div>
+
+          <button
+            type="submit"
+            disabled={sending}
+            className="w-full bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-medium flex items-center justify-center space-x-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{ backgroundColor: sending ? '#999' : '#ff7700' }}
+          >
+            {sending ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <span>Versturen...</span>
+              </>
+            ) : (
+              <>
+                <Send size={18} />
+                <span>Stuur Uitnodiging</span>
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+
+      <div>
+        <h3 className="font-semibold text-gray-900 mb-4">Verstuurde Uitnodigingen</h3>
+
+        {sentInvites.length === 0 ? (
+          <div className="text-center py-8 bg-gray-50 rounded-lg">
+            <p className="text-gray-600">Nog geen uitnodigingen verstuurd</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {sentInvites.map((invite) => (
+              <div key={invite.id} className="bg-white border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {invite.phone_number}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Verstuurd op: {new Date(invite.created_at).toLocaleString('nl-NL')}
+                    </p>
+                    {invite.message_count > 0 && (
+                      <p className="text-xs text-green-600 mt-1">
+                        ✓ {invite.message_count} berichten uitgewisseld
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      invite.message_count > 0
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {invite.message_count > 0 ? 'Actief' : 'Uitgenodigd'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <p className="text-xs text-blue-800">
+          <strong>💡 Tip:</strong> Klanten moeten eerst de Twilio Sandbox activeren door{' '}
+          <code className="bg-blue-100 px-1 py-0.5 rounded">join &lt;code&gt;</code> te sturen naar het Twilio nummer.
+          Dit hoeft maar 1x per klant. Zie TWILIO_WHATSAPP_SETUP.md voor meer info.
+        </p>
       </div>
     </div>
   );

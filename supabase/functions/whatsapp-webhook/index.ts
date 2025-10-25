@@ -146,6 +146,75 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    const contentType = req.headers.get('content-type') || '';
+
+    if (contentType.includes('application/json')) {
+      const body = await req.json();
+
+      if (body.action === 'send') {
+        const { to, message, tripId } = body;
+
+        if (!to || !message || !tripId) {
+          return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const { data: trip } = await supabase
+          .from('travel_trips')
+          .select('*, brand_id')
+          .eq('id', tripId)
+          .maybeSingle();
+
+        if (!trip) {
+          return new Response(JSON.stringify({ error: 'Trip not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        let { data: apiSettings } = await supabase
+          .from('api_settings')
+          .select('twilio_account_sid, twilio_auth_token, twilio_whatsapp_number')
+          .eq('provider', 'Twilio')
+          .eq('brand_id', trip.brand_id)
+          .maybeSingle();
+
+        if (!apiSettings?.twilio_account_sid || !apiSettings?.twilio_auth_token) {
+          const { data: systemSettings } = await supabase
+            .from('api_settings')
+            .select('twilio_account_sid, twilio_auth_token, twilio_whatsapp_number')
+            .eq('provider', 'Twilio')
+            .is('brand_id', null)
+            .maybeSingle();
+
+          if (systemSettings?.twilio_account_sid && systemSettings?.twilio_auth_token) {
+            apiSettings = systemSettings;
+          } else {
+            return new Response(JSON.stringify({ error: 'Twilio niet geconfigureerd' }), {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        }
+
+        await sendWhatsAppMessage(
+          to,
+          message,
+          apiSettings.twilio_account_sid,
+          apiSettings.twilio_auth_token,
+          apiSettings.twilio_whatsapp_number || trip.whatsapp_number
+        );
+
+        await getOrCreateSession(supabase, tripId, trip.brand_id, to);
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
+
     const formData = await req.formData();
     const from = formData.get('From')?.toString().replace('whatsapp:', '') || '';
     let body = formData.get('Body')?.toString() || '';
