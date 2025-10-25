@@ -160,17 +160,32 @@ export function APISettings() {
 
       console.log('🟢 Response received:', response.status);
 
+      // First read the body as text to see what we got
+      const responseText = await response.text();
+      console.log('🔵 Response body:', responseText);
+
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Response error:', response.status, errorText);
+        console.error('Response error:', response.status, responseText);
         setTwilioTestResult({
           success: false,
-          message: `❌ Verbinding mislukt: ${response.status}\n${errorText}`
+          message: `❌ Verbinding mislukt: ${response.status}\n${responseText}`
         });
         return;
       }
 
-      const data = await response.json();
+      // Try to parse the JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log('🟢 Parsed data:', data);
+      } catch (parseError) {
+        console.error('🔴 JSON parse error:', parseError);
+        setTwilioTestResult({
+          success: false,
+          message: `❌ Ongeldig antwoord van server: ${responseText}`
+        });
+        return;
+      }
       setTwilioTestResult({
         success: data.success,
         message: data.details ? `${data.message}\n${data.details}` : data.message
