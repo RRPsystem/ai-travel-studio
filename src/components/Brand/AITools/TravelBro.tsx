@@ -429,7 +429,7 @@ function NewTripForm({ onBack }: { onBack: () => void }) {
 }
 
 function TripDetails({ trip, onBack }: { trip: Trip; onBack: () => void }) {
-  const [activeTab, setActiveTab] = useState<'settings' | 'intakes' | 'conversations' | 'intake-template' | 'whatsapp' | 'whatsapp-conversations' | 'invite'>('settings');
+  const [activeTab, setActiveTab] = useState<'settings' | 'invite' | 'conversations'>('settings');
   const [intakes, setIntakes] = useState<any[]>([]);
   const [conversations, setConversations] = useState<any[]>([]);
   const [whatsappSessions, setWhatsappSessions] = useState<any[]>([]);
@@ -565,72 +565,27 @@ function TripDetails({ trip, onBack }: { trip: Trip; onBack: () => void }) {
             </div>
           </div>
 
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-6">
+            <h3 className="font-semibold text-orange-900 mb-2">Hoe werkt TravelBRO?</h3>
+            <ol className="text-sm text-orange-800 space-y-1 list-decimal list-inside">
+              <li><strong>Stap 1:</strong> Upload reis-PDF en voeg extra informatie toe (Instellingen)</li>
+              <li><strong>Stap 2:</strong> Stuur WhatsApp uitnodiging naar je klant (Klant Uitnodigen)</li>
+              <li><strong>Stap 3:</strong> Klant vult intake in en kan direct chatten (Gesprekken)</li>
+            </ol>
+          </div>
+
           <div className="border-b border-gray-200 mb-6">
             <nav className="flex space-x-8">
               <button
                 onClick={() => setActiveTab('settings')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm ${
+                className={`pb-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
                   activeTab === 'settings'
                     ? 'border-orange-600 text-orange-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Instellingen
-              </button>
-              <button
-                onClick={() => setActiveTab('intakes')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                  activeTab === 'intakes'
-                    ? 'border-orange-600 text-orange-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <Users size={16} />
-                <span>Intakes ({intakes.length})</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('conversations')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                  activeTab === 'conversations'
-                    ? 'border-orange-600 text-orange-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <MessageSquare size={16} />
-                <span>Conversaties ({conversations.length})</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('intake-template')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                  activeTab === 'intake-template'
-                    ? 'border-orange-600 text-orange-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <FileText size={16} />
-                <span>Intake Template</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('whatsapp')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                  activeTab === 'whatsapp'
-                    ? 'border-orange-600 text-orange-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <Phone size={16} />
-                <span>WhatsApp Setup</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('whatsapp-conversations')}
-                className={`pb-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                  activeTab === 'whatsapp-conversations'
-                    ? 'border-orange-600 text-orange-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <MessageSquare size={16} />
-                <span>WhatsApp Gesprekken ({whatsappSessions.length})</span>
+                <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-1">1</span>
+                <span>Instellingen</span>
               </button>
               <button
                 onClick={() => setActiveTab('invite')}
@@ -640,19 +595,32 @@ function TripDetails({ trip, onBack }: { trip: Trip; onBack: () => void }) {
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
+                <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-1">2</span>
                 <Send size={16} />
                 <span>Klant Uitnodigen</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('conversations')}
+                className={`pb-4 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                  activeTab === 'conversations'
+                    ? 'border-orange-600 text-orange-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <span className="bg-orange-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs mr-1">3</span>
+                <MessageSquare size={16} />
+                <span>Gesprekken ({whatsappSessions.length})</span>
               </button>
             </nav>
           </div>
 
           {activeTab === 'settings' && (
             <div className="space-y-6">
-              <div>
-                <div className="flex justify-between items-center mb-3">
-                  <h3 className="font-semibold text-gray-900">PDF Documenten</h3>
-                  <label className="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded text-sm cursor-pointer transition-colors">
-                    + Upload PDF
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="font-semibold text-gray-900">Reis Informatie</h3>
+                  <label className="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm cursor-pointer transition-colors">
+                    Upload PDF
                     <input
                       type="file"
                       accept=".pdf"
@@ -662,24 +630,34 @@ function TripDetails({ trip, onBack }: { trip: Trip; onBack: () => void }) {
                     />
                   </label>
                 </div>
-                <p className="text-sm text-gray-600">
-                  {trip.pdf_url ? trip.pdf_url : 'Geen PDF geüpload'}
-                </p>
-                {uploading && <p className="text-sm text-orange-600 mt-2">Uploaden...</p>}
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <p className="text-sm font-medium text-gray-700 mb-1">PDF Status:</p>
+                  <p className="text-sm text-gray-600">
+                    {trip.pdf_url ? '✓ PDF geüpload' : 'Geen PDF geüpload'}
+                  </p>
+                  {uploading && <p className="text-sm text-orange-600 mt-2">Uploaden en verwerken...</p>}
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-3">Bron URL's</h3>
+
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <h3 className="font-semibold text-gray-900 mb-4">Extra Bron URL's</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Voeg websites toe met informatie over de bestemming (hotel sites, activiteiten, restaurants, etc.)
+                </p>
                 {trip.source_urls.length > 0 && (
-                  <ul className="space-y-1 mb-4">
-                    {trip.source_urls.map((url, index) => (
-                      <li key={index} className="text-sm text-blue-600 hover:underline">
-                        <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="mb-4">
+                    <p className="text-xs font-medium text-gray-700 mb-2">Huidige URLs:</p>
+                    <ul className="space-y-1">
+                      {trip.source_urls.map((url, index) => (
+                        <li key={index} className="text-sm text-blue-600 hover:underline">
+                          <a href={url} target="_blank" rel="noopener noreferrer">{url}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-gray-700">Nieuwe URL's toevoegen:</p>
+                  <p className="text-sm font-medium text-gray-700">Nieuwe URL toevoegen:</p>
                   {newUrls.map((url, index) => (
                     <div key={index} className="flex space-x-2">
                       <input
@@ -712,73 +690,21 @@ function TripDetails({ trip, onBack }: { trip: Trip; onBack: () => void }) {
                   </button>
                 </div>
               </div>
-            </div>
-          )}
 
-          {activeTab === 'intakes' && (
-            <div>
-              {intakes.length === 0 ? (
-                <p className="text-gray-600 text-center py-8">Nog geen intakes ingevuld</p>
-              ) : (
-                <div className="space-y-4">
-                  {intakes.map((intake) => (
-                    <div key={intake.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex justify-between items-start mb-2">
-                        <p className="text-sm font-medium text-gray-900">
-                          {intake.travelers_count} reiziger(s)
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {new Date(intake.created_at).toLocaleDateString('nl-NL')}
-                        </p>
-                      </div>
-                      <pre className="text-xs text-gray-600 bg-gray-50 p-2 rounded overflow-x-auto">
-                        {JSON.stringify(intake.intake_data, null, 2)}
-                      </pre>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h3 className="font-semibold text-blue-900 mb-2">WhatsApp Setup (éénmalig)</h3>
+                <p className="text-sm text-blue-800 mb-3">
+                  Vraag de Operator om Twilio WhatsApp credentials in te stellen in API Settings.
+                  Dit hoeft maar 1x voor het hele systeem.
+                </p>
+                <p className="text-xs text-blue-700">
+                  💡 Na setup kun je direct klanten uitnodigen via de "Klant Uitnodigen" tab.
+                </p>
+              </div>
             </div>
           )}
 
           {activeTab === 'conversations' && (
-            <div>
-              {conversations.length === 0 ? (
-                <p className="text-gray-600 text-center py-8">Nog geen conversaties</p>
-              ) : (
-                <div className="space-y-3">
-                  {conversations.map((conv) => (
-                    <div
-                      key={conv.id}
-                      className={`p-3 rounded-lg ${
-                        conv.role === 'user'
-                          ? 'bg-gray-100 ml-8'
-                          : 'bg-orange-50 mr-8'
-                      }`}
-                    >
-                      <p className="text-xs font-medium text-gray-500 mb-1">
-                        {conv.role === 'user' ? 'Gebruiker' : 'TravelBRO'}
-                      </p>
-                      <p className="text-sm text-gray-900">{conv.message}</p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {new Date(conv.created_at).toLocaleString('nl-NL')}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'intake-template' && (
-            <IntakeTemplateEditor trip={trip} onSave={onBack} />
-          )}
-
-          {activeTab === 'whatsapp' && (
-            <WhatsAppSettings trip={trip} onSave={onBack} />
-          )}
-
-          {activeTab === 'whatsapp-conversations' && (
             <WhatsAppConversationsView sessions={whatsappSessions} />
           )}
 
