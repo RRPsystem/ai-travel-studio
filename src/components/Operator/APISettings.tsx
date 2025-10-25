@@ -139,18 +139,26 @@ export function APISettings() {
     setTwilioTestResult(null);
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-twilio`, {
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-twilio`;
+      const payload = {
+        accountSid: twilioSettings.twilio_account_sid,
+        authToken: twilioSettings.twilio_auth_token,
+        whatsappNumber: twilioSettings.twilio_whatsapp_number
+      };
+
+      console.log('🔵 Fetch URL:', url);
+      console.log('🔵 Payload:', payload);
+
+      const response = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
-        body: JSON.stringify({
-          accountSid: twilioSettings.twilio_account_sid,
-          authToken: twilioSettings.twilio_auth_token,
-          whatsappNumber: twilioSettings.twilio_whatsapp_number
-        }),
+        body: JSON.stringify(payload),
       });
+
+      console.log('🟢 Response received:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -168,11 +176,13 @@ export function APISettings() {
         message: data.details ? `${data.message}\n${data.details}` : data.message
       });
     } catch (err: any) {
+      console.error('🔴 Fetch error:', err);
       setTwilioTestResult({
         success: false,
         message: `❌ Netwerk fout: ${err.message}`
       });
     } finally {
+      console.log('🔵 Finally: setting testingTwilio to false');
       setTestingTwilio(false);
     }
   };
