@@ -337,16 +337,21 @@ function IntakeForm({ trip, onComplete }: { trip: Trip; onComplete: (token: stri
     setSubmitting(true);
 
     try {
+      const sessionToken = Array.from(crypto.getRandomValues(new Uint8Array(24)))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
       const { data, error } = await supabase
         .from('travel_intakes')
         .insert({
           trip_id: trip.id,
+          session_token: sessionToken,
           travelers_count: travelersCount,
           intake_data: { travelers },
           completed_at: new Date().toISOString(),
         })
         .select()
-        .maybeSingle();
+        .single();
 
       if (error) {
         console.error('Database error:', error);
