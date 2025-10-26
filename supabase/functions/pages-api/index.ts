@@ -117,7 +117,7 @@ Deno.serve(async (req: Request) => {
     const url = new URL(req.url);
     const pathParts = url.pathname.split("/").filter(Boolean);
 
-    console.log("[DEBUG] Request:", {
+    console.log("[DEBUG] Incoming request:", {
       method: req.method,
       pathname: url.pathname,
       pathParts,
@@ -128,155 +128,70 @@ Deno.serve(async (req: Request) => {
       console.log("[DEBUG] Processing saveDraft/save");
       const body = await req.json();
       console.log("[DEBUG] Body:", {
-        has_brand_id: !!body.brand_id,
-        has_page_id: !!body.page_id,
-        is_template: body.is_template,
         title: body.title,
         slug: body.slug,
-        content_json_keys: body.content_json ? Object.keys(body.content_json) : [],
-        content_json_sample: body.content_json ? JSON.stringify(body.content_json).substring(0, 200) : null
+        has_content: !!body.content_json,
+        page_id: body.page_id,
+        content_type: body.content_type,
+        is_template: body.is_template,
+        template_category: body.template_category,
+        preview_image_url: body.preview_image_url
       });
 
       const claims = await verifyBearerToken(req, supabase, "content:write", ["pages:write"]);
-      console.log("[DEBUG] Claims verified:", { brand_id: claims.brand_id, sub: claims.sub, has_content_type: !!(claims as any).content_type });
+      const { brand_id, user_id, sub } = claims;
+      const isTemplateMode = body.is_template === true || body.is_template === 'true';
 
-      let { brand_id, page_id, title, slug, is_template, template_category, preview_image_url, content_type } = body;
-
-      if (!content_type && (claims as any).content_type) {
-        content_type = (claims as any).content_type;
-        console.log("[DEBUG] Using content_type from JWT:", content_type);
-      }
-
-      if (!content_type && (claims as any).mode === 'news') {
-        content_type = 'news';
-        console.log("[DEBUG] Detected news mode from JWT");
-      }
-
-      if (!content_type && ((claims as any).mode === 'travel' || (claims as any).mode === 'trip')) {
-        content_type = 'trip';
-        console.log("[DEBUG] Detected trip/travel mode from JWT");
-      }
-
-      if (!content_type && (claims as any).mode === 'destination') {
-        content_type = 'destination';
-        console.log("[DEBUG] Detected destination mode from JWT");
-      }
-
-      if (!content_type) {
-        const referer = req.headers.get('Referer') || req.headers.get('Origin') || '';
-        if (referer.includes('content_type=news') || referer.includes('mode=news')) {
-          content_type = 'news';
-          console.log("[DEBUG] Detected news content from referer");
-        } else if (referer.includes('content_type=destination') || referer.includes('mode=destination')) {
-          content_type = 'destination';
-          console.log("[DEBUG] Detected destination content from referer");
-        } else if (referer.includes('content_type=trip') || referer.includes('mode=trip') || referer.includes('mode=travel')) {
-          content_type = 'trip';
-          console.log("[DEBUG] Detected trip content from referer");
-        }
-      }
-
-      if (content_type === 'trips') {
-        content_type = 'trip';
-        console.log("[DEBUG] Normalized 'trips' to 'trip'");
-      }
-
-      let content_json = body.content_json || body.json || body.content || body.layout || {};
-
-      if (body.htmlSnapshot) {
-        content_json.htmlSnapshot = body.htmlSnapshot;
-
-        if (!content_type) {
-          if (body.htmlSnapshot.includes('na-title') || body.htmlSnapshot.includes('na-content') || body.htmlSnapshot.includes('na-author')) {
-            content_type = 'news';
-            console.log("[DEBUG] Detected news content from HTML structure");
-          } else {
-            content_type = 'page';
-            console.log("[DEBUG] Detected page content (no news markers found)");
-          }
-        }
-
-        if (content_type === 'news' && title === 'Pagina') {
-          const titleMatch = body.htmlSnapshot.match(/class="na-title"[^>]*>([^<]+)</);
-          if (titleMatch && titleMatch[1]) {
-            title = titleMatch[1].trim();
-            content_json.title = title;
-            console.log("[DEBUG] Extracted title from htmlSnapshot:", title);
-          }
-        }
-      }
-
-      console.log("[DEBUG] Extracted content_json:", {
-        keys: Object.keys(content_json),
-        has_layout: !!content_json.layout,
-        has_json: !!content_json.json,
-        has_htmlSnapshot: !!content_json.htmlSnapshot,
-        final_title: title
+      console.log("[DEBUG] Verified claims:", {
+        brand_id,
+        user_id: user_id || sub,
+        isTemplateMode
       });
 
-      const isTemplateFromJWT = claims.is_template === true;
-      const isTemplateFromBody = is_template === true;
-      const isTemplateMode = isTemplateFromJWT || isTemplateFromBody;
+      const {
+        title,
+        slug,
+        content_json,
+        page_id,
+        content_type,
+        template_category,
+        preview_image_url
+      } = body;
 
-      console.log("[DEBUG] Template mode check:", {
-        isTemplateFromJWT,
-        isTemplateFromBody,
-        isTemplateMode,
-        jwtBrandId: claims.brand_id,
-        bodyBrandId: brand_id
-      });
-
-      if (isTemplateMode) {
-        if (!title || !slug) {
-          return new Response(
-            JSON.stringify({ error: "title and slug required for templates" }),
-            { status: 400, headers: corsHeaders() }
-          );
-        }
-      } else {
-        if (claims.brand_id !== brand_id) {
-          return new Response(
-            JSON.stringify({ error: "Unauthorized" }),
-            { status: 403, headers: corsHeaders() }
-          );
-        }
-
-        if (!brand_id || !title || !slug) {
-          return new Response(
-            JSON.stringify({ error: "brand_id, title, and slug required" }),
-            { status: 400, headers: corsHeaders() }
-          );
-        }
-      }
-
-      let result;
+      let result: any;
 
       if (page_id) {
-        const { data: currentPage } = await supabase
+        console.log("[DEBUG] Updating existing page with id:", page_id);
+
+        const { data: existingPage, error: fetchError } = await supabase
           .from("pages")
-          .select("version")
+          .select("id, version")
           .eq("id", page_id)
           .maybeSingle();
 
-        const updateData: any = {
-          title,
-          slug,
-          content_json,
-          status: "draft",
-          version: (currentPage?.version || 0) + 1,
-          updated_at: new Date().toISOString(),
-        };
+        if (fetchError) throw fetchError;
 
-        if (content_type) {
-          updateData.content_type = content_type;
+        if (!existingPage) {
+          return new Response(
+            JSON.stringify({ error: "Page not found" }),
+            { status: 404, headers: corsHeaders() }
+          );
         }
 
-        if (isTemplateMode) {
-          updateData.is_template = true;
-          updateData.template_category = template_category || 'general';
-          if (preview_image_url) {
-            updateData.preview_image_url = preview_image_url;
-          }
+        const newVersion = (existingPage.version || 1) + 1;
+
+        const updateData: any = {
+          title,
+          content_json,
+          updated_at: new Date().toISOString(),
+          version: newVersion
+        };
+
+        if (isTemplateMode && template_category) {
+          updateData.template_category = template_category;
+        }
+        if (isTemplateMode && preview_image_url) {
+          updateData.preview_image_url = preview_image_url;
         }
 
         const { data, error } = await supabase
@@ -379,25 +294,14 @@ Deno.serve(async (req: Request) => {
         };
 
         if (content_type === 'news') {
-          contentData.excerpt = content_json.excerpt || content_json.description || '';
-          contentData.tags = content_json.tags || [];
-        } else if (content_type === 'destination') {
-          contentData.country = content_json.country || '';
-          contentData.region = content_json.region || '';
-          contentData.gallery = content_json.gallery || [];
-        } else if (content_type === 'trip') {
-          contentData.destination_id = content_json.destination_id || null;
-          contentData.price = content_json.price || 0;
-          contentData.duration_days = content_json.duration_days || 0;
-          contentData.departure_dates = content_json.departure_dates || [];
-          contentData.gallery = content_json.gallery || [];
+          contentData.source = 'direct';
         }
 
-        const { data: existingContent } = await supabase
+        const { data: existingContent, error: existingError } = await supabase
           .from(tableName)
           .select('id')
-          .eq('brand_id', brand_id)
           .eq('slug', slug)
+          .eq('brand_id', brand_id)
           .maybeSingle();
 
         if (existingContent) {
@@ -480,308 +384,66 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      if (claims.brand_id !== page.brand_id) {
-        return new Response(
-          JSON.stringify({ error: "Unauthorized" }),
-          { status: 403, headers: corsHeaders() }
-        );
-      }
-
-      const { data, error } = await supabase
-        .from("pages")
-        .update({
-          body_html,
-          status: "published",
-          version: (page.version || 0) + 1,
-          published_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", pageId)
-        .select("id, slug, version")
-        .maybeSingle();
-
-      if (error) throw error;
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          page_id: data.id,
-          slug: data.slug,
-          version: data.version,
-          message: "Page published successfully"
-        }),
-        { status: 200, headers: corsHeaders() }
-      );
-    }
-
-    if (req.method === "GET" && pathParts.includes("list")) {
-      const claims = await verifyBearerToken(req, supabase, "content:read", ["pages:read"]);
-      const brandId = url.searchParams.get("brand_id") || claims.brand_id;
-
-      if (claims.brand_id !== brandId) {
-        return new Response(
-          JSON.stringify({ error: "Unauthorized" }),
-          { status: 403, headers: corsHeaders() }
-        );
-      }
-
-      let query = supabase
-        .from("pages")
-        .select("*")
-        .eq("brand_id", brandId)
-        .or("content_type.eq.page,content_type.is.null")
-        .order("created_at", { ascending: false });
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      if (data && data.length > 0) {
-        data.forEach(page => {
-          if (page.content_json && page.content_json.htmlSnapshot && !page.content_json.layout && !page.content_json.json) {
-            console.log("[DEBUG] Converting htmlSnapshot to layout for builder (list query):", page.id);
-            page.content_json.layout = {
-              html: page.content_json.htmlSnapshot,
-              css: "",
-              js: ""
-            };
-          }
-        });
-      }
-
-      return new Response(JSON.stringify({ pages: data }), { status: 200, headers: corsHeaders() });
-    }
-
-    if (req.method === "GET" && pathParts[pathParts.length - 2] === "pages") {
-      const claims = await verifyBearerToken(req, supabase, "content:read", ["pages:read"]);
-      const pageId = pathParts[pathParts.length - 1];
-
-      const { data, error } = await supabase
-        .from("pages")
-        .select("*")
-        .eq("id", pageId)
-        .maybeSingle();
-
-      if (error) throw error;
-      if (!data) {
-        return new Response(
-          JSON.stringify({ error: "Page not found" }),
-          { status: 404, headers: corsHeaders() }
-        );
-      }
-
-      if (claims.brand_id !== data.brand_id && !claims.is_template) {
-        return new Response(
-          JSON.stringify({ error: "Unauthorized" }),
-          { status: 403, headers: corsHeaders() }
-        );
-      }
-
-      if (data.content_json && data.content_json.htmlSnapshot && !data.content_json.layout && !data.content_json.json) {
-        console.log("[DEBUG] Converting htmlSnapshot to layout for builder (single page query):", data.id);
-        data.content_json.layout = {
-          html: data.content_json.htmlSnapshot,
-          css: "",
-          js: ""
-        };
-      }
-
-      return new Response(JSON.stringify(data), { status: 200, headers: corsHeaders() });
-    }
-
-    if (req.method === "PUT" && pathParts[pathParts.length - 2] === "pages") {
-      const claims = await verifyBearerToken(req, supabase, "content:write", ["pages:write"]);
-      const pageId = pathParts[pathParts.length - 1];
-      const body = await req.json();
-
-      const { data: currentPage, error: fetchError } = await supabase
-        .from("pages")
-        .select("brand_id")
-        .eq("id", pageId)
-        .maybeSingle();
-
-      if (fetchError || !currentPage) {
-        return new Response(
-          JSON.stringify({ error: "Page not found" }),
-          { status: 404, headers: corsHeaders() }
-        );
-      }
-
-      if (claims.brand_id !== currentPage.brand_id) {
-        return new Response(
-          JSON.stringify({ error: "Unauthorized" }),
-          { status: 403, headers: corsHeaders() }
-        );
-      }
-
-      const updateData: any = {
-        ...body,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (body.content_json) {
-        updateData.content_json = body.content_json;
-      }
-
-      const { data, error } = await supabase
-        .from("pages")
-        .update(updateData)
-        .eq("id", pageId)
-        .select("*")
-        .maybeSingle();
-
-      if (error) throw error;
-
-      return new Response(JSON.stringify(data), { status: 200, headers: corsHeaders() });
-    }
-
-    if (req.method === "DELETE" && pathParts[pathParts.length - 2] === "pages") {
-      const claims = await verifyBearerToken(req, supabase, "content:write", ["pages:write"]);
-      const pageId = pathParts[pathParts.length - 1];
-
-      const { data: currentPage, error: fetchError } = await supabase
-        .from("pages")
-        .select("brand_id")
-        .eq("id", pageId)
-        .maybeSingle();
-
-      if (fetchError || !currentPage) {
-        return new Response(
-          JSON.stringify({ error: "Page not found" }),
-          { status: 404, headers: corsHeaders() }
-        );
-      }
-
-      if (claims.brand_id !== currentPage.brand_id) {
-        return new Response(
-          JSON.stringify({ error: "Unauthorized" }),
-          { status: 403, headers: corsHeaders() }
-        );
-      }
+      const newVersion = (page.version || 1) + 1;
 
       const { error } = await supabase
         .from("pages")
-        .delete()
+        .update({
+          status: "published",
+          published_at: new Date().toISOString(),
+          body_html,
+          version: newVersion,
+          updated_at: new Date().toISOString()
+        })
         .eq("id", pageId);
 
       if (error) throw error;
 
       return new Response(
-        JSON.stringify({ success: true, message: "Page deleted successfully" }),
+        JSON.stringify({ success: true }),
         { status: 200, headers: corsHeaders() }
       );
     }
 
-    if (req.method === "GET" && (url.pathname.endsWith("/pages") || url.pathname.endsWith("/pages-api"))) {
-    const apikey = url.searchParams.get("apikey");
-    const preview = url.searchParams.get("preview");
-    const brand_id = url.searchParams.get("brand_id");
-    const page_id = url.searchParams.get("page_id");
+    if (req.method === "GET") {
+      console.log("[DEBUG] GET request to pages-api");
 
-    if (page_id) {
-      const { data, error } = await supabase
-        .from("pages")
-        .select("*")
-        .eq("id", page_id)
-        .maybeSingle();
+      const claims = await verifyBearerToken(req, supabase, "pages:read");
+      const { brand_id } = claims;
+      const isTemplateMode = url.searchParams.get('is_template') === 'true';
 
-      if (error) throw error;
-      if (!data) {
-        return new Response(
-          JSON.stringify({ error: "Page not found" }),
-          { status: 404, headers: corsHeaders() }
-        );
-      }
-
-      if (data.content_json && data.content_json.htmlSnapshot && !data.content_json.layout && !data.content_json.json) {
-        console.log("[DEBUG] Converting htmlSnapshot to layout for builder (anon query)");
-        data.content_json.layout = {
-          html: data.content_json.htmlSnapshot,
-          css: "",
-          js: ""
-        };
-      }
-
-      return new Response(JSON.stringify(data), { status: 200, headers: corsHeaders() });
-    }
-
-    if (apikey) {
-      const { data: apiSettings, error: apiError } = await supabase
-        .from("api_settings")
-        .select("api_key, brand_id, can_read_content")
-        .eq("api_key", apikey)
-        .maybeSingle();
-
-      if (apiError || !apiSettings) {
-        return new Response(
-          JSON.stringify({ error: "Invalid API key" }),
-          { status: 401, headers: corsHeaders() }
-        );
-      }
-
-      if (!apiSettings.can_read_content) {
-        return new Response(
-          JSON.stringify({ error: "API key does not have read content permission" }),
-          { status: 403, headers: corsHeaders() }
-        );
-      }
+      console.log("[DEBUG] Fetching pages for:", { brand_id, isTemplateMode });
 
       let query = supabase
         .from("pages")
         .select("*")
-        .eq("brand_id", apiSettings.brand_id);
+        .order("updated_at", { ascending: false });
 
-      if (preview !== "true") {
-        query = query.eq("status", "published");
+      if (isTemplateMode) {
+        query = query.eq("is_template", true);
+      } else if (brand_id) {
+        query = query.eq("brand_id", brand_id).eq("is_template", false);
       }
-
-      query = query
-        .or("content_type.eq.page,content_type.is.null")
-        .order("created_at", { ascending: false });
 
       const { data, error } = await query;
 
       if (error) throw error;
 
-      return new Response(JSON.stringify({ pages: data }), { status: 200, headers: corsHeaders() });
-    }
-
-    if (brand_id) {
-      let query = supabase
-        .from("pages")
-        .select("*")
-        .eq("brand_id", brand_id);
-
-      if (preview !== "true") {
-        query = query.eq("status", "published");
-      }
-
-      query = query
-        .or("content_type.eq.page,content_type.is.null")
-        .order("created_at", { ascending: false });
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-
-      return new Response(JSON.stringify({ pages: data }), { status: 200, headers: corsHeaders() });
+      return new Response(
+        JSON.stringify(data || []),
+        { status: 200, headers: corsHeaders() }
+      );
     }
 
     return new Response(
-      JSON.stringify({ error: "Missing required parameters: apikey, brand_id, or page_id" }),
-      { status: 400, headers: corsHeaders() }
+      JSON.stringify({ error: "Not found" }),
+      { status: 404, headers: corsHeaders() }
     );
-  }
-
-  return new Response(
-    JSON.stringify({ error: "Route not found" }),
-    { status: 404, headers: corsHeaders() }
-  );
-  } catch (err: any) {
-    console.error("[ERROR] Request failed:", err);
-    const statusCode = err.statusCode || 500;
+  } catch (error: any) {
+    console.error("[ERROR] pages-api error:", error);
+    const statusCode = error.statusCode || 500;
     return new Response(
-      JSON.stringify({ error: err.message || "Internal Server Error" }),
+      JSON.stringify({ error: error.message || "Internal server error" }),
       { status: statusCode, headers: corsHeaders() }
     );
   }
