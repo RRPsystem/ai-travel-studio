@@ -33,11 +33,51 @@ export interface GoogleMapsPlace {
 export class OpenAIService {
   private apiKey: string;
   private baseUrl = 'https://api.openai.com/v1';
+  private apiKeyPromise: Promise<string> | null = null;
 
   constructor() {
-    this.apiKey = import.meta.env.VITE_OPENAI_API_KEY || '';
-    const isPlaceholder = this.apiKey === 'your-openai-api-key' || this.apiKey.startsWith('your-openai');
-    const hasValidKey = this.apiKey && this.apiKey.startsWith('sk-') && !isPlaceholder;
+    this.apiKey = '';
+  }
+
+  private async getApiKey(): Promise<string> {
+    if (this.apiKey) {
+      return this.apiKey;
+    }
+
+    if (this.apiKeyPromise) {
+      return this.apiKeyPromise;
+    }
+
+    this.apiKeyPromise = (async () => {
+      try {
+        // First try environment variable
+        const envKey = import.meta.env.VITE_OPENAI_API_KEY || '';
+        const isPlaceholder = envKey === 'your-openai-api-key' || envKey.startsWith('your-openai');
+
+        if (envKey && envKey.startsWith('sk-') && !isPlaceholder) {
+          this.apiKey = envKey;
+          return this.apiKey;
+        }
+
+        // If no valid env key, try database
+        const { db } = await import('./supabase');
+        const settings = await db.getAPISettings();
+
+        if (settings?.openai_api_key && settings.openai_api_key.startsWith('sk-')) {
+          this.apiKey = settings.openai_api_key;
+          return this.apiKey;
+        }
+
+        return '';
+      } catch (error) {
+        console.error('Error loading OpenAI API key:', error);
+        return '';
+      } finally {
+        this.apiKeyPromise = null;
+      }
+    })();
+
+    return this.apiKeyPromise;
   }
 
   async generateContent(
@@ -56,11 +96,13 @@ export class OpenAIService {
       systemPrompt?: string;
     } = {}
   ): Promise<string> {
-    if (!this.apiKey) {
+    const apiKey = await this.getApiKey();
+
+    if (!apiKey) {
       throw new Error('OpenAI API key not configured');
     }
 
-    if (!this.apiKey.startsWith('sk-')) {
+    if (!apiKey.startsWith('sk-')) {
       throw new Error('Invalid OpenAI API key format. Key should start with "sk-"');
     }
 
@@ -122,7 +164,7 @@ export class OpenAIService {
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -180,11 +222,13 @@ export class OpenAIService {
       contentType?: string;
     } = {}
   ): Promise<string> {
-    if (!this.apiKey) {
+    const apiKey = await this.getApiKey();
+
+    if (!apiKey) {
       throw new Error('OpenAI API key not configured');
     }
 
-    if (!this.apiKey.startsWith('sk-')) {
+    if (!apiKey.startsWith('sk-')) {
       throw new Error('Invalid OpenAI API key format. Key should start with "sk-"');
     }
 
@@ -253,7 +297,7 @@ export class OpenAIService {
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -292,8 +336,9 @@ export class OpenAIService {
   }
 
   async generateImage(prompt: string): Promise<string> {
-    const isPlaceholder = this.apiKey === 'your-openai-api-key' || this.apiKey.startsWith('your-openai');
-    if (!this.apiKey || isPlaceholder) {
+    const apiKey = await this.getApiKey();
+
+    if (!apiKey) {
       throw new Error('OpenAI API key not configured');
     }
 
@@ -301,7 +346,7 @@ export class OpenAIService {
       const response = await fetch(`${this.baseUrl}/images/generations`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
+          'Authorization': `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
