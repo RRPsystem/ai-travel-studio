@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plane, Eye, Plus, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { generateBuilderJWT, generateBuilderDeeplink } from '../../lib/jwtHelper';
+import { generateBuilderJWT } from '../../lib/jwtHelper';
 
 interface TripAssignment {
   id: string;
@@ -94,58 +94,31 @@ export function TripApproval() {
 
       const filteredBrandTrips = (brandTripsData || []).filter(item => !assignedTripIds.has(item.id));
 
-      const { data: availableTripsData, error: availableTripsError } = await supabase
-        .from('trips')
-        .select('id, title, slug, description, featured_image, price, duration_days, created_at, published_at, status, is_mandatory, enabled_for_brands, author_type')
-        .eq('enabled_for_brands', true)
-        .neq('brand_id', user.brand_id)
-        .order('created_at', { ascending: false });
-
-      if (availableTripsError) throw availableTripsError;
-
-      const filteredAvailableTrips = (availableTripsData || []).filter(item => !assignedTripIds.has(item.id));
-
-      const brandTripsAsAssignments: TripAssignment[] = filteredBrandTrips.map(trip => ({
-        id: `brand-${trip.id}`,
-        trip_id: trip.id,
+      const formattedBrandTrips = filteredBrandTrips.map(item => ({
+        id: `brand-trip-${item.id}`,
+        trip_id: item.id,
+        page_id: item.id,
         status: 'brand' as const,
-        is_published: trip.status === 'published',
-        assigned_at: trip.created_at,
+        is_published: item.status === 'published',
+        assigned_at: item.created_at,
         trip: {
-          id: trip.id,
-          title: trip.title,
-          slug: trip.slug,
-          description: trip.description || '',
-          featured_image: trip.featured_image || '',
-          price: trip.price || 0,
-          duration_days: trip.duration_days || 0,
+          id: item.id,
+          title: item.title,
+          slug: item.slug,
+          description: item.description || '',
+          featured_image: item.featured_image || '',
+          price: item.price || 0,
+          duration_days: item.duration_days || 0,
           is_mandatory: false,
-          published_at: trip.published_at || trip.created_at
+          published_at: item.published_at
         }
       }));
 
-      const availableTripsAsAssignments: TripAssignment[] = filteredAvailableTrips.map(trip => ({
-        id: `available-${trip.id}`,
-        trip_id: trip.id,
-        status: trip.is_mandatory ? 'mandatory' : 'pending',
-        is_published: false,
-        assigned_at: trip.created_at,
-        trip: {
-          id: trip.id,
-          title: trip.title,
-          slug: trip.slug,
-          description: trip.description || '',
-          featured_image: trip.featured_image || '',
-          price: trip.price || 0,
-          duration_days: trip.duration_days || 0,
-          is_mandatory: trip.is_mandatory || false,
-          published_at: trip.published_at || trip.created_at
-        }
-      }));
+      const allTrips = [...formattedAssignments, ...formattedBrandTrips].sort((a, b) =>
+        new Date(b.assigned_at).getTime() - new Date(a.assigned_at).getTime()
+      );
 
-      const allAssignments = [...formattedAssignments, ...brandTripsAsAssignments, ...availableTripsAsAssignments];
-
-      setAssignments(allAssignments);
+      setAssignments(allTrips);
     } catch (error) {
       console.error('Error loading trip assignments:', error);
     } finally {
@@ -154,281 +127,150 @@ export function TripApproval() {
     }
   };
 
-  const handleResponse = async (assignmentId: string, tripId: string, newStatus: 'accepted' | 'rejected') => {
-    if (!user?.brand_id) return;
-
+  const handleTogglePublish = async (assignmentId: string, currentValue: boolean, assignment: TripAssignment) => {
     try {
-      const existingAssignment = assignments.find(a => a.id === assignmentId);
-
-      if (existingAssignment?.id.startsWith('available-')) {
+      if (assignment.status === 'brand' && assignment.trip_id) {
         const { error } = await supabase
-          .from('trip_brand_assignments')
-          .insert({
-            trip_id: tripId,
-            brand_id: user.brand_id,
-            status: newStatus,
-            responded_at: new Date().toISOString()
-          });
+          .from('trips')
+          .update({ status: !currentValue ? 'published' : 'draft' })
+          .eq('id', assignment.trip_id);
 
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('trip_brand_assignments')
           .update({
-            status: newStatus,
-            responded_at: new Date().toISOString()
+            is_published: !currentValue,
+            status: !currentValue ? 'accepted' : 'pending'
           })
           .eq('id', assignmentId);
 
         if (error) throw error;
       }
-
       await loadAssignments();
     } catch (error) {
-      console.error('Error updating trip assignment:', error);
-    }
-  };
-
-  const handlePublishToggle = async (assignmentId: string, currentPublishStatus: boolean) => {
-    if (!user?.brand_id) return;
-
-    try {
-      const { error } = await supabase
-        .from('trip_brand_assignments')
-        .update({ is_published: !currentPublishStatus })
-        .eq('id', assignmentId);
-
-      if (error) throw error;
-      await loadAssignments();
-    } catch (error) {
-      console.error('Error toggling trip publish status:', error);
+      console.error('Error toggling publish:', error);
+      alert('Failed to update');
     }
   };
 
   const handleEdit = async (assignment: TripAssignment) => {
-    if (!user?.brand_id) return;
+    if (!user?.brand_id || !user?.id) return;
 
     try {
-      let pageId = assignment.page_id;
+      const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, ['content:read', 'content:write'], {
+        tripSlug: assignment.trip.slug,
+        authorType: 'brand',
+        authorId: user.id,
+        mode: 'travel'
+      });
 
-      if (!pageId) {
-        const { data: websites } = await supabase
-          .from('websites')
-          .select('id')
-          .eq('brand_id', user.brand_id)
-          .limit(1)
-          .single();
+      const builderBaseUrl = 'https://www.ai-websitestudio.nl';
+      const apiBaseUrl = jwtResponse.api_url || import.meta.env.VITE_SUPABASE_URL;
+      const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-        if (!websites) {
-          alert('Geen website gevonden voor dit brand.');
-          return;
+      const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+      const returnUrl = `${appUrl}/#/brand/trips`;
+
+      const tripSlug = assignment.trip.slug;
+      const tripId = assignment.trip.id;
+
+      const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=trips&slug=${encodeURIComponent(tripSlug)}&id=${encodeURIComponent(tripId)}&return_url=${encodeURIComponent(returnUrl)}#/mode/travel`;
+
+      const result = window.open(deeplink, '_blank');
+
+      if (!result) {
+        alert('Pop-up geblokkeerd! Sta pop-ups toe voor deze website.');
+      }
+    } catch (error) {
+      console.error('Error opening builder:', error);
+      alert(`Fout bij openen builder: ${error instanceof Error ? error.message : 'Onbekende fout'}`);
+    }
+  };
+
+  const handleDelete = async (assignment: TripAssignment) => {
+    if (!confirm(`Weet je zeker dat je "${assignment.trip.title}" wilt verwijderen?`)) {
+      return;
+    }
+
+    try {
+      if (assignment.status === 'brand') {
+        const tripId = assignment.trip_id || assignment.trip.id;
+
+        const { data, error } = await supabase
+          .from('trips')
+          .delete()
+          .eq('id', tripId)
+          .select();
+
+        if (error) {
+          console.error('Delete error:', error);
+          alert(`Fout bij verwijderen: ${error.message}`);
+          throw error;
         }
 
-        const { data: newPage, error: pageError } = await supabase
-          .from('website_pages')
-          .insert({
-            website_id: websites.id,
-            title: assignment.trip.title,
-            slug: assignment.trip.slug,
-            content: {},
-            content_type: 'trip',
-            status: 'draft'
-          })
-          .select()
-          .single();
+        if (!data || data.length === 0) {
+          console.error('No rows deleted - item not found or no permission');
+          alert('Item kon niet worden verwijderd');
+          return;
+        }
+      } else {
+        const assignmentId = assignment.id.startsWith('brand-trip-')
+          ? assignment.trip_id
+          : assignment.id;
 
-        if (pageError) throw pageError;
-        pageId = newPage.id;
+        const { data, error } = await supabase
+          .from('trip_brand_assignments')
+          .delete()
+          .eq('id', assignmentId)
+          .select();
 
-        if (!assignment.id.startsWith('brand-') && !assignment.id.startsWith('available-')) {
-          await supabase
-            .from('trip_brand_assignments')
-            .update({ page_id: pageId })
-            .eq('id', assignment.id);
+        if (error) {
+          console.error('Delete assignment error:', error);
+          alert(`Fout bij verwijderen: ${error.message}`);
+          throw error;
+        }
+
+        if (!data || data.length === 0) {
+          console.error('No assignment rows deleted - not found');
+          alert('Assignment kon niet worden verwijderd');
+          return;
         }
       }
 
-      const jwt = await generateBuilderJWT(user.brand_id, pageId);
-      const deeplink = generateBuilderDeeplink(jwt);
+      setAssignments(prev => prev.filter(a => a.id !== assignment.id));
+    } catch (error) {
+      console.error('Error deleting:', error);
+      alert(`Fout bij verwijderen: ${error instanceof Error ? error.message : 'Onbekende fout'}`);
+    }
+  };
+
+  const createNewTrip = async () => {
+    if (!user?.brand_id || !user?.id) return;
+
+    try {
+      const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, ['content:read', 'content:write'], {
+        authorType: 'brand',
+        authorId: user.id,
+        mode: 'travel'
+      });
+
+      const builderBaseUrl = 'https://www.ai-websitestudio.nl';
+      const apiBaseUrl = jwtResponse.api_url || import.meta.env.VITE_SUPABASE_URL;
+      const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
+      const returnUrl = appUrl;
+
+      const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=trips&return_url=${encodeURIComponent(returnUrl)}#/mode/travel`;
+
       window.open(deeplink, '_blank');
     } catch (error) {
       console.error('Error opening builder:', error);
-      alert('Fout bij het openen van de builder. Probeer het opnieuw.');
+      alert('Kon de website builder niet openen');
     }
   };
 
-  const handleDelete = async (assignmentId: string, tripId: string) => {
-    if (!confirm('Weet je zeker dat je deze reis wilt verwijderen?')) return;
-
-    try {
-      const assignment = assignments.find(a => a.id === assignmentId);
-
-      if (assignment?.id.startsWith('brand-')) {
-        const { error } = await supabase
-          .from('trips')
-          .delete()
-          .eq('id', tripId);
-
-        if (error) throw error;
-      } else if (!assignment?.id.startsWith('available-')) {
-        const { error } = await supabase
-          .from('trip_brand_assignments')
-          .delete()
-          .eq('id', assignmentId);
-
-        if (error) throw error;
-      }
-
-      await loadAssignments();
-    } catch (error) {
-      console.error('Error deleting trip:', error);
-    }
-  };
-
-  const handleAddAvailableTrip = async (tripId: string) => {
-    if (!user?.brand_id) return;
-
-    try {
-      const { error } = await supabase
-        .from('trip_brand_assignments')
-        .insert({
-          trip_id: tripId,
-          brand_id: user.brand_id,
-          status: 'accepted',
-          responded_at: new Date().toISOString()
-        });
-
-      if (error) throw error;
-      await loadAssignments();
-    } catch (error) {
-      console.error('Error adding trip:', error);
-    }
-  };
-
-  const pendingAssignments = assignments.filter(a => a.status === 'pending');
-  const acceptedAssignments = assignments.filter(a => a.status === 'accepted' || a.status === 'brand');
-  const mandatoryAssignments = assignments.filter(a => a.status === 'mandatory');
-  const availableTrips = assignments.filter(a => a.id.startsWith('available-'));
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2" style={{ borderColor: '#ff7700' }}></div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {mandatoryAssignments.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Plane size={20} style={{ color: '#ff7700' }} />
-            Verplichte Reizen
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {mandatoryAssignments.map((assignment) => (
-              <TripCard
-                key={assignment.id}
-                assignment={assignment}
-                onEdit={handleEdit}
-                onPublishToggle={handlePublishToggle}
-                isMandatory={true}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {pendingAssignments.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Plane size={20} style={{ color: '#ff7700' }} />
-            In Afwachting
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {pendingAssignments.map((assignment) => (
-              <TripCard
-                key={assignment.id}
-                assignment={assignment}
-                onAccept={() => handleResponse(assignment.id, assignment.trip_id, 'accepted')}
-                onReject={() => handleResponse(assignment.id, assignment.trip_id, 'rejected')}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {acceptedAssignments.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Plane size={20} style={{ color: '#ff7700' }} />
-            Geaccepteerde Reizen
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {acceptedAssignments.map((assignment) => (
-              <TripCard
-                key={assignment.id}
-                assignment={assignment}
-                onEdit={handleEdit}
-                onPublishToggle={handlePublishToggle}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {availableTrips.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-            <Plane size={20} style={{ color: '#ff7700' }} />
-            Beschikbare Reizen
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {availableTrips.map((assignment) => (
-              <TripCard
-                key={assignment.id}
-                assignment={assignment}
-                onAdd={() => handleAddAvailableTrip(assignment.trip_id)}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {assignments.length === 0 && (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <Plane size={48} className="mx-auto text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Geen reizen beschikbaar</h3>
-          <p className="text-gray-600">Er zijn nog geen reizen toegewezen aan je brand.</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-interface TripCardProps {
-  assignment: TripAssignment;
-  onAccept?: () => void;
-  onReject?: () => void;
-  onEdit?: (assignment: TripAssignment) => void;
-  onPublishToggle?: (assignmentId: string, currentStatus: boolean) => void;
-  onDelete?: (assignmentId: string, tripId: string) => void;
-  onAdd?: () => void;
-  isMandatory?: boolean;
-}
-
-function TripCard({
-  assignment,
-  onAccept,
-  onReject,
-  onEdit,
-  onPublishToggle,
-  onDelete,
-  onAdd,
-  isMandatory = false
-}: TripCardProps) {
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat('nl-NL', {
       style: 'currency',
@@ -438,110 +280,149 @@ function TripCard({
     }).format(price);
   };
 
-  return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
-      {assignment.trip.featured_image && (
-        <img
-          src={assignment.trip.featured_image}
-          alt={assignment.trip.title}
-          className="w-full h-48 object-cover"
-        />
-      )}
-      <div className="p-4">
-        <div className="flex items-start justify-between mb-2">
-          <h4 className="font-semibold text-gray-900 flex-1">{assignment.trip.title}</h4>
-          {isMandatory && (
-            <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
-              Verplicht
-            </span>
-          )}
-          {assignment.status === 'brand' && (
-            <span className="text-xs px-2 py-1 rounded" style={{ backgroundColor: '#fff4e6', color: '#ff7700' }}>
-              Eigen
-            </span>
-          )}
-        </div>
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('nl-NL', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    });
+  };
 
-        {assignment.trip.description && (
-          <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-            {assignment.trip.description}
-          </p>
-        )}
-
-        <div className="flex items-center gap-4 text-sm text-gray-600 mb-4">
-          {assignment.trip.price > 0 && (
-            <span className="font-medium">{formatPrice(assignment.trip.price)}</span>
-          )}
-          {assignment.trip.duration_days > 0 && (
-            <span>{assignment.trip.duration_days} dagen</span>
-          )}
-        </div>
-
-        {assignment.status === 'pending' && (
-          <div className="flex gap-2">
-            <button
-              onClick={onAccept}
-              className="flex-1 text-white px-3 py-2 rounded text-sm hover:bg-green-700 transition-colors"
-              style={{ backgroundColor: '#10b981' }}
-            >
-              Accepteren
-            </button>
-            <button
-              onClick={onReject}
-              className="flex-1 bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition-colors"
-            >
-              Afwijzen
-            </button>
-          </div>
-        )}
-
-        {(assignment.status === 'accepted' || assignment.status === 'mandatory' || assignment.status === 'brand') && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onEdit?.(assignment)}
-                className="flex-1 text-white px-3 py-2 rounded text-sm flex items-center justify-center gap-2 hover:bg-orange-700 transition-colors"
-                style={{ backgroundColor: '#ff7700' }}
-              >
-                <Pencil size={14} />
-                Bewerken
-              </button>
-              {!isMandatory && onDelete && (
-                <button
-                  onClick={() => onDelete(assignment.id, assignment.trip_id)}
-                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-sm transition-colors"
-                >
-                  <Trash2 size={14} />
-                </button>
-              )}
-            </div>
-            {(assignment.status === 'accepted' || assignment.status === 'mandatory' || assignment.status === 'brand') &&
-             !assignment.id.startsWith('brand-') && !assignment.id.startsWith('available-') && (
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={assignment.is_published}
-                  onChange={() => onPublishToggle?.(assignment.id, assignment.is_published)}
-                  className="rounded"
-                  style={{ accentColor: '#ff7700' }}
-                />
-                <span className="text-gray-700">Publiceren op website</span>
-              </label>
-            )}
-          </div>
-        )}
-
-        {assignment.id.startsWith('available-') && (
-          <button
-            onClick={onAdd}
-            className="w-full text-white px-3 py-2 rounded text-sm flex items-center justify-center gap-2 hover:bg-orange-700 transition-colors"
-            style={{ backgroundColor: '#ff7700' }}
-          >
-            <Plus size={14} />
-            Toevoegen aan mijn reizen
-          </button>
-        )}
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
       </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex justify-between items-start">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+            <Plane className="w-6 h-6 text-orange-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900">Reizen</h2>
+        </div>
+        <button
+          onClick={createNewTrip}
+          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors"
+        >
+          <Plus className="h-5 w-5 mr-2" />
+          Nieuwe Reis
+        </button>
+      </div>
+
+      {assignments.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <Plane className="mx-auto h-12 w-12 text-gray-400" />
+          <h3 className="mt-2 text-sm font-medium text-gray-900">Geen reizen</h3>
+          <p className="mt-1 text-sm text-gray-500">Er zijn nog geen reizen beschikbaar.</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <table className="min-w-full">
+            <thead>
+              <tr className="border-b border-gray-200">
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Titel</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Prijs</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duur</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Datum</th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Publiceren</th>
+                <th scope="col" className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acties</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white">
+              {assignments.map((assignment) => (
+                <tr key={assignment.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors">
+                  <td className="px-6 py-4">
+                    <div className="flex items-start flex-col">
+                      <div className="font-medium text-gray-900">{assignment.trip.title}</div>
+                      <div className="text-xs text-gray-500 mt-0.5">{assignment.trip.slug}</div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    {assignment.trip.price > 0 ? (
+                      <div className="text-sm text-gray-900 font-medium">
+                        {formatPrice(assignment.trip.price)}
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500">-</div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
+                    {assignment.trip.duration_days > 0 ? (
+                      <div className="text-sm text-gray-900">
+                        {assignment.trip.duration_days} dagen
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-500">-</div>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {formatDate(assignment.assigned_at)}
+                  </td>
+                  <td className="px-6 py-4">
+                    {assignment.status === 'mandatory' && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                        Verplicht
+                      </span>
+                    )}
+                    {assignment.status === 'brand' && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                        Eigen Reis
+                      </span>
+                    )}
+                    {assignment.status === 'accepted' && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        Optioneel
+                      </span>
+                    )}
+                    {assignment.status === 'pending' && (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                        In afwachting
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={assignment.is_published}
+                        onChange={() => handleTogglePublish(assignment.id, assignment.is_published, assignment)}
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
+                    </label>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => handleEdit(assignment)}
+                        className="text-orange-600 hover:text-orange-900 transition-colors"
+                        title="Bewerken"
+                      >
+                        <Pencil className="h-5 w-5" />
+                      </button>
+                      {!assignment.trip.is_mandatory && (
+                        <button
+                          onClick={() => handleDelete(assignment)}
+                          className="text-red-600 hover:text-red-900 transition-colors"
+                          title="Verwijderen"
+                        >
+                          <Trash2 className="h-5 w-5" />
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
