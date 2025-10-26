@@ -51,7 +51,7 @@ export function PageManagement() {
       }
 
       const data = await response.json();
-      setPages(data.items || []);
+      setPages(data.pages || []);
     } catch (error) {
       console.error('Error loading pages:', error);
     } finally {
