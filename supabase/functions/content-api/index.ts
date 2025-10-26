@@ -198,6 +198,33 @@ Deno.serve(async (req: Request) => {
           status: 200,
           headers: corsHeaders(req),
         });
+      } else if (contentType === "trips") {
+        const slugFilter = url.searchParams.get("slug");
+        console.log("[CONTENT-API] Listing trips, slug filter:", slugFilter);
+
+        let query = supabase
+          .from("trips")
+          .select("*")
+          .eq("brand_id", brandId);
+
+        if (slugFilter) {
+          query = query.eq("slug", slugFilter);
+        } else {
+          query = query.order("created_at", { ascending: false });
+        }
+
+        const { data, error } = await query;
+
+        if (error) {
+          console.error("[CONTENT-API] Database error:", error);
+          throw error;
+        }
+
+        console.log("[CONTENT-API] Found", data?.length || 0, "trips");
+        return new Response(JSON.stringify(data), {
+          status: 200,
+          headers: corsHeaders(req),
+        });
       }
     }
 
@@ -320,6 +347,41 @@ Deno.serve(async (req: Request) => {
         const transformedData = {
           ...data,
           is_published: data.destination_brand_assignments[0]?.is_published || false,
+        };
+
+        return new Response(JSON.stringify(transformedData), {
+          status: 200,
+          headers: corsHeaders(req),
+        });
+      } else if (contentType === "trips") {
+        const { data, error } = await supabase
+          .from("trips")
+          .select(`
+            *,
+            trip_brand_assignments!inner(
+              brand_id,
+              is_published
+            )
+          `)
+          .eq("id", id)
+          .eq("trip_brand_assignments.brand_id", payload.brand_id)
+          .maybeSingle();
+
+        if (error) {
+          console.error("[CONTENT-API] Database error:", error);
+          throw error;
+        }
+
+        if (!data) {
+          return new Response(JSON.stringify({ error: "Trip not found" }), {
+            status: 404,
+            headers: corsHeaders(req),
+          });
+        }
+
+        const transformedData = {
+          ...data,
+          is_published: data.trip_brand_assignments[0]?.is_published || false,
         };
 
         return new Response(JSON.stringify(transformedData), {
@@ -673,6 +735,114 @@ Deno.serve(async (req: Request) => {
             headers: corsHeaders(req),
           });
         }
+      } else if (contentType === "trips") {
+        const authorType = body.author_type || (payload as any).author_type || 'brand';
+        const authorId = body.author_id || (payload as any).author_id || payload.sub || payload.user_id;
+
+        if (itemId) {
+          console.log("[CONTENT-API] Updating trip:", itemId);
+
+          const updateData: any = {
+            title: body.title,
+            slug: body.slug,
+            description: body.description || body.excerpt || '',
+            content: body.content,
+            featured_image: body.featured_image || '',
+            price: body.price || null,
+            duration_days: body.duration_days || null,
+            departure_dates: body.departure_dates || [],
+            gallery: body.gallery || [],
+            brand_id: brandId,
+            author_type: authorType,
+            author_id: authorId,
+            updated_at: new Date().toISOString(),
+          };
+
+          const { data: updatedItem, error: updateError } = await supabase
+            .from("trips")
+            .update(updateData)
+            .eq("id", itemId)
+            .select()
+            .single();
+
+          if (updateError) {
+            console.error("[CONTENT-API] Update error:", updateError);
+            throw updateError;
+          }
+
+          console.log("[CONTENT-API] Trip updated successfully");
+
+          const { error: upsertError } = await supabase
+            .from("trip_brand_assignments")
+            .upsert(
+              {
+                trip_id: itemId,
+                brand_id: brandId,
+              },
+              {
+                onConflict: "trip_id,brand_id",
+              }
+            );
+
+          if (upsertError) {
+            console.error("[CONTENT-API] Trip assignment upsert error:", upsertError);
+          } else {
+            console.log("[CONTENT-API] Trip assignment ensured:", itemId);
+          }
+
+          return new Response(JSON.stringify(updatedItem), {
+            status: 200,
+            headers: corsHeaders(req),
+          });
+        } else {
+          console.log("[CONTENT-API] Creating new trip");
+
+          const insertData: any = {
+            title: body.title,
+            slug: body.slug,
+            description: body.description || body.excerpt || '',
+            content: body.content,
+            featured_image: body.featured_image || '',
+            price: body.price || null,
+            duration_days: body.duration_days || null,
+            departure_dates: body.departure_dates || [],
+            gallery: body.gallery || [],
+            brand_id: brandId,
+            author_type: authorType,
+            author_id: authorId,
+          };
+
+          const { data: newItem, error: insertError } = await supabase
+            .from("trips")
+            .insert(insertData)
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error("[CONTENT-API] Insert error:", insertError);
+            throw insertError;
+          }
+
+          console.log("[CONTENT-API] Trip created:", newItem.id);
+
+          const { error: assignmentError } = await supabase
+            .from("trip_brand_assignments")
+            .insert({
+              trip_id: newItem.id,
+              brand_id: brandId,
+            });
+
+          if (assignmentError) {
+            console.error("[CONTENT-API] Trip assignment creation error:", assignmentError);
+          } else {
+            console.log("[CONTENT-API] Trip assignment created:", newItem.id);
+          }
+
+          return new Response(JSON.stringify(newItem), {
+            status: 201,
+            headers: corsHeaders(req),
+          });
+        }
       } else {
         if (itemId) {
           console.log("[CONTENT-API] Updating item:", itemId);
@@ -821,6 +991,55 @@ Deno.serve(async (req: Request) => {
         };
 
         console.log("[CONTENT-API] Destination loaded successfully");
+        return new Response(JSON.stringify(transformedData), {
+          status: 200,
+          headers: corsHeaders(req),
+        });
+      } else if (contentType === "trips") {
+        console.log("[CONTENT-API] Loading trip by slug:", slug, "for brand:", brandId);
+
+        const { data: tripData, error: tripError } = await supabase
+          .from("trips")
+          .select("*")
+          .eq("slug", slug)
+          .maybeSingle();
+
+        if (tripError) {
+          console.error("[CONTENT-API] Database error:", tripError);
+          throw tripError;
+        }
+
+        if (!tripData) {
+          console.log("[CONTENT-API] Trip not found for slug:", slug);
+          return new Response(JSON.stringify({ error: "Trip not found" }), {
+            status: 404,
+            headers: corsHeaders(req),
+          });
+        }
+
+        const { data: assignmentData, error: assignmentError } = await supabase
+          .from("trip_brand_assignments")
+          .select("is_published, status")
+          .eq("trip_id", tripData.id)
+          .eq("brand_id", brandId)
+          .maybeSingle();
+
+        if (assignmentError && assignmentError.code !== 'PGRST116') {
+          console.error("[CONTENT-API] Assignment error:", assignmentError);
+        }
+
+        const isBrandOwned = tripData.brand_id === brandId;
+        const isPublished = isBrandOwned
+          ? tripData.status === 'published'
+          : assignmentData?.is_published || false;
+
+        const transformedData = {
+          ...tripData,
+          is_published: isPublished,
+          assignment_status: assignmentData?.status || (isBrandOwned ? 'brand' : null),
+        };
+
+        console.log("[CONTENT-API] Trip loaded successfully");
         return new Response(JSON.stringify(transformedData), {
           status: 200,
           headers: corsHeaders(req),
