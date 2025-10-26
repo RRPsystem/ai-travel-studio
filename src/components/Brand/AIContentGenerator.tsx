@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { aiTravelService } from '../../lib/apiServices';
+import { edgeAIService } from '../../lib/apiServices';
 import { 
   X, 
   MapPin, 
@@ -178,7 +178,7 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
           const imageUrl = await aiTravelService.generateImage(currentInput);
           response = imageUrl ? `![Generated Image](${imageUrl})\n\nAfbeelding gegenereerd voor: "${currentInput}"` : 'Kon geen afbeelding genereren.';
         } else {
-          response = await aiTravelService.generateEnhancedContent(
+          response = await edgeAIService.generateContent(
             selectedContentType,
             selectedContentType === 'route' ? `Route van ${routeFrom} naar ${routeTo}` : currentInput,
             selectedWritingStyle || 'professional',
@@ -263,7 +263,7 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
           response = imageUrl ? `![Generated Image](${imageUrl})\n\nAfbeelding gegenereerd voor: "${userInput}"` : 'Kon geen afbeelding genereren.';
         } else {
           // Generate text content
-          response = await aiTravelService.generateEnhancedContent(
+          response = await edgeAIService.generateContent(
             contentType,
             userInput,
             activeChat?.writingStyle || 'professional',

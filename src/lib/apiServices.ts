@@ -61,13 +61,18 @@ export class OpenAIService {
 
         // If no valid env key, try database
         const { db } = await import('./supabase');
-        const settings = await db.getAPISettings();
+        const settingsArray = await db.getAPISettings();
 
-        if (settings?.openai_api_key && settings.openai_api_key.startsWith('sk-')) {
-          this.apiKey = settings.openai_api_key;
+        // Find OpenAI settings
+        const openaiSettings = settingsArray?.find((s: any) => s.provider === 'OpenAI');
+
+        if (openaiSettings?.api_key && openaiSettings.api_key.startsWith('sk-')) {
+          this.apiKey = openaiSettings.api_key;
+          console.log('✅ Loaded OpenAI API key from database');
           return this.apiKey;
         }
 
+        console.log('⚠️ No valid OpenAI API key found in database');
         return '';
       } catch (error) {
         console.error('Error loading OpenAI API key:', error);
@@ -666,5 +671,55 @@ export class AITravelService {
   }
 }
 
-// Export singleton instance
+// Edge Function AI Service (uses Supabase edge functions to keep API keys secure)
+export class EdgeFunctionAIService {
+  private baseUrl: string;
+
+  constructor() {
+    this.baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+  }
+
+  async generateContent(
+    contentType: string,
+    prompt: string,
+    writingStyle: string = 'professional',
+    additionalContext: string = '',
+    options: {
+      vacationType?: string;
+      routeType?: string;
+      days?: string;
+      destination?: string;
+      temperature?: number;
+      maxTokens?: number;
+      model?: string;
+      systemPrompt?: string;
+    } = {}
+  ): Promise<string> {
+    const response = await fetch(`${this.baseUrl}/generate-content`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contentType,
+        prompt,
+        writingStyle,
+        additionalContext,
+        options,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Content generation failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.content;
+  }
+}
+
+// Export singleton instances
 export const aiTravelService = new AITravelService();
+export const edgeAIService = new EdgeFunctionAIService();
