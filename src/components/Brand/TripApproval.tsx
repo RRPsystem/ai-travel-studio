@@ -158,7 +158,14 @@ export function TripApproval() {
     if (!user?.brand_id || !user?.id) return;
 
     try {
-      const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, ['pages:read', 'pages:write']);
+      const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, [
+        'pages:read',
+        'pages:write',
+        'trips:read',
+        'trips:write',
+        'content:read',
+        'content:write'
+      ]);
 
       const builderBaseUrl = 'https://www.ai-websitestudio.nl';
       const apiBaseUrl = jwtResponse.api_url || `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
@@ -256,7 +263,14 @@ export function TripApproval() {
     if (!user?.brand_id || !user?.id) return;
 
     try {
-      const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, ['pages:read', 'pages:write']);
+      const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, [
+        'pages:read',
+        'pages:write',
+        'trips:read',
+        'trips:write',
+        'content:read',
+        'content:write'
+      ]);
 
       const builderBaseUrl = 'https://www.ai-websitestudio.nl';
       const apiBaseUrl = jwtResponse.api_url || `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
