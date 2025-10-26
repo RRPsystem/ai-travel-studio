@@ -165,7 +165,9 @@ export function TripApproval() {
         'trips:write',
         'content:read',
         'content:write'
-      ]);
+      ], {
+        contentType: 'trips'
+      });
 
       const builderBaseUrl = 'https://www.ai-websitestudio.nl';
       const apiBaseUrl = jwtResponse.api_url || `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
@@ -270,7 +272,9 @@ export function TripApproval() {
         'trips:write',
         'content:read',
         'content:write'
-      ]);
+      ], {
+        contentType: 'trips'
+      });
 
       const builderBaseUrl = 'https://www.ai-websitestudio.nl';
       const apiBaseUrl = jwtResponse.api_url || `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
