@@ -158,35 +158,27 @@ export function TripApproval() {
     if (!user?.brand_id || !user?.id) return;
 
     try {
-      const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, ['content:read', 'content:write'], {
-        tripSlug: assignment.trip.slug,
-        authorType: 'brand',
-        authorId: user.id,
-        mode: 'travel'
-      });
+      const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, ['pages:read', 'pages:write']);
 
       const builderBaseUrl = 'https://www.ai-websitestudio.nl';
       const apiBaseUrl = jwtResponse.api_url || `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
       const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}#/brand/content/trips`;
 
-      const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}`;
-
-      const tripSlug = assignment.trip.slug;
-      const tripId = assignment.trip.id;
+      const pageId = assignment.page_id;
 
       const params = new URLSearchParams({
         api: apiBaseUrl,
         brand_id: user.brand_id,
         token: jwtResponse.token,
         apikey: apiKey,
-        slug: tripSlug,
-        id: tripId,
-        author_type: 'brand',
-        author_id: user.id,
-        content_type: 'trip',
-        return_url: returnUrl,
-        mode: 'travel'
+        content_type: 'trips',
+        return_url: returnUrl
       });
+
+      if (pageId) {
+        params.append('page_id', pageId);
+      }
 
       const deeplink = `${builderBaseUrl}?${params.toString()}`;
 
@@ -264,28 +256,20 @@ export function TripApproval() {
     if (!user?.brand_id || !user?.id) return;
 
     try {
-      const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, ['content:read', 'content:write'], {
-        authorType: 'brand',
-        authorId: user.id,
-        mode: 'travel'
-      });
+      const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, ['pages:read', 'pages:write']);
 
       const builderBaseUrl = 'https://www.ai-websitestudio.nl';
       const apiBaseUrl = jwtResponse.api_url || `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
       const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-      const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}`;
+      const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}#/brand/content/trips`;
 
       const params = new URLSearchParams({
         api: apiBaseUrl,
         brand_id: user.brand_id,
         token: jwtResponse.token,
         apikey: apiKey,
-        author_type: 'brand',
-        author_id: user.id,
-        content_type: 'trip',
-        return_url: returnUrl,
-        mode: 'travel'
+        content_type: 'trips',
+        return_url: returnUrl
       });
 
       const deeplink = `${builderBaseUrl}?${params.toString()}`;
