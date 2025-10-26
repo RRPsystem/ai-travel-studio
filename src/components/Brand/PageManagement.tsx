@@ -37,6 +37,7 @@ export function PageManagement() {
         .select('*')
         .eq('brand_id', brandId)
         .or('content_type.eq.page,content_type.is.null')
+        .or('is_template.is.null,is_template.eq.false')
         .order('updated_at', { ascending: false });
 
       if (error) {
