@@ -177,6 +177,7 @@ export class OpenAIService {
       maxTokens?: number;
       model?: string;
       systemPrompt?: string;
+      contentType?: string;
     } = {}
   ): Promise<string> {
     if (!this.apiKey) {
@@ -223,7 +224,7 @@ export class OpenAIService {
     let userPrompt = prompt;
 
     // Add specific requirements for destination texts
-    if (contentType === 'destination') {
+    if (options.contentType === 'destination') {
       userPrompt += '\n\n[VEREIST voor bestemmingsteksten]: Vermeld minimaal 5-7 CONCRETE bezienswaardigheden, attracties of activiteiten met hun ECHTE NAMEN (geen algemene omschrijvingen zoals "prachtige stranden" of "interessante musea"). Denk aan: specifieke archeologische sites, natuurparken met naam, bekende stranden, karakteristieke dorpjes, markten, monumenten, etc. Maak het specifiek en actionable!';
 
       if (options.vacationType?.toLowerCase().includes('strand')) {
@@ -582,7 +583,8 @@ export class AITravelService {
           temperature: typeof customGPT.temperature === 'string' ? parseFloat(customGPT.temperature) : customGPT.temperature,
           maxTokens: customGPT.max_tokens || customGPT.maxTokens,
           model: customGPT.model,
-          systemPrompt: customGPT.system_prompt || customGPT.systemPrompt
+          systemPrompt: customGPT.system_prompt || customGPT.systemPrompt,
+          contentType: contentType
         };
 
         console.log('[AITravelService] Final custom options:', {
@@ -591,9 +593,10 @@ export class AITravelService {
           model: customOptions.model,
           vacationType: customOptions.vacationType,
           destination: customOptions.destination,
+          contentType: customOptions.contentType,
           systemPrompt_length: customOptions.systemPrompt?.length
         });
-        
+
         // Increment usage count
         try {
           const { db } = await import('./supabase');
@@ -601,7 +604,7 @@ export class AITravelService {
         } catch (error) {
           console.log('Could not increment GPT usage:', error);
         }
-        
+
         return await this.openai.generateContentWithCustomGPT(enhancedPrompt, writingStyle, additionalContext, customOptions);
       } else {
         // Use default content generation
