@@ -1086,7 +1086,7 @@ export function TravelBroSetup() {
 
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="font-medium text-gray-900 mb-3">DNS Records instellen</h4>
+                <h4 className="font-medium text-gray-900 mb-3">DNS Records instellen voor Vercel</h4>
                 <div className="space-y-4 text-sm text-gray-700">
                   <div>
                     <strong className="text-gray-900">Voor Root Domein (bijv. travelbro.nl)</strong>
@@ -1101,49 +1101,53 @@ export function TravelBroSetup() {
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Value:</span>
-                        <span className="font-semibold">[Server IP adres]</span>
+                        <span className="font-semibold">76.76.21.21</span>
+                      </div>
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Voeg ook deze tweede A record toe:
+                    </p>
+                    <div className="mt-1 bg-white p-3 rounded border font-mono text-xs space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Type:</span>
+                        <span className="font-semibold">A</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Name:</span>
+                        <span className="font-semibold">@</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Value:</span>
+                        <span className="font-semibold">76.76.21.22</span>
                       </div>
                     </div>
                   </div>
 
                   <div>
                     <strong className="text-gray-900">Voor Subdomain (bijv. chat.jouwreisbureau.nl)</strong>
-                    <div className="mt-2 space-y-2">
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">Optie 1: CNAME (aanbevolen)</p>
-                        <div className="bg-white p-3 rounded border font-mono text-xs space-y-1">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Type:</span>
-                            <span className="font-semibold">CNAME</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Name:</span>
-                            <span className="font-semibold">chat</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Value:</span>
-                            <span className="font-semibold">{window.location.hostname}</span>
-                          </div>
-                        </div>
+                    <div className="mt-2 bg-white p-3 rounded border font-mono text-xs space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Type:</span>
+                        <span className="font-semibold">CNAME</span>
                       </div>
-                      <div>
-                        <p className="text-xs text-gray-600 mb-1">Optie 2: A Record</p>
-                        <div className="bg-white p-3 rounded border font-mono text-xs space-y-1">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Type:</span>
-                            <span className="font-semibold">A</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Name:</span>
-                            <span className="font-semibold">chat</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Value:</span>
-                            <span className="font-semibold">[Server IP adres]</span>
-                          </div>
-                        </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Name:</span>
+                        <span className="font-semibold">chat</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Value:</span>
+                        <span className="font-semibold">cname.vercel-dns.com</span>
                       </div>
                     </div>
+                  </div>
+
+                  <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                    <p className="text-xs text-blue-900 font-medium mb-1">Belangrijke stappen:</p>
+                    <ol className="text-xs text-blue-800 list-decimal list-inside space-y-1">
+                      <li>Voeg eerst de DNS records toe bij je domain provider</li>
+                      <li>Voeg daarna het domein toe in Vercel Dashboard → Project Settings → Domains</li>
+                      <li>Wacht 24-48 uur voor DNS propagatie</li>
+                    </ol>
                   </div>
                 </div>
               </div>
