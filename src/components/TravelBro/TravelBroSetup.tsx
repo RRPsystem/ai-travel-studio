@@ -18,8 +18,13 @@ export function TravelBroSetup() {
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [sourceUrls, setSourceUrls] = useState<string[]>(['']);
   const [travelers, setTravelers] = useState([{ name: '', age: '', relation: 'adult' }]);
-  const [gptInstructions, setGptInstructions] = useState('');
+  const [customContext, setCustomContext] = useState('');
+  const [gptModel, setGptModel] = useState('gpt-4o');
+  const [gptTemperature, setGptTemperature] = useState(0.7);
   const [creating, setCreating] = useState(false);
+
+  const [editingTrip, setEditingTrip] = useState<any>(null);
+  const [updating, setUpdating] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -35,11 +40,6 @@ export function TravelBroSetup() {
         .maybeSingle();
 
       setApiSettings(settings);
-
-      // Load default GPT instructions from operator settings if available
-      if (settings?.travelbro_gpt_instructions) {
-        setGptInstructions(settings.travelbro_gpt_instructions);
-      }
 
       const { data: sessions } = await db.supabase
         .from('travel_whatsapp_sessions')
@@ -119,7 +119,9 @@ export function TravelBroSetup() {
           parsed_data: parsedData || {},
           source_urls: filteredUrls,
           intake_template: intakeTemplate,
-          gpt_instructions: gptInstructions.trim(),
+          custom_context: customContext,
+          gpt_model: gptModel,
+          gpt_temperature: gptTemperature,
           created_by: user?.id,
         })
         .select()
@@ -132,12 +134,9 @@ export function TravelBroSetup() {
       setPdfFile(null);
       setSourceUrls(['']);
       setTravelers([{ name: '', age: '', relation: 'adult' }]);
-      // Reset to default instructions
-      if (apiSettings?.travelbro_gpt_instructions) {
-        setGptInstructions(apiSettings.travelbro_gpt_instructions);
-      } else {
-        setGptInstructions('');
-      }
+      setCustomContext('');
+      setGptModel('gpt-4o');
+      setGptTemperature(0.7);
       setActiveTab('active');
       loadData();
     } catch (error) {
@@ -174,6 +173,67 @@ export function TravelBroSetup() {
     } catch (error) {
       console.error('Error deleting TravelBRO:', error);
       alert('❌ Fout bij verwijderen');
+    }
+  };
+
+  const startEditingTrip = (trip: any) => {
+    setEditingTrip(trip);
+    setNewTripName(trip.name);
+    setSourceUrls(trip.source_urls?.length > 0 ? trip.source_urls : ['']);
+    setTravelers(trip.intake_template?.travelers || [{ name: '', age: '', relation: 'adult' }]);
+    setCustomContext(trip.custom_context || '');
+    setGptModel(trip.gpt_model || 'gpt-4o');
+    setGptTemperature(trip.gpt_temperature ?? 0.7);
+    setActiveTab('new');
+  };
+
+  const cancelEditing = () => {
+    setEditingTrip(null);
+    setNewTripName('');
+    setPdfFile(null);
+    setSourceUrls(['']);
+    setTravelers([{ name: '', age: '', relation: 'adult' }]);
+    setCustomContext('');
+    setGptModel('gpt-4o');
+    setGptTemperature(0.7);
+  };
+
+  const handleUpdateTravelBro = async () => {
+    if (!newTripName.trim()) {
+      alert('Vul minimaal een naam in');
+      return;
+    }
+
+    setUpdating(true);
+    try {
+      const filteredUrls = sourceUrls.filter(u => u.trim());
+      const intakeTemplate = travelers.some(t => t.name || t.age)
+        ? { travelers }
+        : null;
+
+      const { error } = await db.supabase
+        .from('travel_trips')
+        .update({
+          name: newTripName,
+          source_urls: filteredUrls,
+          intake_template: intakeTemplate,
+          custom_context: customContext,
+          gpt_model: gptModel,
+          gpt_temperature: gptTemperature,
+        })
+        .eq('id', editingTrip.id);
+
+      if (error) throw error;
+
+      alert('✅ TravelBRO bijgewerkt!');
+      cancelEditing();
+      setActiveTab('active');
+      loadData();
+    } catch (error) {
+      console.error('Error updating TravelBRO:', error);
+      alert('❌ Fout bij bijwerken: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -330,7 +390,9 @@ export function TravelBroSetup() {
       {activeTab === 'new' && (
         <div className="max-w-3xl mx-auto">
           <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-6">Maak Nieuwe TravelBRO</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-6">
+              {editingTrip ? `TravelBRO Bewerken: ${editingTrip.name}` : 'Maak Nieuwe TravelBRO'}
+            </h3>
 
             <div className="space-y-6">
               <div>
@@ -346,36 +408,38 @@ export function TravelBroSetup() {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <FileText className="inline w-4 h-4 mr-1" />
-                  Upload Reis PDF
-                </label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-orange-500 transition-colors">
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
-                    className="hidden"
-                    id="pdf-upload"
-                  />
-                  <label htmlFor="pdf-upload" className="cursor-pointer">
-                    {pdfFile ? (
-                      <div className="text-sm text-gray-700">
-                        <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
-                        <p className="font-medium">{pdfFile.name}</p>
-                        <p className="text-xs text-gray-500 mt-1">Klik om ander bestand te kiezen</p>
-                      </div>
-                    ) : (
-                      <div className="text-sm text-gray-600">
-                        <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-                        <p>Klik om PDF te uploaden</p>
-                        <p className="text-xs text-gray-500 mt-1">AI zal het reisdocument analyseren</p>
-                      </div>
-                    )}
+              {!editingTrip && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <FileText className="inline w-4 h-4 mr-1" />
+                    Upload Reis PDF
                   </label>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-orange-500 transition-colors">
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      onChange={(e) => setPdfFile(e.target.files?.[0] || null)}
+                      className="hidden"
+                      id="pdf-upload"
+                    />
+                    <label htmlFor="pdf-upload" className="cursor-pointer">
+                      {pdfFile ? (
+                        <div className="text-sm text-gray-700">
+                          <CheckCircle className="w-8 h-8 text-green-500 mx-auto mb-2" />
+                          <p className="font-medium">{pdfFile.name}</p>
+                          <p className="text-xs text-gray-500 mt-1">Klik om ander bestand te kiezen</p>
+                        </div>
+                      ) : (
+                        <div className="text-sm text-gray-600">
+                          <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                          <p>Klik om PDF te uploaden</p>
+                          <p className="text-xs text-gray-500 mt-1">AI zal het reisdocument analyseren</p>
+                        </div>
+                      )}
+                    </label>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -479,46 +543,94 @@ export function TravelBroSetup() {
                 </button>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Bot className="inline w-4 h-4 mr-1" />
-                  AI Instructies (optioneel)
-                </label>
-                <p className="text-xs text-gray-500 mb-3">
-                  Geef context over deze reis. Bijvoorbeeld: "Dit stel gaat op huwelijksreis", "Budget reis voor studenten", "Luxe familie vakantie". De AI gebruikt dit om gepersonaliseerd te reageren.
-                </p>
-                <textarea
-                  value={gptInstructions}
-                  onChange={(e) => setGptInstructions(e.target.value)}
-                  placeholder="Bijv: Dit is een huwelijksreis voor een jong stel. Ze zijn avontuurlijk en houden van cultuur en natuur. Focus op romantische en unieke ervaringen."
-                  rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
-                />
-                <p className="text-xs text-gray-400 mt-1">
-                  {gptInstructions.length === 0 && apiSettings?.travelbro_gpt_instructions ?
-                    '💡 Standaard template wordt gebruikt als je dit leeg laat' :
-                    `${gptInstructions.length} karakters`
-                  }
-                </p>
+              <div className="border-t pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <Bot className="inline w-5 h-5 mr-2" />
+                  AI Configuratie (GPT)
+                </h3>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Custom Context
+                    </label>
+                    <textarea
+                      value={customContext}
+                      onChange={(e) => setCustomContext(e.target.value)}
+                      placeholder="Bijvoorbeeld: Dit is een huwelijksreis voor een jong stel. Ze houden van avontuur en romantiek..."
+                      rows={4}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Geef context over deze reis die de AI moet gebruiken bij het beantwoorden van vragen.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        GPT Model
+                      </label>
+                      <select
+                        value={gptModel}
+                        onChange={(e) => setGptModel(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      >
+                        <option value="gpt-4o">GPT-4o (aanbevolen)</option>
+                        <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                        <option value="gpt-3.5-turbo">GPT-3.5 Turbo (sneller)</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Temperature ({gptTemperature})
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="2"
+                        step="0.1"
+                        value={gptTemperature}
+                        onChange={(e) => setGptTemperature(parseFloat(e.target.value))}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>Precies</span>
+                        <span>Creatief</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <button
-                onClick={handleCreateTravelBro}
-                disabled={creating}
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-              >
-                {creating ? (
-                  <>
-                    <Loader className="w-5 h-5 animate-spin" />
-                    <span>TravelBRO aanmaken...</span>
-                  </>
-                ) : (
-                  <>
-                    <Plus size={20} />
-                    <span>Maak TravelBRO aan</span>
-                  </>
+              <div className="flex space-x-3">
+                {editingTrip && (
+                  <button
+                    onClick={cancelEditing}
+                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 rounded-lg font-semibold transition-colors"
+                  >
+                    Annuleren
+                  </button>
                 )}
-              </button>
+                <button
+                  onClick={editingTrip ? handleUpdateTravelBro : handleCreateTravelBro}
+                  disabled={creating || updating}
+                  className="flex-1 bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-lg font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+                >
+                  {(creating || updating) ? (
+                    <>
+                      <Loader className="w-5 h-5 animate-spin" />
+                      <span>{editingTrip ? 'Bijwerken...' : 'TravelBRO aanmaken...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      {editingTrip ? <Edit size={20} /> : <Plus size={20} />}
+                      <span>{editingTrip ? 'Bijwerken' : 'Maak TravelBRO aan'}</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -587,9 +699,7 @@ export function TravelBroSetup() {
                         <Eye size={18} />
                       </button>
                       <button
-                        onClick={() => {
-                          alert('Edit functionaliteit komt binnenkort!');
-                        }}
+                        onClick={() => startEditingTrip(trip)}
                         className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
                         title="Bewerk TravelBRO"
                       >
