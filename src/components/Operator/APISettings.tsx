@@ -11,6 +11,7 @@ import {
   AlertCircle,
   RefreshCw
 } from 'lucide-react';
+import { GoogleAPITester } from './GoogleAPITester';
 
 interface APISetting {
   id: string;
@@ -464,6 +465,8 @@ export function APISettings() {
           </div>
         </div>
       )}
+
+      <GoogleAPITester />
 
       <div className="grid grid-cols-1 gap-6">
         {settings.map((setting) => (
