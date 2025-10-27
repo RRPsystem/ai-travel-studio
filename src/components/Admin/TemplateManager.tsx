@@ -174,10 +174,10 @@ export function TemplateManager() {
         prev.map(t => t.id === templateId ? { ...t, is_approved_for_brands: isApproved } : t)
       );
 
-      showNotification('success', `Template ${isApproved ? 'goedgekeurd' : 'afgekeurd'} voor brands`);
+      alert(`Template ${isApproved ? 'goedgekeurd' : 'afgekeurd'} voor brands`);
     } catch (error) {
       console.error('Error updating approval status:', error);
-      showNotification('error', 'Fout bij het wijzigen van goedkeuringsstatus');
+      alert('Fout bij het wijzigen van goedkeuringsstatus');
     }
   };
 

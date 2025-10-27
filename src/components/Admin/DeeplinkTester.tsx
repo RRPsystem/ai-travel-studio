@@ -68,10 +68,15 @@ export default function DeeplinkTester() {
     }
   };
 
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(deeplinkUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copyToClipboard = async () => {
+    try {
+      await navigator.clipboard.writeText(deeplinkUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Clipboard error:', error);
+      alert('Kon niet kopiëren naar clipboard. Kopieer handmatig uit het tekstveld.');
+    }
   };
 
   const openInBuilder = () => {

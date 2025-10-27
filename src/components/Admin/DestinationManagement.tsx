@@ -96,8 +96,13 @@ export function DestinationManagement() {
 
       const newWindow = window.open(deeplink, '_blank');
       if (!newWindow) {
-        navigator.clipboard.writeText(deeplink);
-        alert('Pop-up geblokkeerd! URL is gekopieerd naar clipboard. Plak in nieuwe tab.');
+        try {
+          await navigator.clipboard.writeText(deeplink);
+          alert('Pop-up geblokkeerd! URL is gekopieerd naar clipboard. Plak in nieuwe tab.');
+        } catch (clipboardError) {
+          console.error('Clipboard error:', clipboardError);
+          alert(`Pop-up geblokkeerd! Open deze URL handmatig: ${deeplink}`);
+        }
       }
     } catch (err) {
       console.error('Error generating deeplink:', err);
@@ -143,8 +148,13 @@ export function DestinationManagement() {
 
       const newWindow = window.open(deeplink, '_blank');
       if (!newWindow) {
-        navigator.clipboard.writeText(deeplink);
-        alert('Pop-up geblokkeerd! URL is gekopieerd naar clipboard. Plak in nieuwe tab.');
+        try {
+          await navigator.clipboard.writeText(deeplink);
+          alert('Pop-up geblokkeerd! URL is gekopieerd naar clipboard. Plak in nieuwe tab.');
+        } catch (clipboardError) {
+          console.error('Clipboard error:', clipboardError);
+          alert(`Pop-up geblokkeerd! Open deze URL handmatig: ${deeplink}`);
+        }
       }
     } catch (err) {
       console.error('Error generating deeplink:', err);
