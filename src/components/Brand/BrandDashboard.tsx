@@ -12,6 +12,7 @@ import { NewPage } from './NewPage';
 import { AgentManagement } from './AgentManagement';
 import { MenuBuilder } from './MenuBuilder';
 import { FooterBuilder } from './FooterBuilder';
+import { SocialMediaConnector } from './SocialMediaConnector';
 import { Users, Settings, Plus, Bot, Sparkles, Import as FileImport, ChevronDown, ChevronRight, LayoutGrid as Layout, FileText, Globe, Newspaper, MapPin, Plane, Share2, Map, ArrowRight, Menu, ClipboardCheck } from 'lucide-react';
 import RoadmapBoard from './RoadmapBoard';
 import TestDashboard from '../Testing/TestDashboard';
@@ -568,6 +569,7 @@ export function BrandDashboard() {
           {activeSection === 'menu' && <MenuBuilder />}
           {activeSection === 'footer' && <FooterBuilder />}
           {activeSection === 'settings' && <BrandSettings />}
+          {activeSection === 'social-media' && <SocialMediaConnector />}
           {activeSection === 'nieuwsbeheer' && (
             <div className="p-6">
               <NewsApproval />
