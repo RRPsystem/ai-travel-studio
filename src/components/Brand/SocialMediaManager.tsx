@@ -41,8 +41,10 @@ export function SocialMediaManager() {
   const [posts, setPosts] = useState<SocialMediaPost[]>([]);
   const [accounts, setAccounts] = useState<SocialMediaAccount[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'create' | 'accounts' | 'brand-voice'>('create');
+  const [activeTab, setActiveTab] = useState<'create' | 'planner' | 'suggestions' | 'accounts' | 'brand-voice'>('create');
   const [showMediaSelector, setShowMediaSelector] = useState(false);
+  const [showConnectModal, setShowConnectModal] = useState(false);
+  const [selectedPlatform, setSelectedPlatform] = useState('');
 
   const [formData, setFormData] = useState({
     aiPrompt: '',
@@ -320,10 +322,10 @@ export function SocialMediaManager() {
       </div>
 
       <div className="border-b border-gray-200 bg-white">
-        <div className="flex px-6">
+        <div className="flex px-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab('create')}
-            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
+            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${
               activeTab === 'create'
                 ? 'border-orange-500 text-orange-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900'
@@ -332,8 +334,28 @@ export function SocialMediaManager() {
             Post Maken
           </button>
           <button
+            onClick={() => setActiveTab('planner')}
+            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === 'planner'
+                ? 'border-orange-500 text-orange-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            AI Planner
+          </button>
+          <button
+            onClick={() => setActiveTab('suggestions')}
+            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === 'suggestions'
+                ? 'border-orange-500 text-orange-600'
+                : 'border-transparent text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            AI Voorstellen
+          </button>
+          <button
             onClick={() => setActiveTab('accounts')}
-            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
+            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${
               activeTab === 'accounts'
                 ? 'border-orange-500 text-orange-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900'
@@ -343,7 +365,7 @@ export function SocialMediaManager() {
           </button>
           <button
             onClick={() => setActiveTab('brand-voice')}
-            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors ${
+            className={`px-6 py-3 font-medium text-sm border-b-2 transition-colors whitespace-nowrap ${
               activeTab === 'brand-voice'
                 ? 'border-orange-500 text-orange-600'
                 : 'border-transparent text-gray-600 hover:text-gray-900'
@@ -546,17 +568,213 @@ export function SocialMediaManager() {
           </div>
         )}
 
+        {activeTab === 'planner' && (
+          <div className="max-w-6xl mx-auto">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold">AI Content Planner</h3>
+                  <p className="text-sm text-gray-600">Geautomatiseerde planning met AI voorstellen</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    setLoading(true);
+                    try {
+                      const response = await fetch(
+                        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-content`,
+                        {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                          },
+                          body: JSON.stringify({
+                            type: 'content_calendar',
+                            brand_voice: brandVoice,
+                            brand_id: user?.brand_id
+                          }),
+                        }
+                      );
+                      if (!response.ok) throw new Error('Fout bij genereren planning');
+                      setSuccess('Planning gegenereerd!');
+                      await loadPosts();
+                    } catch (err: any) {
+                      setError('Fout bij genereren: ' + err.message);
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center space-x-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Genereer Weekplanning</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-7 gap-3">
+                {['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'].map((day, index) => (
+                  <div key={day} className="text-center">
+                    <div className="font-semibold text-sm text-gray-700 mb-2">{day}</div>
+                    <div className="space-y-2">
+                      {posts
+                        .filter(p => p.scheduled_for && new Date(p.scheduled_for).getDay() === ((index + 1) % 7))
+                        .slice(0, 3)
+                        .map(post => (
+                          <div key={post.id} className="bg-orange-50 border border-orange-200 rounded p-2 text-xs">
+                            <div className="flex items-center space-x-1 mb-1">
+                              {post.platforms.slice(0, 2).map(platform => (
+                                <div key={platform} className="text-orange-600">
+                                  {getPlatformIcon(platform)}
+                                </div>
+                              ))}
+                            </div>
+                            <p className="text-gray-900 line-clamp-2">{post.content}</p>
+                            {post.scheduled_for && (
+                              <p className="text-gray-500 mt-1">
+                                {new Date(post.scheduled_for).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-6">
+              <h4 className="font-semibold text-purple-900 mb-2">Optimale Post Tijden</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white rounded-lg p-3">
+                  <div className="text-sm font-medium text-gray-700">Instagram</div>
+                  <div className="text-lg font-bold text-purple-600">11:00 & 19:00</div>
+                </div>
+                <div className="bg-white rounded-lg p-3">
+                  <div className="text-sm font-medium text-gray-700">Facebook</div>
+                  <div className="text-lg font-bold text-blue-600">13:00 & 15:00</div>
+                </div>
+                <div className="bg-white rounded-lg p-3">
+                  <div className="text-sm font-medium text-gray-700">LinkedIn</div>
+                  <div className="text-lg font-bold text-indigo-600">08:00 & 17:00</div>
+                </div>
+                <div className="bg-white rounded-lg p-3">
+                  <div className="text-sm font-medium text-gray-700">Twitter</div>
+                  <div className="text-lg font-bold text-sky-600">12:00 & 18:00</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'suggestions' && (
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <h3 className="text-lg font-semibold">AI Content Voorstellen</h3>
+                  <p className="text-sm text-gray-600">Gebaseerd op jouw Brand Voice en trends</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    setLoading(true);
+                    try {
+                      const response = await fetch(
+                        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-content`,
+                        {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                          },
+                          body: JSON.stringify({
+                            type: 'suggestions',
+                            brand_voice: brandVoice,
+                            brand_id: user?.brand_id,
+                            count: 5
+                          }),
+                        }
+                      );
+                      if (!response.ok) throw new Error('Fout bij genereren voorstellen');
+                      setSuccess('Nieuwe voorstellen gegenereerd!');
+                    } catch (err: any) {
+                      setError('Fout bij genereren: ' + err.message);
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                  disabled={loading}
+                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center space-x-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>Genereer Nieuwe Ideeën</span>
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  { topic: 'Zomervakantie Inspiratie', platforms: ['instagram', 'facebook'], engagement: 'Hoog' },
+                  { topic: 'Reistips voor Gezinnen', platforms: ['facebook', 'linkedin'], engagement: 'Gemiddeld' },
+                  { topic: 'Last Minute Deals', platforms: ['twitter', 'instagram'], engagement: 'Hoog' },
+                  { topic: 'Sustainable Travel Tips', platforms: ['linkedin', 'instagram'], engagement: 'Gemiddeld' },
+                  { topic: 'Verborgen Bestemmingen Europa', platforms: ['instagram', 'facebook'], engagement: 'Hoog' }
+                ].map((suggestion, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h4 className="font-semibold text-gray-900">{suggestion.topic}</h4>
+                          <span className={`px-2 py-1 text-xs font-medium rounded ${
+                            suggestion.engagement === 'Hoog' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                          }`}>
+                            {suggestion.engagement} engagement
+                          </span>
+                        </div>
+                        <div className="flex items-center space-x-2 mb-3">
+                          <span className="text-sm text-gray-600">Aanbevolen platforms:</span>
+                          {suggestion.platforms.map(platform => (
+                            <div key={platform} className="text-gray-500">
+                              {getPlatformIcon(platform)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => {
+                          setFormData(prev => ({ ...prev, aiPrompt: suggestion.topic, platforms: suggestion.platforms }));
+                          setActiveTab('create');
+                        }}
+                        className="px-4 py-2 bg-orange-600 text-white text-sm rounded-lg hover:bg-orange-700 transition-colors"
+                      >
+                        Gebruik Idee
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'accounts' && (
           <div className="max-w-4xl mx-auto">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold mb-4">Verbonden Accounts</h3>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-lg font-semibold">Verbonden Accounts</h3>
+                <button
+                  onClick={() => setShowConnectModal(true)}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center space-x-2"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span>Account Koppelen</span>
+                </button>
+              </div>
 
               {accounts.length === 0 ? (
                 <div className="text-center py-8">
                   <Share2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                   <h4 className="text-lg font-semibold text-gray-900 mb-2">Geen accounts verbonden</h4>
                   <p className="text-gray-600 mb-4">Verbind je social media accounts om posts te kunnen plaatsen</p>
-                  <p className="text-sm text-gray-500">Ga naar Social Media Connector om accounts te verbinden</p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -571,21 +789,53 @@ export function SocialMediaManager() {
                           <p className="text-sm text-gray-600 capitalize">{account.platform} - {account.tier} tier</p>
                         </div>
                       </div>
-                      {account.is_connected ? (
-                        <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-medium rounded-full flex items-center space-x-1">
-                          <CheckCircle className="w-4 h-4" />
-                          <span>Verbonden</span>
-                        </span>
-                      ) : (
-                        <span className="px-3 py-1 bg-gray-100 text-gray-700 text-sm font-medium rounded-full flex items-center space-x-1">
-                          <X className="w-4 h-4" />
-                          <span>Niet verbonden</span>
-                        </span>
-                      )}
+                      <div className="flex items-center space-x-3">
+                        {account.is_connected ? (
+                          <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-medium rounded-full flex items-center space-x-1">
+                            <CheckCircle className="w-4 h-4" />
+                            <span>Verbonden</span>
+                          </span>
+                        ) : (
+                          <span className="px-3 py-1 bg-gray-100 text-gray-700 text-sm font-medium rounded-full flex items-center space-x-1">
+                            <X className="w-4 h-4" />
+                            <span>Niet verbonden</span>
+                          </span>
+                        )}
+                        <button
+                          onClick={async () => {
+                            if (confirm('Weet je zeker dat je dit account wilt ontkoppelen?')) {
+                              try {
+                                const { error } = await db.supabase
+                                  .from('social_media_accounts')
+                                  .delete()
+                                  .eq('id', account.id);
+                                if (error) throw error;
+                                setSuccess('Account ontkoppeld');
+                                await loadAccounts();
+                              } catch (err: any) {
+                                setError('Fout bij ontkoppelen: ' + err.message);
+                              }
+                            }
+                          }}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <h4 className="font-semibold text-blue-900 mb-2 flex items-center space-x-2">
+                <AlertCircle className="w-5 h-5" />
+                <span>OAuth Instellingen</span>
+              </h4>
+              <p className="text-sm text-blue-800">
+                OAuth client credentials worden beheerd door de operator. Neem contact op als je problemen hebt met het koppelen van accounts.
+              </p>
             </div>
           </div>
         )}
@@ -685,6 +935,87 @@ export function SocialMediaManager() {
           onSelect={handleMediaSelect}
           title="Selecteer Media"
         />
+      )}
+
+      {showConnectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Account Koppelen</h3>
+              <button
+                onClick={() => {
+                  setShowConnectModal(false);
+                  setSelectedPlatform('');
+                }}
+                className="p-1 hover:bg-gray-100 rounded"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Selecteer Platform
+                </label>
+                <select
+                  value={selectedPlatform}
+                  onChange={(e) => setSelectedPlatform(e.target.value)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                >
+                  <option value="">Kies een platform...</option>
+                  <option value="facebook">Facebook</option>
+                  <option value="instagram">Instagram</option>
+                  <option value="twitter">Twitter</option>
+                  <option value="linkedin">LinkedIn</option>
+                  <option value="youtube">YouTube</option>
+                </select>
+              </div>
+
+              {selectedPlatform && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-800">
+                    Je wordt doorgestuurd naar {selectedPlatform} om het account te autoriseren.
+                    Na autorisatie word je teruggestuurd naar deze pagina.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex space-x-3 pt-4 border-t">
+                <button
+                  onClick={() => {
+                    setShowConnectModal(false);
+                    setSelectedPlatform('');
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Annuleren
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!selectedPlatform) {
+                      setError('Selecteer een platform');
+                      return;
+                    }
+
+                    try {
+                      const callbackUrl = `${window.location.origin}/oauth-callback`;
+                      const oauthUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/oauth-callback?platform=${selectedPlatform}&brand_id=${user?.brand_id}&callback_url=${encodeURIComponent(callbackUrl)}`;
+
+                      window.location.href = oauthUrl;
+                    } catch (err: any) {
+                      setError('Fout bij starten OAuth: ' + err.message);
+                    }
+                  }}
+                  disabled={!selectedPlatform}
+                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Koppelen
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
