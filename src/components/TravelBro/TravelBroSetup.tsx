@@ -300,10 +300,10 @@ export function TravelBroSetup() {
 
   const getShareUrl = (shareToken: string) => {
     if (brandData?.travelbro_domain) {
-      return `https://${brandData.travelbro_domain}/travelbro/${shareToken}`;
+      return `https://${brandData.travelbro_domain}/${shareToken}`;
     }
     if (systemDefaultDomain) {
-      return `https://${systemDefaultDomain}/travelbro/${shareToken}`;
+      return `https://${systemDefaultDomain}/${shareToken}`;
     }
     return `${window.location.origin}/travelbro/${shareToken}`;
   };
@@ -1002,7 +1002,7 @@ export function TravelBroSetup() {
                     Alle TravelBRO links gebruiken standaard:
                   </p>
                   <code className="block bg-white px-3 py-2 rounded border border-blue-300 text-sm">
-                    https://{systemDefaultDomain}/travelbro/[token]
+                    https://{systemDefaultDomain}/[token]
                   </code>
                   <p className="text-xs text-blue-700 mt-2">
                     Je kunt hieronder je eigen custom domein instellen om dit te overschrijven.
@@ -1046,7 +1046,7 @@ export function TravelBroSetup() {
                     Je TravelBRO links gebruiken nu:
                   </p>
                   <code className="block bg-white px-3 py-2 rounded border border-green-300 text-sm">
-                    https://{brandData.travelbro_domain}/travelbro/[token]
+                    https://{brandData.travelbro_domain}/[token]
                   </code>
                 </div>
               )}
@@ -1087,21 +1087,62 @@ export function TravelBroSetup() {
             <div className="space-y-4">
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-medium text-gray-900 mb-3">DNS Records instellen</h4>
-                <div className="space-y-3 text-sm text-gray-700">
+                <div className="space-y-4 text-sm text-gray-700">
                   <div>
-                    <strong>Optie 1: CNAME Record (aanbevolen)</strong>
-                    <div className="mt-2 bg-white p-3 rounded border font-mono text-xs">
-                      <div>Type: CNAME</div>
-                      <div>Name: chat (of je subdomain)</div>
-                      <div>Value: {window.location.hostname}</div>
+                    <strong className="text-gray-900">Voor Root Domein (bijv. travelbro.nl)</strong>
+                    <div className="mt-2 bg-white p-3 rounded border font-mono text-xs space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Type:</span>
+                        <span className="font-semibold">A</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Name:</span>
+                        <span className="font-semibold">@</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Value:</span>
+                        <span className="font-semibold">[Server IP adres]</span>
+                      </div>
                     </div>
                   </div>
+
                   <div>
-                    <strong>Optie 2: A Record</strong>
-                    <div className="mt-2 bg-white p-3 rounded border font-mono text-xs">
-                      <div>Type: A</div>
-                      <div>Name: chat (of je subdomain)</div>
-                      <div>Value: [IP adres van deze server]</div>
+                    <strong className="text-gray-900">Voor Subdomain (bijv. chat.jouwreisbureau.nl)</strong>
+                    <div className="mt-2 space-y-2">
+                      <div>
+                        <p className="text-xs text-gray-600 mb-1">Optie 1: CNAME (aanbevolen)</p>
+                        <div className="bg-white p-3 rounded border font-mono text-xs space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Type:</span>
+                            <span className="font-semibold">CNAME</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Name:</span>
+                            <span className="font-semibold">chat</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Value:</span>
+                            <span className="font-semibold">{window.location.hostname}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600 mb-1">Optie 2: A Record</p>
+                        <div className="bg-white p-3 rounded border font-mono text-xs space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Type:</span>
+                            <span className="font-semibold">A</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Name:</span>
+                            <span className="font-semibold">chat</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">Value:</span>
+                            <span className="font-semibold">[Server IP adres]</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>

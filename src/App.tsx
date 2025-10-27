@@ -14,7 +14,10 @@ function AppContent() {
   console.log('🚀 AppContent component rendering');
 
   const path = window.location.pathname;
-  const travelMatch = path.match(/^\/(?:travel|travelbro)\/([a-f0-9]+)$/);
+
+  // Match TravelBRO chat links: /travelbro/[token], /travel/[token], or just /[token]
+  const travelMatch = path.match(/^\/(?:travel|travelbro)\/([a-f0-9]+)$/) ||
+                      path.match(/^\/([a-f0-9]{8,})$/);
 
   if (travelMatch) {
     return <ClientInterface shareToken={travelMatch[1]} />;
