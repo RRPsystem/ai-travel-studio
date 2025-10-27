@@ -6,7 +6,7 @@ import { Bot, Phone, MessageSquare, Users, Settings, CheckCircle, XCircle, Exter
 export function TravelBroSetup() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'overview' | 'new' | 'active' | 'sessions' | 'test'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'new' | 'active' | 'sessions' | 'test' | 'settings'>('overview');
   const [apiSettings, setApiSettings] = useState<any>(null);
   const [whatsappSessions, setWhatsappSessions] = useState<any[]>([]);
   const [activeTravelBros, setActiveTravelBros] = useState<any[]>([]);
@@ -26,6 +26,10 @@ export function TravelBroSetup() {
   const [editingTrip, setEditingTrip] = useState<any>(null);
   const [updating, setUpdating] = useState(false);
 
+  const [brandData, setBrandData] = useState<any>(null);
+  const [travelbroDomain, setTravelbroDomain] = useState('');
+  const [savingDomain, setSavingDomain] = useState(false);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -40,6 +44,15 @@ export function TravelBroSetup() {
         .maybeSingle();
 
       setApiSettings(settings);
+
+      const { data: brand } = await db.supabase
+        .from('brands')
+        .select('travelbro_domain')
+        .eq('id', user?.brand_id)
+        .maybeSingle();
+
+      setBrandData(brand);
+      setTravelbroDomain(brand?.travelbro_domain || '');
 
       const { data: sessions } = await db.supabase
         .from('travel_whatsapp_sessions')
@@ -148,13 +161,14 @@ export function TravelBroSetup() {
   };
 
   const copyClientLink = (shareToken: string) => {
-    const clientLink = `${window.location.origin}/travelbro/${shareToken}`;
+    const clientLink = getShareUrl(shareToken);
     navigator.clipboard.writeText(clientLink);
     alert('✅ Client link gekopieerd! Deel deze met je klanten.');
   };
 
   const openClientPreview = (shareToken: string) => {
-    window.open(`/travelbro/${shareToken}`, '_blank');
+    const url = getShareUrl(shareToken);
+    window.open(url, '_blank');
   };
 
   const deleteTravelBro = async (id: string) => {
@@ -274,6 +288,33 @@ export function TravelBroSetup() {
     alert('Webhook URL gekopieerd!');
   };
 
+  const getShareUrl = (shareToken: string) => {
+    if (brandData?.travelbro_domain) {
+      return `https://${brandData.travelbro_domain}/travelbro/${shareToken}`;
+    }
+    return `${window.location.origin}/travelbro/${shareToken}`;
+  };
+
+  const handleSaveDomain = async () => {
+    setSavingDomain(true);
+    try {
+      const { error } = await db.supabase
+        .from('brands')
+        .update({ travelbro_domain: travelbroDomain.trim() || null })
+        .eq('id', user?.brand_id);
+
+      if (error) throw error;
+
+      alert('✅ TravelBRO domein opgeslagen!');
+      loadData();
+    } catch (error) {
+      console.error('Error saving domain:', error);
+      alert('❌ Fout bij opslaan: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
+    } finally {
+      setSavingDomain(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center">
@@ -307,6 +348,7 @@ export function TravelBroSetup() {
             { id: 'active', label: 'Actieve TravelBRO\'s', icon: Users },
             { id: 'sessions', label: 'WhatsApp Sessies', icon: MessageSquare },
             { id: 'test', label: 'Test', icon: Send },
+            { id: 'settings', label: 'Instellingen', icon: Settings },
           ].map((tab) => {
             const Icon = tab.icon;
             return (
@@ -921,6 +963,126 @@ export function TravelBroSetup() {
                 </p>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'settings' && (
+        <div className="space-y-6">
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center space-x-3 mb-6">
+              <LinkIcon className="text-orange-500" size={24} />
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">TravelBRO Domein</h3>
+                <p className="text-sm text-gray-600">Gebruik je eigen domeinnaam voor TravelBRO chat links</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Custom Domein (optioneel)
+                </label>
+                <input
+                  type="text"
+                  value={travelbroDomain}
+                  onChange={(e) => setTravelbroDomain(e.target.value)}
+                  placeholder="chat.jouwreisbureau.nl"
+                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+                />
+                <p className="mt-2 text-sm text-gray-500">
+                  Voer alleen de domeinnaam in, zonder https:// of paden
+                </p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 mb-2">Hoe werkt het?</h4>
+                <ol className="text-sm text-blue-800 space-y-2 list-decimal list-inside">
+                  <li>Voer je gewenste domeinnaam in (bijv. chat.jouwreisbureau.nl)</li>
+                  <li>Klik op "Opslaan"</li>
+                  <li>Alle nieuwe TravelBRO links gebruiken automatisch dit domein</li>
+                  <li>Configureer DNS: voeg een CNAME of A record toe die naar deze applicatie wijst</li>
+                </ol>
+              </div>
+
+              {brandData?.travelbro_domain && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <CheckCircle className="text-green-600" size={20} />
+                    <h4 className="font-medium text-green-900">Actief domein</h4>
+                  </div>
+                  <p className="text-sm text-green-800 mb-2">
+                    Je TravelBRO links gebruiken nu:
+                  </p>
+                  <code className="block bg-white px-3 py-2 rounded border border-green-300 text-sm">
+                    https://{brandData.travelbro_domain}/travelbro/[token]
+                  </code>
+                </div>
+              )}
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={handleSaveDomain}
+                  disabled={savingDomain}
+                  className="px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600 disabled:opacity-50 flex items-center space-x-2"
+                >
+                  {savingDomain ? (
+                    <>
+                      <Loader className="animate-spin" size={18} />
+                      <span>Opslaan...</span>
+                    </>
+                  ) : (
+                    <span>Opslaan</span>
+                  )}
+                </button>
+                {travelbroDomain !== (brandData?.travelbro_domain || '') && (
+                  <button
+                    onClick={() => setTravelbroDomain(brandData?.travelbro_domain || '')}
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  >
+                    Annuleren
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <div className="flex items-center space-x-3 mb-4">
+              <Settings className="text-gray-500" size={24} />
+              <h3 className="text-lg font-semibold text-gray-900">DNS Configuratie</h3>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 mb-3">DNS Records instellen</h4>
+                <div className="space-y-3 text-sm text-gray-700">
+                  <div>
+                    <strong>Optie 1: CNAME Record (aanbevolen)</strong>
+                    <div className="mt-2 bg-white p-3 rounded border font-mono text-xs">
+                      <div>Type: CNAME</div>
+                      <div>Name: chat (of je subdomain)</div>
+                      <div>Value: {window.location.hostname}</div>
+                    </div>
+                  </div>
+                  <div>
+                    <strong>Optie 2: A Record</strong>
+                    <div className="mt-2 bg-white p-3 rounded border font-mono text-xs">
+                      <div>Type: A</div>
+                      <div>Name: chat (of je subdomain)</div>
+                      <div>Value: [IP adres van deze server]</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-800">
+                  <strong>Let op:</strong> DNS wijzigingen kunnen 24-48 uur duren voordat ze wereldwijd actief zijn.
+                  Test je domein voordat je het met klanten deelt.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}
