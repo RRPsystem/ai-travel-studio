@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, AlertCircle, RefreshCw, Key } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, RefreshCw, Key, X } from 'lucide-react';
 import { db } from '../../lib/supabase';
 
 interface APIStatus {
