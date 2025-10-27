@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../lib/supabase';
 import { AIContentGenerator } from '../Brand/AIContentGenerator';
 import { SocialMediaManager } from '../Brand/SocialMediaManager';
-import { ClientInterface } from '../TravelBro/ClientInterface';
+import { TravelBroSetup } from '../TravelBro/TravelBroSetup';
 import AgentProfileEdit from './AgentProfileEdit';
 import { HelpBot } from '../shared/HelpBot';
 import { Bot, User, ChevronDown, ChevronRight, Share2, Plane, Sparkles, Import as FileImport, Map, ArrowRight, Bell, ClipboardCheck } from 'lucide-react';
@@ -362,7 +362,7 @@ export function AgentDashboard() {
           {activeSection === 'social-media' && <SocialMediaManager />}
           {activeSection === 'testing' && <TestDashboard />}
           {activeSection === 'ai-content' && <AIContentGenerator />}
-          {activeSection === 'ai-travelbro' && <ClientInterface />}
+          {activeSection === 'ai-travelbro' && <TravelBroSetup />}
           {activeSection === 'roadmap' && <RoadmapBoard />}
           {activeSection === 'ai-import' && (
             <div className="p-6">

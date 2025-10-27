@@ -14,7 +14,7 @@ import { MenuBuilder } from './MenuBuilder';
 import { FooterBuilder } from './FooterBuilder';
 import { SocialMediaConnector } from './SocialMediaConnector';
 import { SocialMediaManager } from './SocialMediaManager';
-import { ClientInterface } from '../TravelBro/ClientInterface';
+import { TravelBroSetup } from '../TravelBro/TravelBroSetup';
 import { Users, Settings, Plus, Bot, Sparkles, Import as FileImport, ChevronDown, ChevronRight, LayoutGrid as Layout, FileText, Globe, Newspaper, MapPin, Plane, Share2, Map, ArrowRight, Menu, ClipboardCheck } from 'lucide-react';
 import RoadmapBoard from './RoadmapBoard';
 import TestDashboard from '../Testing/TestDashboard';
@@ -589,7 +589,7 @@ export function BrandDashboard() {
             </div>
           )}
           {activeSection === 'ai-content' && <AIContentGenerator />}
-          {activeSection === 'ai-travelbro' && <ClientInterface />}
+          {activeSection === 'ai-travelbro' && <TravelBroSetup />}
           {activeSection === 'social-media' && <SocialMediaManager />}
           {activeSection === 'settings' && <BrandSettings />}
           {activeSection === 'agents' && <AgentManagement />}
