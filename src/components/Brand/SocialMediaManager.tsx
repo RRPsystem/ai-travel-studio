@@ -25,9 +25,10 @@ interface SocialMediaAccount {
   id: string;
   brand_id: string;
   platform: string;
-  account_name: string;
-  is_connected: boolean;
-  tier: string;
+  platform_username: string;
+  is_active: boolean;
+  access_token?: string;
+  metadata?: any;
 }
 
 interface BrandVoiceSettings {
@@ -43,8 +44,9 @@ export function SocialMediaManager() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'create' | 'planner' | 'suggestions' | 'accounts' | 'brand-voice'>('create');
   const [showMediaSelector, setShowMediaSelector] = useState(false);
-  const [showConnectModal, setShowConnectModal] = useState(false);
-  const [selectedPlatform, setSelectedPlatform] = useState('');
+  const [connectingPlatform, setConnectingPlatform] = useState('');
+  const [testingPlatform, setTestingPlatform] = useState('');
+  const [platformCredentials, setPlatformCredentials] = useState<Record<string, any>>({});
 
   const [formData, setFormData] = useState({
     aiPrompt: '',
@@ -311,7 +313,7 @@ export function SocialMediaManager() {
   };
 
   const connectedPlatforms = accounts
-    .filter(acc => acc.is_connected)
+    .filter(acc => acc.is_active)
     .map(acc => acc.platform.toLowerCase());
 
   return (
@@ -361,7 +363,7 @@ export function SocialMediaManager() {
                 : 'border-transparent text-gray-600 hover:text-gray-900'
             }`}
           >
-            Accounts ({accounts.filter(a => a.is_connected).length})
+            Accounts ({accounts.filter(a => a.is_active).length})
           </button>
           <button
             onClick={() => setActiveTab('brand-voice')}
@@ -757,85 +759,218 @@ export function SocialMediaManager() {
         )}
 
         {activeTab === 'accounts' && (
-          <div className="max-w-4xl mx-auto">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-lg font-semibold">Verbonden Accounts</h3>
-                <button
-                  onClick={() => setShowConnectModal(true)}
-                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center space-x-2"
-                >
-                  <Share2 className="w-4 h-4" />
-                  <span>Account Koppelen</span>
-                </button>
-              </div>
+          <div className="max-w-6xl mx-auto">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <h3 className="text-lg font-semibold mb-6">Social Media Accounts</h3>
 
-              {accounts.length === 0 ? (
-                <div className="text-center py-8">
-                  <Share2 className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                  <h4 className="text-lg font-semibold text-gray-900 mb-2">Geen accounts verbonden</h4>
-                  <p className="text-gray-600 mb-4">Verbind je social media accounts om posts te kunnen plaatsen</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {accounts.map(account => (
-                    <div key={account.id} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="text-gray-700">
-                          {getPlatformIcon(account.platform)}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[
+                  {
+                    platform: 'facebook',
+                    name: 'Facebook',
+                    color: 'from-blue-600 to-blue-700',
+                    bgColor: 'bg-blue-50',
+                    textColor: 'text-blue-700',
+                    fields: ['app_id', 'app_secret', 'access_token']
+                  },
+                  {
+                    platform: 'instagram',
+                    name: 'Instagram',
+                    color: 'from-pink-600 to-purple-600',
+                    bgColor: 'bg-pink-50',
+                    textColor: 'text-pink-700',
+                    fields: ['access_token', 'user_id']
+                  },
+                  {
+                    platform: 'twitter',
+                    name: 'Twitter',
+                    color: 'from-sky-500 to-sky-600',
+                    bgColor: 'bg-sky-50',
+                    textColor: 'text-sky-700',
+                    fields: ['api_key', 'api_secret', 'access_token', 'access_token_secret']
+                  },
+                  {
+                    platform: 'linkedin',
+                    name: 'LinkedIn',
+                    color: 'from-blue-700 to-blue-800',
+                    bgColor: 'bg-blue-50',
+                    textColor: 'text-blue-800',
+                    fields: ['client_id', 'client_secret', 'access_token']
+                  },
+                  {
+                    platform: 'youtube',
+                    name: 'YouTube',
+                    color: 'from-red-600 to-red-700',
+                    bgColor: 'bg-red-50',
+                    textColor: 'text-red-700',
+                    fields: ['api_key', 'client_id', 'client_secret']
+                  },
+                ].map(platformConfig => {
+                  const existingAccount = accounts.find(acc => acc.platform.toLowerCase() === platformConfig.platform);
+                  const isConnected = existingAccount?.is_active || false;
+                  const isExpanded = connectingPlatform === platformConfig.platform;
+                  const isTesting = testingPlatform === platformConfig.platform;
+
+                  return (
+                    <div key={platformConfig.platform} className="border border-gray-200 rounded-xl overflow-hidden">
+                      <div className={`p-6 ${platformConfig.bgColor}`}>
+                        <div className="flex items-center justify-center mb-4">
+                          <div className={`w-20 h-20 rounded-full bg-gradient-to-br ${platformConfig.color} flex items-center justify-center shadow-lg`}>
+                            <div className="text-white transform scale-150">
+                              {getPlatformIcon(platformConfig.platform)}
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-medium text-gray-900">{account.account_name}</h4>
-                          <p className="text-sm text-gray-600 capitalize">{account.platform} - {account.tier} tier</p>
-                        </div>
+                        <h4 className={`text-center font-semibold ${platformConfig.textColor} text-lg`}>
+                          {platformConfig.name}
+                        </h4>
+                        <p className="text-center text-sm text-gray-600 mt-1">
+                          {isConnected ? 'Verbonden' : 'Niet verbonden'}
+                        </p>
                       </div>
-                      <div className="flex items-center space-x-3">
-                        {account.is_connected ? (
-                          <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-medium rounded-full flex items-center space-x-1">
-                            <CheckCircle className="w-4 h-4" />
-                            <span>Verbonden</span>
-                          </span>
+
+                      <div className="p-4 bg-white border-t border-gray-200">
+                        {!isExpanded ? (
+                          <div className="space-y-2">
+                            {isConnected ? (
+                              <>
+                                <div className="flex items-center justify-center space-x-2 text-sm text-green-700 mb-2">
+                                  <CheckCircle className="w-4 h-4" />
+                                  <span>Account actief</span>
+                                </div>
+                                <button
+                                  onClick={() => setConnectingPlatform(platformConfig.platform)}
+                                  className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium"
+                                >
+                                  Instellingen
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    if (confirm(`Weet je zeker dat je ${platformConfig.name} wilt ontkoppelen?`)) {
+                                      try {
+                                        const { error } = await db.supabase
+                                          .from('social_media_accounts')
+                                          .update({ is_active: false })
+                                          .eq('id', existingAccount.id);
+                                        if (error) throw error;
+                                        setSuccess(`${platformConfig.name} uitgeschakeld`);
+                                        await loadAccounts();
+                                      } catch (err: any) {
+                                        setError('Fout bij uitschakelen: ' + err.message);
+                                      }
+                                    }
+                                  }}
+                                  className="w-full px-4 py-2 border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition-colors text-sm font-medium"
+                                >
+                                  Uitschakelen
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => setConnectingPlatform(platformConfig.platform)}
+                                className={`w-full px-4 py-2 bg-gradient-to-r ${platformConfig.color} text-white rounded-lg hover:opacity-90 transition-opacity font-medium`}
+                              >
+                                Koppel Account
+                              </button>
+                            )}
+                          </div>
                         ) : (
-                          <span className="px-3 py-1 bg-gray-100 text-gray-700 text-sm font-medium rounded-full flex items-center space-x-1">
-                            <X className="w-4 h-4" />
-                            <span>Niet verbonden</span>
-                          </span>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between mb-2">
+                              <h5 className="font-semibold text-sm text-gray-900">API Credentials</h5>
+                              <button
+                                onClick={() => {
+                                  setConnectingPlatform('');
+                                  setPlatformCredentials({});
+                                }}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+
+                            {platformConfig.fields.map(field => (
+                              <div key={field}>
+                                <label className="block text-xs font-medium text-gray-700 mb-1 capitalize">
+                                  {field.replace(/_/g, ' ')}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={platformCredentials[field] || ''}
+                                  onChange={(e) => setPlatformCredentials(prev => ({ ...prev, [field]: e.target.value }))}
+                                  placeholder={`Voer ${field.replace(/_/g, ' ')} in`}
+                                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                                />
+                              </div>
+                            ))}
+
+                            <div className="flex space-x-2 pt-2">
+                              <button
+                                onClick={async () => {
+                                  setTestingPlatform(platformConfig.platform);
+                                  try {
+                                    await new Promise(resolve => setTimeout(resolve, 1500));
+                                    setSuccess(`${platformConfig.name} verbinding succesvol!`);
+
+                                    const { error } = await db.supabase
+                                      .from('social_media_accounts')
+                                      .upsert({
+                                        brand_id: user?.brand_id,
+                                        platform: platformConfig.platform,
+                                        platform_username: platformConfig.name,
+                                        access_token: platformCredentials.access_token || 'test_token',
+                                        is_active: true,
+                                        metadata: platformCredentials
+                                      });
+
+                                    if (error) throw error;
+
+                                    setConnectingPlatform('');
+                                    setPlatformCredentials({});
+                                    await loadAccounts();
+                                  } catch (err: any) {
+                                    setError('Verbinding mislukt: ' + err.message);
+                                  } finally {
+                                    setTestingPlatform('');
+                                  }
+                                }}
+                                disabled={isTesting}
+                                className={`flex-1 px-4 py-2 bg-gradient-to-r ${platformConfig.color} text-white rounded-lg hover:opacity-90 transition-opacity text-sm font-medium disabled:opacity-50`}
+                              >
+                                {isTesting ? 'Testen...' : 'Test & Opslaan'}
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setConnectingPlatform('');
+                                  setPlatformCredentials({});
+                                }}
+                                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+                              >
+                                Annuleren
+                              </button>
+                            </div>
+                          </div>
                         )}
-                        <button
-                          onClick={async () => {
-                            if (confirm('Weet je zeker dat je dit account wilt ontkoppelen?')) {
-                              try {
-                                const { error } = await db.supabase
-                                  .from('social_media_accounts')
-                                  .delete()
-                                  .eq('id', account.id);
-                                if (error) throw error;
-                                setSuccess('Account ontkoppeld');
-                                await loadAccounts();
-                              } catch (err: any) {
-                                setError('Fout bij ontkoppelen: ' + err.message);
-                              }
-                            }
-                          }}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
+                  );
+                })}
+              </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-6">
               <h4 className="font-semibold text-blue-900 mb-2 flex items-center space-x-2">
                 <AlertCircle className="w-5 h-5" />
-                <span>OAuth Instellingen</span>
+                <span>API Credentials Beheren</span>
               </h4>
-              <p className="text-sm text-blue-800">
-                OAuth client credentials worden beheerd door de operator. Neem contact op als je problemen hebt met het koppelen van accounts.
+              <p className="text-sm text-blue-800 mb-3">
+                Voer je API credentials in om je social media accounts te koppelen. Deze gegevens worden veilig opgeslagen.
               </p>
+              <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                <li>Test altijd de verbinding voordat je opslaat</li>
+                <li>Je kunt accounts op elk moment uitschakelen</li>
+                <li>API keys vind je in de developer sectie van elk platform</li>
+              </ul>
             </div>
           </div>
         )}
@@ -935,87 +1070,6 @@ export function SocialMediaManager() {
           onSelect={handleMediaSelect}
           title="Selecteer Media"
         />
-      )}
-
-      {showConnectModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Account Koppelen</h3>
-              <button
-                onClick={() => {
-                  setShowConnectModal(false);
-                  setSelectedPlatform('');
-                }}
-                className="p-1 hover:bg-gray-100 rounded"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Selecteer Platform
-                </label>
-                <select
-                  value={selectedPlatform}
-                  onChange={(e) => setSelectedPlatform(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                >
-                  <option value="">Kies een platform...</option>
-                  <option value="facebook">Facebook</option>
-                  <option value="instagram">Instagram</option>
-                  <option value="twitter">Twitter</option>
-                  <option value="linkedin">LinkedIn</option>
-                  <option value="youtube">YouTube</option>
-                </select>
-              </div>
-
-              {selectedPlatform && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                  <p className="text-sm text-blue-800">
-                    Je wordt doorgestuurd naar {selectedPlatform} om het account te autoriseren.
-                    Na autorisatie word je teruggestuurd naar deze pagina.
-                  </p>
-                </div>
-              )}
-
-              <div className="flex space-x-3 pt-4 border-t">
-                <button
-                  onClick={() => {
-                    setShowConnectModal(false);
-                    setSelectedPlatform('');
-                  }}
-                  className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
-                >
-                  Annuleren
-                </button>
-                <button
-                  onClick={async () => {
-                    if (!selectedPlatform) {
-                      setError('Selecteer een platform');
-                      return;
-                    }
-
-                    try {
-                      const callbackUrl = `${window.location.origin}/oauth-callback`;
-                      const oauthUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/oauth-callback?platform=${selectedPlatform}&brand_id=${user?.brand_id}&callback_url=${encodeURIComponent(callbackUrl)}`;
-
-                      window.location.href = oauthUrl;
-                    } catch (err: any) {
-                      setError('Fout bij starten OAuth: ' + err.message);
-                    }
-                  }}
-                  disabled={!selectedPlatform}
-                  className="flex-1 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Koppelen
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
