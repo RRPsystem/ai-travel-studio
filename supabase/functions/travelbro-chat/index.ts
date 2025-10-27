@@ -197,10 +197,87 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const hasValidTripData = trip.parsed_data && !trip.parsed_data.error;
-    const tripDataText = hasValidTripData
-      ? JSON.stringify(trip.parsed_data, null, 2)
-      : "Geen gedetailleerde reis informatie beschikbaar uit het reisdocument. Je kunt wel algemene tips geven over de bestemming en helpen met vragen.";
+    let hasValidTripData = trip.parsed_data && !trip.parsed_data.error && !trip.parsed_data.note;
+    let tripDataText = "";
+
+    if (!hasValidTripData && trip.source_urls && trip.source_urls.length > 0) {
+      console.log("No parsed data available, trying to scrape source URLs...");
+
+      try {
+        const scrapedDataPromises = trip.source_urls.slice(0, 2).map(async (url: string) => {
+          const scrapeResponse = await fetch(`${supabaseUrl}/functions/v1/scrape-trip-url`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseKey}`
+            },
+            body: JSON.stringify({ url })
+          });
+
+          if (scrapeResponse.ok) {
+            return await scrapeResponse.json();
+          }
+          return null;
+        });
+
+        const scrapedResults = await Promise.all(scrapedDataPromises);
+        const validScrapedData = scrapedResults.filter(data => data !== null);
+
+        if (validScrapedData.length > 0) {
+          const combinedData = validScrapedData.reduce((acc, curr) => ({
+            ...acc,
+            ...curr,
+            accommodations: [...(acc.accommodations || []), ...(curr.accommodations || [])],
+            activities: [...(acc.activities || []), ...(curr.activities || [])],
+            highlights: [...(acc.highlights || []), ...(curr.highlights || [])],
+            included_services: [...(acc.included_services || []), ...(curr.included_services || [])]
+          }), {});
+
+          tripDataText = JSON.stringify(combinedData, null, 2);
+          hasValidTripData = true;
+          console.log("Successfully scraped trip data from URLs");
+        }
+      } catch (error) {
+        console.error("Error scraping source URLs:", error);
+      }
+    }
+
+    if (!hasValidTripData) {
+      if (trip.parsed_data?.pdf_url) {
+        console.log("Trying to parse PDF:", trip.parsed_data.pdf_url);
+
+        try {
+          const pdfResponse = await fetch(`${supabaseUrl}/functions/v1/parse-trip-pdf`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${supabaseKey}`
+            },
+            body: JSON.stringify({ pdfUrl: trip.parsed_data.pdf_url })
+          });
+
+          if (pdfResponse.ok) {
+            const parsedPdfData = await pdfResponse.json();
+            tripDataText = JSON.stringify(parsedPdfData, null, 2);
+            hasValidTripData = true;
+            console.log("Successfully parsed PDF data");
+
+            await supabase
+              .from('travel_trips')
+              .update({ parsed_data: parsedPdfData })
+              .eq('id', tripId);
+          }
+        } catch (error) {
+          console.error("Error parsing PDF:", error);
+        }
+      }
+    }
+
+    if (!hasValidTripData) {
+      tripDataText = "Geen gedetailleerde reis informatie beschikbaar. Je kunt algemene tips geven over reizen en helpen waar mogelijk.";
+    } else if (!tripDataText) {
+      tripDataText = JSON.stringify(trip.parsed_data, null, 2);
+    }
 
     const systemPrompt = `Je bent TravelBRO, een vriendelijke en behulpzame Nederlandse reisassistent voor de reis "${trip.name}".
 

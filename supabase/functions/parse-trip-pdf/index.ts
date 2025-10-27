@@ -77,15 +77,113 @@ Deno.serve(async (req: Request) => {
         messages: [
           {
             role: "system",
-            content: "You are a travel document parser. Extract and structure trip information from the provided PDF text. Return JSON with: destination (with city, country, region), dates (start_date, end_date), activities (array of activities with name and description), accommodations (array with name, address, amenities, description), included_services (array), not_included (array), itinerary (array of day objects with day_number, date, title, description, activities array), price_info (object with amount, currency, notes), important_notes (array), and any other relevant details. Be thorough and extract as much detail as possible from the text."
+            content: `Je bent een expert reisdocument parser. Extraheer en structureer ALLE reis informatie uit de PDF tekst. Return JSON met:
+
+BELANGRIJKE STRUCTUUR:
+{
+  "destination": {
+    "city": "exacte stad/regio naam",
+    "country": "land",
+    "region": "regio/gebied"
+  },
+  "dates": {
+    "start_date": "YYYY-MM-DD",
+    "end_date": "YYYY-MM-DD",
+    "duration": "aantal dagen/nachten"
+  },
+  "accommodations": [
+    {
+      "name": "hotel naam",
+      "type": "hotel/resort/villa/etc",
+      "address": "volledig adres",
+      "location": "gebied/buurt",
+      "description": "gedetailleerde omschrijving",
+      "amenities": ["zwembad", "restaurant", "wifi", etc],
+      "room_type": "kamer type",
+      "check_in": "datum",
+      "check_out": "datum"
+    }
+  ],
+  "itinerary": [
+    {
+      "day_number": 1,
+      "date": "YYYY-MM-DD",
+      "title": "Dag titel",
+      "description": "uitgebreide beschrijving van de dag",
+      "activities": [
+        {
+          "time": "tijd indien vermeld",
+          "name": "activiteit naam",
+          "description": "details",
+          "location": "locatie"
+        }
+      ],
+      "meals": {
+        "breakfast": true/false,
+        "lunch": true/false,
+        "dinner": true/false,
+        "details": "extra meal info"
+      },
+      "accommodation": "waar overnacht je"
+    }
+  ],
+  "activities": [
+    {
+      "name": "activiteit naam",
+      "description": "uitgebreide beschrijving",
+      "location": "waar",
+      "duration": "hoe lang",
+      "included": true/false,
+      "price": "prijs indien vermeld"
+    }
+  ],
+  "included_services": [
+    "gedetailleerde lijst van wat inbegrepen is"
+  ],
+  "not_included": [
+    "wat niet inbegrepen is"
+  ],
+  "price_info": {
+    "total": "bedrag",
+    "currency": "EUR/USD/etc",
+    "per_person": "bedrag pp",
+    "notes": "extra prijs info",
+    "included_in_price": ["wat zit in de prijs"]
+  },
+  "transportation": {
+    "arrival": "hoe kom je er",
+    "departure": "hoe ga je terug",
+    "local": "lokaal vervoer info",
+    "transfers": ["transfer details"]
+  },
+  "important_notes": [
+    "alle belangrijke info, veiligheid, documenten, wat mee te nemen, etc"
+  ],
+  "contact_info": {
+    "emergency": "noodcontact",
+    "local_contact": "lokale contact",
+    "tour_operator": "reisorganisatie info"
+  },
+  "target_audience": "gezinnen/tieners/jongeren/etc",
+  "highlights": [
+    "unieke highlights van de reis"
+  ]
+}
+
+BELANGRIJK:
+- Extraheer ALLE details, zelfs kleine dingen
+- Wees zo specifiek mogelijk met adressen en locaties
+- Splits lange beschrijvingen op in relevante secties
+- Bewaar alle praktische informatie (tijden, adressen, contacten)
+- Als iets niet in de tekst staat, gebruik null of lege array`
           },
           {
             role: "user",
-            content: `Please analyze this travel document text and extract all trip information in a structured JSON format.\n\nDocument text:\n\n${fullText}`
+            content: `Analyseer deze reisdocument tekst en extraheer ALLE reis informatie in gestructureerd JSON formaat. Wees zeer grondig en gedetailleerd.\n\nDocument tekst:\n\n${fullText}`
           }
         ],
         response_format: { type: "json_object" },
-        max_tokens: 4000,
+        max_tokens: 8000,
       }),
     });
 
