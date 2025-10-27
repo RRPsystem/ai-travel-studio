@@ -172,7 +172,6 @@ export function BrandDashboard() {
     { id: 'dashboard', label: 'Dashboard', icon: Sparkles },
     { id: 'agents', label: 'Agents', icon: Users },
     { id: 'social-media', label: 'Social Media', icon: Share2 },
-    { id: 'settings', label: 'Instellingen', icon: Settings },
     { id: 'testing', label: 'Test Dashboard', icon: ClipboardCheck },
   ];
 
