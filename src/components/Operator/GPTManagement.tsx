@@ -103,9 +103,11 @@ export function GPTManagement() {
   ];
 
   const models = [
-    { id: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', cost: '$0.002/1K tokens' },
-    { id: 'gpt-4', label: 'GPT-4', cost: '$0.03/1K tokens' },
-    { id: 'gpt-4-turbo', label: 'GPT-4 Turbo', cost: '$0.01/1K tokens' }
+    { id: 'gpt-4o', label: 'GPT-4o', cost: '$5.00/$15.00 per 1M tokens' },
+    { id: 'gpt-4o-mini', label: 'GPT-4o-mini', cost: '$0.15/$0.60 per 1M tokens' },
+    { id: 'gpt-4-turbo', label: 'GPT-4 Turbo', cost: '$10.00/$30.00 per 1M tokens' },
+    { id: 'gpt-4', label: 'GPT-4', cost: '$30.00/$60.00 per 1M tokens' },
+    { id: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo', cost: '$0.50/$1.50 per 1M tokens' }
   ];
 
   const handleEditGPT = (gpt: GPTModel) => {

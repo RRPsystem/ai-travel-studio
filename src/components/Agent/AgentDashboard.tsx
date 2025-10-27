@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../lib/supabase';
-import { TravelBro } from '../Brand/AITools/TravelBro';
-import { SocialMedia } from '../Brand/AITools/SocialMedia';
 import { AIContentGenerator } from '../Brand/AIContentGenerator';
 import AgentProfileEdit from './AgentProfileEdit';
 import { HelpBot } from '../shared/HelpBot';
@@ -359,10 +357,20 @@ export function AgentDashboard() {
           )}
 
           {activeSection === 'profile' && <AgentProfileEdit />}
-          {activeSection === 'social-media' && <SocialMedia />}
+          {activeSection === 'social-media' && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">Social Media Management</h2>
+              <p className="text-gray-600">Social media tools coming soon...</p>
+            </div>
+          )}
           {activeSection === 'testing' && <TestDashboard />}
           {activeSection === 'ai-content' && <AIContentGenerator />}
-          {activeSection === 'ai-travelbro' && <TravelBro />}
+          {activeSection === 'ai-travelbro' && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">TravelBro AI Assistant</h2>
+              <p className="text-gray-600">TravelBro AI assistant coming soon...</p>
+            </div>
+          )}
           {activeSection === 'roadmap' && <RoadmapBoard />}
           {activeSection === 'ai-import' && (
             <div className="p-6">

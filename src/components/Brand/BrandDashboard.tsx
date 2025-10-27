@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../lib/supabase';
 import { AIContentGenerator } from './AIContentGenerator';
-import { TravelBro } from './AITools/TravelBro';
-import { SocialMedia } from './AITools/SocialMedia';
 import { BrandSettings } from './BrandSettings';
 import { HelpBot } from '../shared/HelpBot';
 import { NewsApproval } from './NewsApproval';
@@ -586,8 +584,18 @@ export function BrandDashboard() {
             </div>
           )}
           {activeSection === 'ai-content' && <AIContentGenerator />}
-          {activeSection === 'ai-travelbro' && <TravelBro />}
-          {activeSection === 'social-media' && <SocialMedia />}
+          {activeSection === 'ai-travelbro' && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">TravelBro AI Assistant</h2>
+              <p className="text-gray-600">TravelBro AI assistant coming soon...</p>
+            </div>
+          )}
+          {activeSection === 'social-media' && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold mb-4">Social Media Management</h2>
+              <p className="text-gray-600">Social media tools coming soon...</p>
+            </div>
+          )}
           {activeSection === 'agents' && <AgentManagement />}
           {activeSection === 'testing' && <TestDashboard />}
           {activeSection === 'roadmap' && <RoadmapBoard />}

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Upload, Save, AlertCircle, Settings, Globe } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { DomainSettings } from './WebsiteManagement/DomainSettings';
 
 type TabType = 'general' | 'domains';
 
@@ -208,7 +207,10 @@ export function BrandSettings() {
       </div>
 
       {activeTab === 'domains' ? (
-        <DomainSettings />
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Domain Settings</h2>
+          <p className="text-gray-600">Domain management coming soon...</p>
+        </div>
       ) : (
         <div className="bg-white rounded-lg shadow-sm border">
           <form onSubmit={handleSubmit} className="p-6 space-y-6">
