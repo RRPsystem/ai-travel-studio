@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { db, supabase } from '../../lib/supabase';
-import { Bot, Phone, MessageSquare, Users, Settings, CheckCircle, XCircle, ExternalLink, Copy, Send, Plus, FileText, Link as LinkIcon, Trash2, Eye, Share2, Upload, Loader, Edit } from 'lucide-react';
+import { Bot, Phone, MessageSquare, Users, Settings, CheckCircle, XCircle, ExternalLink, Copy, Send, Plus, FileText, Link as LinkIcon, Trash2, Eye, Share2, Upload, Loader, Edit, Clock, Calendar } from 'lucide-react';
 
 export function TravelBroSetup() {
   const { user } = useAuth();
@@ -36,6 +36,16 @@ export function TravelBroSetup() {
   const [invitePhone, setInvitePhone] = useState('');
   const [inviteClientName, setInviteClientName] = useState('');
   const [skipIntake, setSkipIntake] = useState(false);
+
+  const [scheduledMessages, setScheduledMessages] = useState<any[]>([]);
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [scheduleMessage, setScheduleMessage] = useState('');
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('09:00');
+  const [scheduleTimezone, setScheduleTimezone] = useState('Europe/Amsterdam');
+  const [scheduleType, setScheduleType] = useState('custom');
+  const [schedulePhone, setSchedulePhone] = useState('');
+  const [savingSchedule, setSavingSchedule] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -100,9 +110,17 @@ export function TravelBroSetup() {
         .from('travel_whatsapp_sessions')
         .select('*')
         .eq('trip_id', trip.id)
-        .order('last_message_at', { ascending: false });
+        .order('last_message_at', { ascending: false});
 
       setTripSessions(sessions || []);
+
+      const { data: messages } = await db.supabase
+        .from('scheduled_whatsapp_messages')
+        .select('*')
+        .eq('trip_id', trip.id)
+        .order('scheduled_date', { ascending: true });
+
+      setScheduledMessages(messages || []);
     } catch (error) {
       console.error('Error loading trip details:', error);
     } finally {
@@ -110,13 +128,78 @@ export function TravelBroSetup() {
     }
   };
 
+  const saveScheduledMessage = async () => {
+    if (!selectedTrip || !scheduleMessage.trim() || !scheduleDate || !schedulePhone.trim()) {
+      alert('Vul alle velden in');
+      return;
+    }
+
+    setSavingSchedule(true);
+    try {
+      const { error } = await db.supabase
+        .from('scheduled_whatsapp_messages')
+        .insert({
+          trip_id: selectedTrip.id,
+          brand_id: user?.brand_id,
+          message_content: scheduleMessage,
+          scheduled_date: scheduleDate,
+          scheduled_time: scheduleTime,
+          timezone: scheduleTimezone,
+          message_type: scheduleType,
+          recipient_phone: schedulePhone,
+        });
+
+      if (error) throw error;
+
+      alert('✅ Gepland bericht opgeslagen!');
+      setScheduleMessage('');
+      setScheduleDate('');
+      setScheduleTime('09:00');
+      setSchedulePhone('');
+      setShowScheduleForm(false);
+      await loadTripDetails(selectedTrip);
+    } catch (error) {
+      console.error('Error saving scheduled message:', error);
+      alert('❌ Fout bij opslaan: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
+    } finally {
+      setSavingSchedule(false);
+    }
+  };
+
+  const deleteScheduledMessage = async (messageId: string) => {
+    if (!confirm('Weet je zeker dat je dit geplande bericht wilt verwijderen?')) return;
+
+    try {
+      const { error } = await db.supabase
+        .from('scheduled_whatsapp_messages')
+        .delete()
+        .eq('id', messageId);
+
+      if (error) throw error;
+
+      alert('✅ Gepland bericht verwijderd');
+      if (selectedTrip) {
+        await loadTripDetails(selectedTrip);
+      }
+    } catch (error) {
+      console.error('Error deleting scheduled message:', error);
+      alert('❌ Fout bij verwijderen');
+    }
+  };
+
   const closeTripDetails = () => {
     setSelectedTrip(null);
     setTripIntakes([]);
     setTripSessions([]);
+    setScheduledMessages([]);
     setInvitePhone('');
     setInviteClientName('');
     setSkipIntake(false);
+    setShowScheduleForm(false);
+    setScheduleMessage('');
+    setScheduleDate('');
+    setScheduleTime('09:00');
+    setSchedulePhone('');
   };
 
   const handleCreateTravelBro = async () => {
@@ -390,6 +473,7 @@ export function TravelBroSetup() {
   const webhookUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook`;
 
   return (
+    <>
     <div className="p-6">
       <div className="mb-6">
         <div className="flex items-center space-x-3 mb-2">
@@ -1080,32 +1164,34 @@ export function TravelBroSetup() {
         </div>
       )}
 
+    </div>
+
       {selectedTrip && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={closeTripDetails}>
           <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center justify-between p-6 border-b">
+            <div className="flex items-center justify-between p-6 border-b bg-gradient-to-r from-orange-500 to-amber-500">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">{selectedTrip.name}</h2>
-                <p className="text-sm text-gray-600 mt-1">
+                <h2 className="text-2xl font-bold text-white">{selectedTrip.name}</h2>
+                <p className="text-sm text-orange-100 mt-1">
                   Aangemaakt: {new Date(selectedTrip.created_at).toLocaleDateString('nl-NL')}
                 </p>
               </div>
               <button
                 onClick={closeTripDetails}
-                className="text-gray-400 hover:text-gray-600 p-2"
+                className="text-white hover:text-orange-100 p-2 transition-colors"
               >
-                <XCircle size={24} />
+                <XCircle size={28} />
               </button>
             </div>
 
-            <div className="overflow-y-auto max-h-[calc(90vh-100px)] p-6">
+            <div className="overflow-y-auto max-h-[calc(90vh-100px)] p-6 bg-gray-50">
               {loadingTripDetails ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader className="w-8 h-8 animate-spin text-orange-600" />
                 </div>
               ) : (
                 <div className="space-y-6">
-                  <div className="bg-white rounded-lg border p-6">
+                  <div className="bg-white rounded-lg shadow-sm border p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                       <Phone className="w-5 h-5 mr-2 text-orange-600" />
                       Stuur WhatsApp Uitnodiging
@@ -1181,7 +1267,7 @@ export function TravelBroSetup() {
                     </div>
                   </div>
 
-                  <div className="bg-white rounded-lg border p-6">
+                  <div className="bg-white rounded-lg shadow-sm border p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                       <FileText className="w-5 h-5 mr-2 text-blue-600" />
                       Ingevulde Intake Formulieren ({tripIntakes.length})
@@ -1192,7 +1278,7 @@ export function TravelBroSetup() {
                     ) : (
                       <div className="space-y-3">
                         {tripIntakes.map((intake) => (
-                          <div key={intake.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                          <div key={intake.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                             <div className="flex items-center justify-between">
                               <div>
                                 <p className="font-medium text-gray-900">
@@ -1218,7 +1304,7 @@ export function TravelBroSetup() {
                     )}
                   </div>
 
-                  <div className="bg-white rounded-lg border p-6">
+                  <div className="bg-white rounded-lg shadow-sm border p-6">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                       <MessageSquare className="w-5 h-5 mr-2 text-green-600" />
                       WhatsApp Sessies ({tripSessions.length})
@@ -1229,7 +1315,7 @@ export function TravelBroSetup() {
                     ) : (
                       <div className="space-y-3">
                         {tripSessions.map((session) => (
-                          <div key={session.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                          <div key={session.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                             <div className="flex items-center justify-between">
                               <div>
                                 <p className="font-medium text-gray-900">{session.phone_number}</p>
@@ -1246,12 +1332,231 @@ export function TravelBroSetup() {
                       </div>
                     )}
                   </div>
+
+                  <div className="bg-white rounded-lg shadow-sm border p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                        <Clock className="w-5 h-5 mr-2 text-purple-600" />
+                        Geplande WhatsApp Berichten ({scheduledMessages.filter(m => !m.is_sent).length})
+                      </h3>
+                      <button
+                        onClick={() => setShowScheduleForm(!showScheduleForm)}
+                        className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+                      >
+                        <Plus size={16} />
+                        <span>Plan Bericht</span>
+                      </button>
+                    </div>
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                      <p className="text-sm text-blue-900">
+                        <strong>📅 Automatische berichten:</strong> Plan berichten die automatisch verstuurd worden op een specifieke datum en tijd. Perfect voor routebeschrijvingen, hotel check-in reminders, of vlucht informatie.
+                      </p>
+                      <p className="text-xs text-blue-700 mt-2">
+                        💡 <strong>Tijdzone support:</strong> Het systeem houdt automatisch rekening met tijdsverschillen! Stel de timezone in van de bestemming waar je klant is.
+                      </p>
+                    </div>
+
+                    {showScheduleForm && (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Telefoonnummer
+                          </label>
+                          <input
+                            type="tel"
+                            value={schedulePhone}
+                            onChange={(e) => setSchedulePhone(e.target.value)}
+                            placeholder="+31612345678"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              <Calendar className="w-4 h-4 inline mr-1" />
+                              Datum
+                            </label>
+                            <input
+                              type="date"
+                              value={scheduleDate}
+                              onChange={(e) => setScheduleDate(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              <Clock className="w-4 h-4 inline mr-1" />
+                              Tijd
+                            </label>
+                            <input
+                              type="time"
+                              value={scheduleTime}
+                              onChange={(e) => setScheduleTime(e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Timezone (waar de klant is)
+                          </label>
+                          <select
+                            value={scheduleTimezone}
+                            onChange={(e) => setScheduleTimezone(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          >
+                            <option value="Europe/Amsterdam">Nederland (Amsterdam)</option>
+                            <option value="Europe/Brussels">België (Brussels)</option>
+                            <option value="Europe/London">UK (London)</option>
+                            <option value="Europe/Paris">Frankrijk (Paris)</option>
+                            <option value="Europe/Berlin">Duitsland (Berlin)</option>
+                            <option value="Europe/Madrid">Spanje (Madrid)</option>
+                            <option value="Europe/Rome">Italië (Rome)</option>
+                            <option value="Europe/Athens">Griekenland (Athens)</option>
+                            <option value="Asia/Bangkok">Thailand (Bangkok)</option>
+                            <option value="Asia/Tokyo">Japan (Tokyo)</option>
+                            <option value="Asia/Dubai">UAE (Dubai)</option>
+                            <option value="America/New_York">VS Oost (New York)</option>
+                            <option value="America/Los_Angeles">VS West (Los Angeles)</option>
+                            <option value="America/Cancun">Mexico (Cancun)</option>
+                            <option value="Pacific/Auckland">Nieuw-Zeeland (Auckland)</option>
+                            <option value="Australia/Sydney">Australië (Sydney)</option>
+                          </select>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Belangrijk: Kies de timezone waar je klant zich bevindt tijdens de reis
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Bericht Type
+                          </label>
+                          <select
+                            value={scheduleType}
+                            onChange={(e) => setScheduleType(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          >
+                            <option value="route_description">🗺️ Routebeschrijving</option>
+                            <option value="hotel_checkin">🏨 Hotel Check-in</option>
+                            <option value="flight_reminder">✈️ Vlucht Reminder</option>
+                            <option value="activity_reminder">🎯 Activiteit Reminder</option>
+                            <option value="custom">📝 Custom Bericht</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Bericht
+                          </label>
+                          <textarea
+                            value={scheduleMessage}
+                            onChange={(e) => setScheduleMessage(e.target.value)}
+                            rows={4}
+                            placeholder="Bijv: Hoi! Vandaag reis je van Bangkok naar Chiang Mai. Hier is je routebeschrijving..."
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            💡 Tip: Schrijf het bericht alsof je direct met de klant praat
+                          </p>
+                        </div>
+
+                        <div className="flex space-x-3">
+                          <button
+                            onClick={saveScheduledMessage}
+                            disabled={savingSchedule || !scheduleMessage.trim() || !scheduleDate || !schedulePhone.trim()}
+                            className="flex-1 flex items-center justify-center space-x-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                          >
+                            {savingSchedule ? (
+                              <>
+                                <Loader className="w-5 h-5 animate-spin" />
+                                <span>Opslaan...</span>
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle size={20} />
+                                <span>Opslaan</span>
+                              </>
+                            )}
+                          </button>
+                          <button
+                            onClick={() => {
+                              setShowScheduleForm(false);
+                              setScheduleMessage('');
+                              setScheduleDate('');
+                              setSchedulePhone('');
+                            }}
+                            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            Annuleren
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {scheduledMessages.length === 0 ? (
+                      <p className="text-gray-600 text-sm">Nog geen geplande berichten</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {scheduledMessages.map((msg) => (
+                          <div
+                            key={msg.id}
+                            className={`border rounded-lg p-4 ${msg.is_sent ? 'bg-gray-50 border-gray-200' : 'bg-white hover:bg-gray-50'} transition-colors`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2 mb-2">
+                                  {msg.message_type === 'route_description' && <span>🗺️</span>}
+                                  {msg.message_type === 'hotel_checkin' && <span>🏨</span>}
+                                  {msg.message_type === 'flight_reminder' && <span>✈️</span>}
+                                  {msg.message_type === 'activity_reminder' && <span>🎯</span>}
+                                  {msg.message_type === 'custom' && <span>📝</span>}
+                                  <span className="font-medium text-gray-900 capitalize">
+                                    {msg.message_type.replace('_', ' ')}
+                                  </span>
+                                  {msg.is_sent && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      <CheckCircle size={12} className="mr-1" />
+                                      Verzonden
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-sm text-gray-700 mb-2 line-clamp-2">{msg.message_content}</p>
+                                <div className="flex items-center space-x-4 text-xs text-gray-500">
+                                  <span>📱 {msg.recipient_phone}</span>
+                                  <span>📅 {new Date(msg.scheduled_date + 'T' + msg.scheduled_time).toLocaleDateString('nl-NL')}</span>
+                                  <span>⏰ {msg.scheduled_time}</span>
+                                  <span>🌍 {msg.timezone.split('/')[1]}</span>
+                                </div>
+                                {msg.is_sent && msg.sent_at && (
+                                  <p className="text-xs text-green-600 mt-1">
+                                    Verzonden: {new Date(msg.sent_at).toLocaleString('nl-NL')}
+                                  </p>
+                                )}
+                              </div>
+                              {!msg.is_sent && (
+                                <button
+                                  onClick={() => deleteScheduledMessage(msg.id)}
+                                  className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Verwijder"
+                                >
+                                  <Trash2 size={18} />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
