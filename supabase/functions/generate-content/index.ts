@@ -43,7 +43,7 @@ Deno.serve(async (req: Request) => {
     // Get ALL API keys from database
     const { data: allSettings, error: settingsError } = await supabaseClient
       .from('api_settings')
-      .select('provider, service_name, api_key, additional_config');
+      .select('provider, service_name, api_key, metadata');
 
     if (settingsError) {
       console.error('Error fetching API settings:', settingsError);
@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
 
     const openaiApiKey = openaiSettings.api_key;
     const googleSearchApiKey = googleSearchSettings?.api_key;
-    const googleSearchEngineId = googleSearchSettings?.additional_config?.search_engine_id;
+    const googleSearchEngineId = googleSearchSettings?.metadata?.search_engine_id;
     const googleMapsApiKey = googleMapsSettings?.api_key;
 
     // Parse request body

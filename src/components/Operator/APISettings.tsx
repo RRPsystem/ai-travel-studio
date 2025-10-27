@@ -255,23 +255,29 @@ export function APISettings() {
     }
   };
 
-  const updateAPIKey = async (id: string, api_key: string, is_active: boolean) => {
+  const updateAPIKey = async (id: string, api_key: string, is_active: boolean, metadata?: any) => {
     setSaving(id);
     setError('');
     try {
+      const updateData: any = {
+        api_key,
+        is_active,
+        updated_at: new Date().toISOString()
+      };
+
+      if (metadata) {
+        updateData.metadata = metadata;
+      }
+
       const { error: updateError } = await supabase
         .from('api_settings')
-        .update({
-          api_key,
-          is_active,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('id', id);
 
       if (updateError) throw updateError;
 
       setSettings(prev =>
-        prev.map(s => s.id === id ? { ...s, api_key, is_active } : s)
+        prev.map(s => s.id === id ? { ...s, api_key, is_active, metadata: metadata || s.metadata } : s)
       );
 
       alert('API key succesvol opgeslagen!');
@@ -347,7 +353,7 @@ export function APISettings() {
           throw new Error(data.error_message || 'Google Maps API key is ongeldig');
         }
       } else if (setting.provider === 'Google' && setting.service_name === 'Google Custom Search') {
-        const searchEngineId = setting.metadata?.search_engine_id || (setting as any).additional_config?.search_engine_id;
+        const searchEngineId = setting.metadata?.search_engine_id;
 
         if (!searchEngineId) {
           throw new Error('Search Engine ID ontbreekt in de configuratie');
@@ -508,6 +514,31 @@ export function APISettings() {
                 </div>
               </div>
 
+              {setting.provider === 'Google' && setting.service_name === 'Google Custom Search' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Search Engine ID (cx)
+                  </label>
+                  <input
+                    type="text"
+                    value={setting.metadata?.search_engine_id || ''}
+                    onChange={(e) => {
+                      setSettings(prev =>
+                        prev.map(s => s.id === setting.id ? {
+                          ...s,
+                          metadata: { ...s.metadata, search_engine_id: e.target.value }
+                        } : s)
+                      );
+                    }}
+                    placeholder="Bijv: 1234567890abc:defghijk"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Vind je Search Engine ID op: <a href="https://programmablesearchengine.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Programmable Search Engine</a>
+                  </p>
+                </div>
+              )}
+
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -526,7 +557,7 @@ export function APISettings() {
 
               <div className="flex gap-3 pt-2">
                 <button
-                  onClick={() => updateAPIKey(setting.id, setting.api_key, setting.is_active)}
+                  onClick={() => updateAPIKey(setting.id, setting.api_key, setting.is_active, setting.metadata)}
                   disabled={saving === setting.id}
                   className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
