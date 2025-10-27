@@ -571,7 +571,7 @@ export function BrandDashboard() {
           {activeSection === 'menu' && <MenuBuilder />}
           {activeSection === 'footer' && <FooterBuilder />}
           {activeSection === 'settings' && <BrandSettings />}
-          {activeSection === 'social-media' && <SocialMediaConnector />}
+          {activeSection === 'social-connector' && <SocialMediaConnector />}
           {activeSection === 'nieuwsbeheer' && (
             <div className="p-6">
               <NewsApproval />
@@ -594,11 +594,7 @@ export function BrandDashboard() {
               <p className="text-gray-600">TravelBro AI assistant coming soon...</p>
             </div>
           )}
-          {activeSection === 'social-media' && (
-            <div className="p-6">
-              <SocialMediaManager />
-            </div>
-          )}
+          {activeSection === 'social-media' && <SocialMediaManager />}
           {activeSection === 'settings' && <BrandSettings />}
           {activeSection === 'agents' && <AgentManagement />}
           {activeSection === 'testing' && <TestDashboard />}
