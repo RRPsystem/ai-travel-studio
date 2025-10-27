@@ -8,7 +8,7 @@
   "redirects": [
     {
       "source": "/",
-      "destination": "https://jouw-hoofddomein.vercel.app",
+      "destination": "https://ai-travelstudio.vercel.app",
       "permanent": false,
       "has": [
         {
@@ -19,7 +19,7 @@
     },
     {
       "source": "/",
-      "destination": "https://jouw-hoofddomein.vercel.app",
+      "destination": "https://ai-travelstudio.vercel.app",
       "permanent": false,
       "has": [
         {
