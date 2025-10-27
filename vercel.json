@@ -4,5 +4,29 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
+  ],
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "https://jouw-hoofddomein.vercel.app",
+      "permanent": false,
+      "has": [
+        {
+          "type": "host",
+          "value": "travelbro.nl"
+        }
+      ]
+    },
+    {
+      "source": "/",
+      "destination": "https://jouw-hoofddomein.vercel.app",
+      "permanent": false,
+      "has": [
+        {
+          "type": "host",
+          "value": "www.travelbro.nl"
+        }
+      ]
+    }
   ]
 }
