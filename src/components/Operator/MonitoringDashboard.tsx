@@ -39,6 +39,16 @@ interface ErrorSummary {
   last24h: number;
 }
 
+interface SystemError {
+  id: string;
+  error_type: string;
+  error_message: string;
+  severity: 'critical' | 'error' | 'warning' | 'info';
+  context: any;
+  resolved: boolean;
+  created_at: string;
+}
+
 interface ApiCostSummary {
   total_cost_today: number;
   total_cost_month: number;
@@ -70,6 +80,7 @@ interface MetricData {
 export function MonitoringDashboard() {
   const [alerts, setAlerts] = useState<SystemAlert[]>([]);
   const [errorSummary, setErrorSummary] = useState<ErrorSummary | null>(null);
+  const [recentErrors, setRecentErrors] = useState<SystemError[]>([]);
   const [apiCosts, setApiCosts] = useState<ApiCostSummary | null>(null);
   const [metrics, setMetrics] = useState<MetricData[]>([]);
   const [apiStatuses, setApiStatuses] = useState<APIStatus[]>([]);
@@ -120,7 +131,8 @@ export function MonitoringDashboard() {
   const loadErrorSummary = async () => {
     const { data: errors } = await supabase
       .from('system_errors')
-      .select('severity, resolved, created_at');
+      .select('*')
+      .order('created_at', { ascending: false });
 
     if (errors) {
       const now = new Date();
@@ -136,6 +148,12 @@ export function MonitoringDashboard() {
       };
 
       setErrorSummary(summary);
+
+      // Get recent unresolved errors for display
+      const recentUnresolved = errors
+        .filter(e => !e.resolved)
+        .slice(0, 10);
+      setRecentErrors(recentUnresolved);
     }
   };
 
@@ -428,6 +446,57 @@ export function MonitoringDashboard() {
                     <span className="text-lg font-bold text-red-600">{errorSummary.unresolved}</span>
                   </div>
                 </div>
+
+                {recentErrors.length > 0 && (
+                  <div className="pt-4 border-t border-gray-200">
+                    <h4 className="font-semibold text-gray-900 mb-3">Recent Unresolved Errors</h4>
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {recentErrors.map((error) => (
+                        <div
+                          key={error.id}
+                          className={`p-3 rounded-lg border ${
+                            error.severity === 'critical'
+                              ? 'bg-red-50 border-red-300'
+                              : error.severity === 'error'
+                              ? 'bg-yellow-50 border-yellow-300'
+                              : 'bg-orange-50 border-orange-300'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2 mb-1">
+                                <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                  error.severity === 'critical'
+                                    ? 'bg-red-200 text-red-900'
+                                    : error.severity === 'error'
+                                    ? 'bg-yellow-200 text-yellow-900'
+                                    : 'bg-orange-200 text-orange-900'
+                                }`}>
+                                  {error.severity.toUpperCase()}
+                                </span>
+                                <span className="text-xs font-medium text-gray-700">{error.error_type}</span>
+                              </div>
+                              <p className="text-sm text-gray-900 font-medium mb-1">{error.error_message}</p>
+                              <p className="text-xs text-gray-500">
+                                {new Date(error.created_at).toLocaleString('nl-NL')}
+                              </p>
+                              {error.context && typeof error.context === 'object' && Object.keys(error.context).length > 0 && (
+                                <details className="mt-2">
+                                  <summary className="text-xs text-gray-600 cursor-pointer hover:text-gray-800">
+                                    Context details
+                                  </summary>
+                                  <pre className="text-xs mt-1 p-2 bg-white rounded border border-gray-200 overflow-x-auto">
+                                    {JSON.stringify(error.context, null, 2)}
+                                  </pre>
+                                </details>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
