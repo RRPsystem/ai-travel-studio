@@ -26,6 +26,24 @@ interface GenerateContentRequest {
   };
 }
 
+interface RouteStop {
+  name: string;
+  place_id: string;
+  types: string[];
+  rating?: number;
+  detour_minutes: number;
+  reason: string;
+  location: {
+    lat: number;
+    lng: number;
+  };
+}
+
+interface CompressedStep {
+  instruction: string;
+  highway: string;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -115,6 +133,200 @@ Deno.serve(async (req: Request) => {
       .replace(/{DAYS}/g, daysContext)
       .replace(/{DESTINATION}/g, options.destination || '');
 
+    // Helper: Compress route steps - filter only highway changes
+    const compressSteps = (steps: any[]): CompressedStep[] => {
+      const highwayRegex = /(I-\d+|US-\d+|[A-Z]{2}-\d+|A\d+|E\d+|N\d+)/gi;
+      const compressed: CompressedStep[] = [];
+
+      for (const step of steps) {
+        const instruction = step.navigationInstruction?.instructions || step.html_instructions || '';
+        const matches = instruction.match(highwayRegex);
+
+        if (matches && matches.length > 0) {
+          const highway = matches[0];
+
+          // Skip duplicates
+          if (compressed.length === 0 || compressed[compressed.length - 1].highway !== highway) {
+            compressed.push({
+              instruction: instruction.replace(/<[^>]*>/g, ''),
+              highway: highway
+            });
+          }
+        }
+      }
+
+      // Always include last step (destination entrance)
+      if (steps.length > 0 && compressed.length > 0) {
+        const lastStep = steps[steps.length - 1];
+        const lastInstruction = lastStep.navigationInstruction?.instructions || lastStep.html_instructions || '';
+
+        if (!compressed.some(s => s.instruction === lastInstruction.replace(/<[^>]*>/g, ''))) {
+          compressed.push({
+            instruction: lastInstruction.replace(/<[^>]*>/g, ''),
+            highway: 'FINAL'
+          });
+        }
+      }
+
+      // Limit to 5-6 steps
+      return compressed.slice(0, 6);
+    };
+
+    // Helper: Calculate detour time for a place
+    const calculateDetour = async (currentLat: number, currentLng: number, placeLat: number, placeLng: number, destLat: number, destLng: number): Promise<number> => {
+      if (!googleMapsApiKey) return 999;
+
+      try {
+        // Calculate detour: (origin -> place -> destination) - (origin -> destination)
+        const detourResponse = await fetch(
+          `https://routes.googleapis.com/directions/v2:computeRoutes`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Goog-Api-Key': googleMapsApiKey,
+              'X-Goog-FieldMask': 'routes.duration'
+            },
+            body: JSON.stringify({
+              origin: { location: { latLng: { latitude: currentLat, longitude: currentLng } } },
+              destination: { location: { latLng: { latitude: destLat, longitude: destLng } } },
+              intermediates: [{ location: { latLng: { latitude: placeLat, longitude: placeLng } } }],
+              travelMode: 'DRIVE',
+              routingPreference: 'TRAFFIC_UNAWARE'
+            })
+          }
+        );
+
+        if (!detourResponse.ok) return 999;
+
+        const detourData = await detourResponse.json();
+        const detourDuration = parseInt(detourData.routes?.[0]?.duration?.replace('s', '') || '0');
+
+        // Direct route duration
+        const directResponse = await fetch(
+          `https://routes.googleapis.com/directions/v2:computeRoutes`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Goog-Api-Key': googleMapsApiKey,
+              'X-Goog-FieldMask': 'routes.duration'
+            },
+            body: JSON.stringify({
+              origin: { location: { latLng: { latitude: currentLat, longitude: currentLng } } },
+              destination: { location: { latLng: { latitude: destLat, longitude: destLng } } },
+              travelMode: 'DRIVE',
+              routingPreference: 'TRAFFIC_UNAWARE'
+            })
+          }
+        );
+
+        if (!directResponse.ok) return 999;
+
+        const directData = await directResponse.json();
+        const directDuration = parseInt(directData.routes?.[0]?.duration?.replace('s', '') || '0');
+
+        return Math.round((detourDuration - directDuration) / 60); // minutes
+      } catch (error) {
+        console.error('Detour calculation error:', error);
+        return 999;
+      }
+    };
+
+    // Helper: Find stops along route using Places API
+    const findRouteStops = async (originLat: number, originLng: number, destLat: number, destLng: number, routeType: string): Promise<RouteStop[]> => {
+      if (!googleMapsApiKey) return [];
+
+      try {
+        // Calculate midpoint for search
+        const midLat = (originLat + destLat) / 2;
+        const midLng = (originLng + destLng) / 2;
+
+        // Search for places along route
+        const searchResponse = await fetch(
+          `https://places.googleapis.com/v1/places:searchNearby`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Goog-Api-Key': googleMapsApiKey,
+              'X-Goog-FieldMask': 'places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.types'
+            },
+            body: JSON.stringify({
+              locationRestriction: {
+                circle: {
+                  center: { latitude: midLat, longitude: midLng },
+                  radius: 50000 // 50km radius
+                }
+              },
+              includedTypes: routeType === 'toeristische-route'
+                ? ['tourist_attraction', 'park', 'natural_feature', 'museum']
+                : ['tourist_attraction', 'park'],
+              maxResultCount: 20,
+              languageCode: 'nl'
+            })
+          }
+        );
+
+        if (!searchResponse.ok) {
+          console.error('Places search error:', searchResponse.status);
+          return [];
+        }
+
+        const searchData = await searchResponse.json();
+        const candidates = searchData.places || [];
+
+        console.log(`🔍 Found ${candidates.length} candidate stops`);
+
+        // Filter and score stops
+        const stops: RouteStop[] = [];
+        const seenPlaceIds = new Set<string>();
+
+        for (const place of candidates) {
+          if (seenPlaceIds.has(place.id)) continue;
+
+          const placeLat = place.location.latitude;
+          const placeLng = place.location.longitude;
+
+          // Calculate detour
+          const detourMinutes = await calculateDetour(originLat, originLng, placeLat, placeLng, destLat, destLng);
+
+          // Only include if detour <= 15 minutes
+          if (detourMinutes <= 15) {
+            stops.push({
+              name: place.displayName?.text || 'Unknown',
+              place_id: place.id,
+              types: place.types || [],
+              rating: place.rating,
+              detour_minutes: detourMinutes,
+              reason: `${place.displayName?.text || 'Interessante stop'} (${detourMinutes} min omweg)`,
+              location: {
+                lat: placeLat,
+                lng: placeLng
+              }
+            });
+            seenPlaceIds.add(place.id);
+          }
+        }
+
+        // Sort by: rating (desc), detour (asc)
+        stops.sort((a, b) => {
+          const ratingDiff = (b.rating || 0) - (a.rating || 0);
+          if (Math.abs(ratingDiff) > 0.5) return ratingDiff;
+          return a.detour_minutes - b.detour_minutes;
+        });
+
+        // Limit to 3-5 stops
+        const selectedStops = stops.slice(0, 5);
+        console.log(`✅ Selected ${selectedStops.length} stops (≤15 min detour)`);
+
+        return selectedStops;
+      } catch (error) {
+        console.error('Route stops error:', error);
+        return [];
+      }
+    };
+
     // Helper: Fetch Google Search results
     const fetchGoogleSearch = async (query: string): Promise<string> => {
       if (!googleSearchApiKey || !googleSearchEngineId) {
@@ -145,26 +357,28 @@ Deno.serve(async (req: Request) => {
       }
     };
 
-    // Helper: Fetch Google Routes API directions (new API)
-    const fetchGoogleRoutesAPI = async (origin: string, destination: string, routeType: string = ''): Promise<string> => {
+    // Helper: Fetch complete route with all data
+    const fetchCompleteRoute = async (origin: string, destination: string, routeType: string): Promise<any> => {
       if (!googleMapsApiKey) {
         console.log('⚠️ Google Maps not configured');
-        return '';
+        return null;
       }
 
       try {
-        // Determine route preferences
+        // Determine route preferences based on variant
         let routeModifiers: any = {};
+        let routingPreference = 'TRAFFIC_UNAWARE';
 
         if (routeType === 'snelle-route') {
           routeModifiers.avoidHighways = false;
           routeModifiers.avoidTolls = false;
+          routingPreference = 'TRAFFIC_AWARE_OPTIMAL';
         } else if (routeType === 'toeristische-route') {
           routeModifiers.avoidHighways = true;
           routeModifiers.avoidTolls = false;
         }
 
-        // Use the new Routes API
+        // Use the new Routes API with full field mask
         const response = await fetch(
           `https://routes.googleapis.com/directions/v2:computeRoutes`,
           {
@@ -172,17 +386,13 @@ Deno.serve(async (req: Request) => {
             headers: {
               'Content-Type': 'application/json',
               'X-Goog-Api-Key': googleMapsApiKey,
-              'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.legs.steps.navigationInstruction,routes.legs.startLocation,routes.legs.endLocation'
+              'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.legs.steps.navigationInstruction,routes.legs.steps.localizedValues,routes.legs.startLocation,routes.legs.endLocation,routes.polyline'
             },
             body: JSON.stringify({
-              origin: {
-                address: origin
-              },
-              destination: {
-                address: destination
-              },
+              origin: { address: origin },
+              destination: { address: destination },
               travelMode: 'DRIVE',
-              routingPreference: routeType === 'snelle-route' ? 'TRAFFIC_AWARE_OPTIMAL' : 'TRAFFIC_UNAWARE',
+              routingPreference,
               routeModifiers: Object.keys(routeModifiers).length > 0 ? routeModifiers : undefined,
               languageCode: 'nl'
             })
@@ -191,7 +401,7 @@ Deno.serve(async (req: Request) => {
 
         if (!response.ok) {
           console.error('Google Routes API error:', response.status, await response.text());
-          return '';
+          return null;
         }
 
         const data = await response.json();
@@ -200,37 +410,66 @@ Deno.serve(async (req: Request) => {
           const route = data.routes[0];
           const leg = route.legs?.[0];
 
-          if (!leg) return '';
+          if (!leg) return null;
 
-          const distanceKm = (route.distanceMeters / 1000).toFixed(1);
-          const durationHours = Math.floor(parseInt(route.duration.replace('s', '')) / 3600);
-          const durationMinutes = Math.floor((parseInt(route.duration.replace('s', '')) % 3600) / 60);
+          // Compress steps
+          const compressedSteps = compressSteps(leg.steps || []);
 
-          let steps = '';
-          if (leg.steps) {
-            steps = leg.steps.slice(0, 10).map((step: any, idx: number) =>
-              `${idx + 1}. ${step.navigationInstruction?.instructions || 'Volg de weg'}`
-            ).join('\n');
-          }
+          // Find stops along route
+          const originLoc = leg.startLocation.latLng;
+          const destLoc = leg.endLocation.latLng;
+          const stops = await findRouteStops(
+            originLoc.latitude,
+            originLoc.longitude,
+            destLoc.latitude,
+            destLoc.longitude,
+            routeType
+          );
 
-          const routeInfo = `
-Afstand: ${distanceKm} km
-Reistijd: ${durationHours}u ${durationMinutes}min
-Start: ${origin}
-Einde: ${destination}
+          // Calculate durations
+          const durationSeconds = parseInt(route.duration.replace('s', ''));
+          const durationNoStops = Math.round(durationSeconds / 60); // minutes
+          const estimatedStopTime = stops.length * 30; // 30 min per stop
+          const durationWithStops = durationNoStops + estimatedStopTime;
 
-Route stappen:
-${steps}
-          `;
+          // Build route line from compressed steps
+          const routeLine = compressedSteps.map(s => s.highway).filter(h => h !== 'FINAL').join(' → ');
 
-          console.log(`✅ Google Routes API: ${origin} naar ${destination}`);
-          return routeInfo;
+          // Build payload
+          return {
+            WRITING_STYLE: writingStyle,
+            ROUTE_VARIANT: routeType === 'snelle-route' ? 'Snelweg' : routeType === 'toeristische-route' ? 'Toeristisch' : 'Mix',
+            ORIGIN: origin,
+            DESTINATION: destination,
+            DISTANCE_KM: (route.distanceMeters / 1000).toFixed(0),
+            DURATION_NOSTOPS: `±${Math.floor(durationNoStops / 60)}u ${durationNoStops % 60}min`,
+            DURATION_WITH_STOPS: `±${Math.floor(durationWithStops / 60)}–${Math.floor(durationWithStops / 60) + 1}u`,
+            ROUTE_LINE: routeLine,
+            STEPS: compressedSteps.map(s => s.instruction),
+            STOPS: stops.map(s => ({
+              name: s.name,
+              place_id: s.place_id,
+              types: s.types,
+              rating: s.rating,
+              detour_minutes: s.detour_minutes,
+              reason: s.reason
+            })),
+            EATERIES: [], // TODO: Add eateries search
+            SEASON_ALERTS: [],
+            HOP_ON_HOP_OFF_AVAILABLE: false,
+            // Debug info
+            _DEBUG: {
+              steps_count: compressedSteps.length,
+              stops_count: stops.length,
+              last_step: compressedSteps[compressedSteps.length - 1]?.instruction || 'N/A'
+            }
+          };
         }
 
-        return '';
+        return null;
       } catch (error) {
-        console.error('Google Routes API error:', error);
-        return '';
+        console.error('Complete route fetch error:', error);
+        return null;
       }
     };
 
@@ -242,7 +481,6 @@ ${steps}
       }
 
       try {
-        // Use the new Places API to search for the destination
         const response = await fetch(
           `https://places.googleapis.com/v1/places:searchText`,
           {
@@ -288,15 +526,14 @@ ${steps}
 
     // Fetch real-time data based on content type
     let realTimeContext = '';
+    let routePayload: any = null;
 
     if (contentType === 'destination') {
-      // Use new Places API for destination info
       const placesInfo = await fetchPlacesInfo(prompt);
       if (placesInfo) {
         realTimeContext = placesInfo;
       }
 
-      // Also get general search results
       const searchQuery = `${prompt} travel guide tips 2024`;
       const searchResults = await fetchGoogleSearch(searchQuery);
       if (searchResults) {
@@ -308,18 +545,14 @@ ${steps}
         const origin = routeMatch[1].trim();
         const destination = routeMatch[2].trim();
 
-        // Use new Routes API
-        realTimeContext = await fetchGoogleRoutesAPI(origin, destination, options.routeType || '');
+        // Fetch complete route with all optimizations
+        routePayload = await fetchCompleteRoute(origin, destination, options.routeType || 'snelle-route');
 
-        // Get attractions along the route
-        const searchQuery = `route ${origin} ${destination} bezienswaardigheden`;
-        const searchResults = await fetchGoogleSearch(searchQuery);
-        if (searchResults) {
-          realTimeContext += `\n\nBezienswaardigheden onderweg:\n${searchResults}`;
+        if (routePayload) {
+          realTimeContext = `=== ROUTE PAYLOAD ===\n${JSON.stringify(routePayload, null, 2)}\n=== END ROUTE PAYLOAD ===`;
         }
       }
     } else if (contentType === 'planning') {
-      // Use Places API for planning locations
       const placesInfo = await fetchPlacesInfo(prompt);
       if (placesInfo) {
         realTimeContext = placesInfo;
@@ -341,7 +574,7 @@ ${steps}
     if (contentType === 'destination') {
       userPrompt = `Schrijf een volledige bestemmingstekst over: ${prompt}`;
     } else if (contentType === 'route') {
-      userPrompt = `Schrijf een volledige routebeschrijving voor: ${prompt}`;
+      userPrompt = `Schrijf een volledige routebeschrijving voor: ${prompt}\n\nGebruik ALLEEN de data uit het ROUTE PAYLOAD hierboven. Beschrijf de route, stops, en geef praktische tips.`;
     } else if (contentType === 'planning') {
       userPrompt = `Maak een volledige dagplanning voor: ${prompt}`;
     } else if (contentType === 'hotel') {
@@ -361,18 +594,24 @@ ${steps}
     const maxTokens = options.maxTokens || gptConfig?.max_tokens || 1500;
     const temperature = options.temperature !== undefined ? options.temperature : (gptConfig?.temperature || 0.7);
 
-    console.log(`Using GPT config: ${gptConfig?.name || 'default'} (${modelToUse})`);
-    console.log(`Writing Style: "${writingStyle}"`);
-    console.log(`Vacation Type: "${vacationTypeContext}"`);
-    console.log(`Days: "${daysContext}"`);
-    console.log(`Route Type: "${routeTypeContext}"`);
+    console.log(`\n🎯 Using GPT config: ${gptConfig?.name || 'default'} (${modelToUse})`);
+    console.log(`📝 Writing Style: "${writingStyle}"`);
+    console.log(`🏖️ Vacation Type: "${vacationTypeContext}"`);
+    console.log(`📅 Days: "${daysContext}"`);
+    console.log(`🛣️ Route Type: "${routeTypeContext}"`);
     console.log(`\n🌐 Google APIs Status:`);
-    console.log(`  - Google Search: ${googleSearchApiKey ? '✅ Configured' : '❌ Not configured'}`);
-    console.log(`  - Google Places API (New): ${googleMapsApiKey ? '✅ Configured' : '❌ Not configured'}`);
-    console.log(`  - Google Routes API: ${googleMapsApiKey ? '✅ Configured' : '❌ Not configured'}`);
-    console.log(`  - Real-time context fetched: ${realTimeContext ? `✅ Yes (${realTimeContext.length} chars)` : '❌ No'}`);
-    console.log(`User Prompt: "${userPrompt}"`);
-    console.log(`\n=== FULL SYSTEM PROMPT ===\n${systemPrompt}\n=== END SYSTEM PROMPT ===\n`);
+    console.log(`  - Google Search: ${googleSearchApiKey ? '✅' : '❌'}`);
+    console.log(`  - Google Places API (New): ${googleMapsApiKey ? '✅' : '❌'}`);
+    console.log(`  - Google Routes API: ${googleMapsApiKey ? '✅' : '❌'}`);
+    console.log(`  - Real-time context: ${realTimeContext ? `✅ (${realTimeContext.length} chars)` : '❌'}`);
+
+    if (routePayload) {
+      console.log(`\n🚗 ROUTE PAYLOAD DEBUG:`);
+      console.log(`  - Steps: ${routePayload._DEBUG.steps_count}`);
+      console.log(`  - Stops: ${routePayload._DEBUG.stops_count}`);
+      console.log(`  - Last step: "${routePayload._DEBUG.last_step}"`);
+      console.log(`  - Route line: ${routePayload.ROUTE_LINE}`);
+    }
 
     // Update usage count
     if (gptConfig) {
