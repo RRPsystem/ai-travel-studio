@@ -59,6 +59,7 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
   // Chat state
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const contentTypes = [
     { id: 'destination', label: 'Bestemmings tekst', icon: MapPin, color: 'border-orange-500 bg-orange-50' },
@@ -171,6 +172,7 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
     setShowSlidingPanel(false);
     
     // Generate initial AI response
+    setIsGenerating(true);
     setTimeout(async () => {
       try {
         let response = '';
@@ -207,11 +209,12 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
           timestamp: new Date()
         };
 
-        setChatSessions(prev => prev.map(chat => 
-          chat.id === newChatId 
+        setChatSessions(prev => prev.map(chat =>
+          chat.id === newChatId
             ? { ...chat, messages: [...chat.messages, aiResponse] }
             : chat
         ));
+        setIsGenerating(false);
       } catch (error) {
         const errorResponse: ChatMessage = {
           id: Date.now().toString(),
@@ -220,11 +223,12 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
           timestamp: new Date()
         };
 
-        setChatSessions(prev => prev.map(chat => 
-          chat.id === newChatId 
+        setChatSessions(prev => prev.map(chat =>
+          chat.id === newChatId
             ? { ...chat, messages: [...chat.messages, errorResponse] }
             : chat
         ));
+        setIsGenerating(false);
       }
     }, 1500);
     
@@ -259,6 +263,7 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
     setCurrentInput('');
 
     // Generate AI response
+    setIsGenerating(true);
     setTimeout(async () => {
       try {
         const activeChat = chatSessions.find(c => c.id === activeChatId);
@@ -292,11 +297,12 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
           timestamp: new Date()
         };
 
-        setChatSessions(prev => prev.map(chat => 
-          chat.id === activeChatId 
+        setChatSessions(prev => prev.map(chat =>
+          chat.id === activeChatId
             ? { ...chat, messages: [...chat.messages, aiResponse] }
             : chat
         ));
+        setIsGenerating(false);
       } catch (error) {
         const errorResponse: ChatMessage = {
           id: (Date.now() + 1).toString(),
@@ -305,11 +311,12 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
           timestamp: new Date()
         };
 
-        setChatSessions(prev => prev.map(chat => 
-          chat.id === activeChatId 
+        setChatSessions(prev => prev.map(chat =>
+          chat.id === activeChatId
             ? { ...chat, messages: [...chat.messages, errorResponse] }
             : chat
         ));
+        setIsGenerating(false);
       }
     }, 1000);
   };
@@ -339,15 +346,6 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
           </button>
         </div>
 
-        {/* GPT Status */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center space-x-2 mb-2">
-            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-            <span className="text-sm text-blue-600">Sync GPTs</span>
-            <span className="text-sm text-red-600 ml-auto">Wis</span>
-          </div>
-          <div className="text-xs text-green-600">✓ 20 Custom GPTs beschikbaar</div>
-        </div>
 
         <div className="flex-1 overflow-y-auto">
           <div className="p-4">
@@ -390,18 +388,23 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
         {activeChat ? (
           <>
             {/* Chat Header */}
-            <div className="bg-blue-600 border-b border-blue-700 px-6 py-4">
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 border-b border-blue-800 px-6 py-4 shadow-sm">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <h1 className="text-lg font-semibold text-white">{activeChat.title}</h1>
-                  <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">🔍 Live Search</span>
-                  <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">📍 {activeChat.contentType}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button className="bg-blue-500 hover:bg-blue-400 text-white px-3 py-1.5 rounded text-sm transition-colors">
-                    Amsterdam
-                  </button>
-                  <div className="w-8 h-8 bg-gray-300 rounded-full"></div>
+                  <span className="inline-flex items-center space-x-1.5 bg-emerald-500/20 backdrop-blur-sm text-emerald-100 px-3 py-1.5 rounded-full border border-emerald-400/30 text-xs font-medium">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <span>Live Search</span>
+                  </span>
+                  <span className="inline-flex items-center space-x-1.5 bg-orange-500/20 backdrop-blur-sm text-orange-100 px-3 py-1.5 rounded-full border border-orange-400/30 text-xs font-medium">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span>{activeChat.contentType}</span>
+                  </span>
                 </div>
               </div>
             </div>
@@ -412,8 +415,8 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
                 {activeChat.messages.map((message) => (
                   <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-3xl p-4 rounded-lg ${
-                      message.type === 'user' 
-                        ? 'bg-blue-600 text-white' 
+                      message.type === 'user'
+                        ? 'bg-blue-600 text-white'
                         : 'bg-white border border-gray-200'
                     }`}>
                       {message.type === 'assistant' && (
@@ -432,6 +435,27 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
                     </div>
                   </div>
                 ))}
+
+                {/* Loading Spinner */}
+                {isGenerating && (
+                  <div className="flex justify-start">
+                    <div className="max-w-3xl p-4 rounded-lg bg-white border border-gray-200">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center">
+                          <span className="text-white text-xs">AI</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
+                          <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
+                          <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+                        </div>
+                        <span className="text-sm text-gray-500">AI genereert content...</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
