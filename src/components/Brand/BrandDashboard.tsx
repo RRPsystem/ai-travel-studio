@@ -14,7 +14,6 @@ import { MenuBuilder } from './MenuBuilder';
 import { FooterBuilder } from './FooterBuilder';
 import { SocialMediaConnector } from './SocialMediaConnector';
 import { SocialMediaManager } from './SocialMediaManager';
-import { DomainSettings } from './DomainSettings';
 import { Users, Settings, Plus, Bot, Sparkles, Import as FileImport, ChevronDown, ChevronRight, LayoutGrid as Layout, FileText, Globe, Newspaper, MapPin, Plane, Share2, Map, ArrowRight, Menu, ClipboardCheck } from 'lucide-react';
 import RoadmapBoard from './RoadmapBoard';
 import TestDashboard from '../Testing/TestDashboard';
@@ -172,7 +171,7 @@ export function BrandDashboard() {
     { id: 'dashboard', label: 'Dashboard', icon: Sparkles },
     { id: 'agents', label: 'Agents', icon: Users },
     { id: 'social-media', label: 'Social Media', icon: Share2 },
-    { id: 'domains', label: 'Domeininstellingen', icon: Globe },
+    { id: 'settings', label: 'Instellingen', icon: Settings },
     { id: 'testing', label: 'Test Dashboard', icon: ClipboardCheck },
   ];
 
@@ -181,7 +180,6 @@ export function BrandDashboard() {
     { id: 'pages', label: 'Pagina Beheer', icon: FileText },
     { id: 'menu', label: 'Menu Beheer', icon: Menu },
     { id: 'footer', label: 'Footer Beheer', icon: Layout },
-    { id: 'domains', label: 'Domeininstellingen', icon: Globe },
   ];
 
   const aiToolsItems = [
@@ -466,7 +464,7 @@ export function BrandDashboard() {
                   {activeSection === 'ai-travelbro' && 'AI TravelBRO'}
                   {activeSection === 'ai-import' && 'AI TravelImport'}
                   {activeSection === 'social-media' && 'Social Media Manager'}
-                  {activeSection === 'domains' && 'Domeininstellingen'}
+                  {activeSection === 'settings' && 'Brand Instellingen'}
                   {activeSection === 'testing' && 'Test Dashboard'}
                   {activeSection === 'roadmap' && 'Roadmap'}
                 </h1>
@@ -483,7 +481,7 @@ export function BrandDashboard() {
                   {activeSection === 'ai-travelbro' && 'Your AI travel assistant'}
                   {activeSection === 'ai-import' && 'Import travel data with AI'}
                   {activeSection === 'social-media' && 'Maak en beheer social media posts'}
-                  {activeSection === 'domains' && 'Koppel je eigen domein aan je website'}
+                  {activeSection === 'settings' && 'Beheer je brand en domein instellingen'}
                   {activeSection === 'testing' && 'Test features and provide feedback'}
                   {activeSection === 'roadmap' && 'Vote on features and track development progress'}
                 </p>
@@ -603,11 +601,7 @@ export function BrandDashboard() {
               <SocialMediaManager />
             </div>
           )}
-          {activeSection === 'domains' && (
-            <div className="p-6">
-              <DomainSettings />
-            </div>
-          )}
+          {activeSection === 'settings' && <BrandSettings />}
           {activeSection === 'agents' && <AgentManagement />}
           {activeSection === 'testing' && <TestDashboard />}
           {activeSection === 'roadmap' && <RoadmapBoard />}
