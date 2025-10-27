@@ -318,11 +318,6 @@ export function SocialMediaManager() {
 
   return (
     <div className="h-full flex flex-col bg-gray-50">
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <h1 className="text-2xl font-bold text-gray-900">Social Media Manager</h1>
-        <p className="text-gray-600">Beheer je social media accounts en posts</p>
-      </div>
-
       <div className="border-b border-gray-200 bg-white">
         <div className="flex px-6 overflow-x-auto">
           <button
