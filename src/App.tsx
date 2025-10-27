@@ -14,7 +14,7 @@ function AppContent() {
   console.log('🚀 AppContent component rendering');
 
   const path = window.location.pathname;
-  const travelMatch = path.match(/^\/travel\/([a-f0-9]+)$/);
+  const travelMatch = path.match(/^\/(?:travel|travelbro)\/([a-f0-9]+)$/);
 
   if (travelMatch) {
     return <ClientInterface shareToken={travelMatch[1]} />;
