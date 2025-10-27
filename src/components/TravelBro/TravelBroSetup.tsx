@@ -29,6 +29,7 @@ export function TravelBroSetup() {
   const [brandData, setBrandData] = useState<any>(null);
   const [travelbroDomain, setTravelbroDomain] = useState('');
   const [savingDomain, setSavingDomain] = useState(false);
+  const [systemDefaultDomain, setSystemDefaultDomain] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -53,6 +54,15 @@ export function TravelBroSetup() {
 
       setBrandData(brand);
       setTravelbroDomain(brand?.travelbro_domain || '');
+
+      const { data: systemDomain } = await db.supabase
+        .from('api_settings')
+        .select('api_key')
+        .eq('provider', 'system')
+        .eq('service_name', 'TravelBRO Domain')
+        .maybeSingle();
+
+      setSystemDefaultDomain(systemDomain?.api_key || '');
 
       const { data: sessions } = await db.supabase
         .from('travel_whatsapp_sessions')
@@ -291,6 +301,9 @@ export function TravelBroSetup() {
   const getShareUrl = (shareToken: string) => {
     if (brandData?.travelbro_domain) {
       return `https://${brandData.travelbro_domain}/travelbro/${shareToken}`;
+    }
+    if (systemDefaultDomain) {
+      return `https://${systemDefaultDomain}/travelbro/${shareToken}`;
     }
     return `${window.location.origin}/travelbro/${shareToken}`;
   };
@@ -979,6 +992,24 @@ export function TravelBroSetup() {
             </div>
 
             <div className="space-y-4">
+              {systemDefaultDomain && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <LinkIcon className="text-blue-600" size={20} />
+                    <h4 className="font-medium text-blue-900">Standaard domein</h4>
+                  </div>
+                  <p className="text-sm text-blue-800 mb-2">
+                    Alle TravelBRO links gebruiken standaard:
+                  </p>
+                  <code className="block bg-white px-3 py-2 rounded border border-blue-300 text-sm">
+                    https://{systemDefaultDomain}/travelbro/[token]
+                  </code>
+                  <p className="text-xs text-blue-700 mt-2">
+                    Je kunt hieronder je eigen custom domein instellen om dit te overschrijven.
+                  </p>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Custom Domein (optioneel)
@@ -987,21 +1018,21 @@ export function TravelBroSetup() {
                   type="text"
                   value={travelbroDomain}
                   onChange={(e) => setTravelbroDomain(e.target.value)}
-                  placeholder="chat.jouwreisbureau.nl"
+                  placeholder={systemDefaultDomain ? `Laat leeg voor ${systemDefaultDomain}` : "chat.jouwreisbureau.nl"}
                   className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
                 />
                 <p className="mt-2 text-sm text-gray-500">
-                  Voer alleen de domeinnaam in, zonder https:// of paden
+                  Voer alleen de domeinnaam in, zonder https:// of paden. Laat leeg om het standaard domein te gebruiken.
                 </p>
               </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-medium text-blue-900 mb-2">Hoe werkt het?</h4>
-                <ol className="text-sm text-blue-800 space-y-2 list-decimal list-inside">
-                  <li>Voer je gewenste domeinnaam in (bijv. chat.jouwreisbureau.nl)</li>
-                  <li>Klik op "Opslaan"</li>
-                  <li>Alle nieuwe TravelBRO links gebruiken automatisch dit domein</li>
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 mb-2">Hoe werkt het?</h4>
+                <ol className="text-sm text-gray-700 space-y-2 list-decimal list-inside">
+                  <li>Standaard gebruiken alle brands het systeem-brede domein ({systemDefaultDomain || 'nog niet ingesteld'})</li>
+                  <li>Wil je een eigen domein? Voer deze hierboven in en klik op "Opslaan"</li>
                   <li>Configureer DNS: voeg een CNAME of A record toe die naar deze applicatie wijst</li>
+                  <li>Al je TravelBRO links gebruiken automatisch jouw custom domein</li>
                 </ol>
               </div>
 
