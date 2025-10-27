@@ -29,7 +29,7 @@ export function TravelBroSetup() {
       setApiSettings(settings);
 
       const { data: sessions } = await db.supabase
-        .from('whatsapp_sessions')
+        .from('travel_whatsapp_sessions')
         .select('*')
         .eq('brand_id', user?.brand_id)
         .order('created_at', { ascending: false });
@@ -307,16 +307,12 @@ export function TravelBroSetup() {
                         {session.trip_id ? 'Actieve reis' : 'Geen reis'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          session.is_active
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {session.is_active ? 'Actief' : 'Inactief'}
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                          Actief
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {new Date(session.last_activity).toLocaleString('nl-NL')}
+                        {new Date(session.last_message_at || session.created_at).toLocaleString('nl-NL')}
                       </td>
                     </tr>
                   ))}
