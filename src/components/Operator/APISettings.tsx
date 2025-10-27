@@ -320,6 +320,64 @@ export function APISettings() {
         } else {
           throw new Error('API key is ongeldig of heeft onvoldoende rechten');
         }
+      } else if (setting.provider === 'Google' && setting.service_name === 'Google Maps API') {
+        const response = await fetch(
+          `https://maps.googleapis.com/maps/api/geocode/json?address=Amsterdam&key=${setting.api_key}`
+        );
+
+        const data = await response.json();
+
+        if (response.ok && data.status === 'OK') {
+          const { error: updateError } = await supabase
+            .from('api_settings')
+            .update({
+              test_status: 'success',
+              last_tested: new Date().toISOString()
+            })
+            .eq('id', setting.id);
+
+          if (updateError) throw updateError;
+
+          setSettings(prev =>
+            prev.map(s => s.id === setting.id ? { ...s, test_status: 'success', last_tested: new Date().toISOString() } : s)
+          );
+
+          alert('Google Maps API key werkt correct!');
+        } else {
+          throw new Error(data.error_message || 'Google Maps API key is ongeldig');
+        }
+      } else if (setting.provider === 'Google' && setting.service_name === 'Google Custom Search') {
+        const searchEngineId = setting.metadata?.search_engine_id || (setting as any).additional_config?.search_engine_id;
+
+        if (!searchEngineId) {
+          throw new Error('Search Engine ID ontbreekt in de configuratie');
+        }
+
+        const response = await fetch(
+          `https://www.googleapis.com/customsearch/v1?key=${setting.api_key}&cx=${searchEngineId}&q=test`
+        );
+
+        const data = await response.json();
+
+        if (response.ok && !data.error) {
+          const { error: updateError } = await supabase
+            .from('api_settings')
+            .update({
+              test_status: 'success',
+              last_tested: new Date().toISOString()
+            })
+            .eq('id', setting.id);
+
+          if (updateError) throw updateError;
+
+          setSettings(prev =>
+            prev.map(s => s.id === setting.id ? { ...s, test_status: 'success', last_tested: new Date().toISOString() } : s)
+          );
+
+          alert('Google Search API key werkt correct!');
+        } else {
+          throw new Error(data.error?.message || 'Google Search API key is ongeldig');
+        }
       } else {
         alert('Test functie nog niet geïmplementeerd voor deze provider');
       }

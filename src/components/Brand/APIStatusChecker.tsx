@@ -26,8 +26,8 @@ export function APIStatusChecker({ onClose }: { onClose: () => void }) {
       const settings = await db.getAPISettings();
 
       const openaiSettings = settings?.find((s: any) => s.provider === 'OpenAI');
-      const googleSearchSettings = settings?.find((s: any) => s.provider === 'Google Search');
-      const googleMapsSettings = settings?.find((s: any) => s.provider === 'Google Maps');
+      const googleSearchSettings = settings?.find((s: any) => s.provider === 'Google' && s.service_name === 'Google Custom Search');
+      const googleMapsSettings = settings?.find((s: any) => s.provider === 'Google' && s.service_name === 'Google Maps API');
 
       results.push({
         name: 'OpenAI API',

@@ -43,7 +43,7 @@ Deno.serve(async (req: Request) => {
     // Get ALL API keys from database
     const { data: allSettings, error: settingsError } = await supabaseClient
       .from('api_settings')
-      .select('provider, api_key, additional_config');
+      .select('provider, service_name, api_key, additional_config');
 
     if (settingsError) {
       console.error('Error fetching API settings:', settingsError);
@@ -51,8 +51,8 @@ Deno.serve(async (req: Request) => {
     }
 
     const openaiSettings = allSettings?.find(s => s.provider === 'OpenAI');
-    const googleSearchSettings = allSettings?.find(s => s.provider === 'Google Search');
-    const googleMapsSettings = allSettings?.find(s => s.provider === 'Google Maps');
+    const googleSearchSettings = allSettings?.find(s => s.provider === 'Google' && s.service_name === 'Google Custom Search');
+    const googleMapsSettings = allSettings?.find(s => s.provider === 'Google' && s.service_name === 'Google Maps API');
 
     if (!openaiSettings?.api_key || !openaiSettings.api_key.startsWith('sk-')) {
       throw new Error('OpenAI API key not configured');
