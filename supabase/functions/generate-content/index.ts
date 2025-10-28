@@ -293,9 +293,13 @@ Deno.serve(async (req: Request) => {
             const placeLat = place.location.latitude;
             const placeLng = place.location.longitude;
 
-            const detourMinutes = await calculateDetour(originLat, originLng, placeLat, placeLng, destLat, destLng);
+            // Skip expensive detour calculation for tourist routes - just include good rated places
+            let detourMinutes = 10;
+            if (routeType !== 'toeristische-route') {
+              detourMinutes = await calculateDetour(originLat, originLng, placeLat, placeLng, destLat, destLng);
+            }
 
-            if (detourMinutes <= 15) {
+            if (detourMinutes <= 20) {
               allStops.push({
                 name: place.displayName?.text || 'Unknown',
                 place_id: place.id,
@@ -580,7 +584,13 @@ Deno.serve(async (req: Request) => {
     } else if (contentType === 'route') {
       if (routePayload) {
         const stopsCount = routePayload.STOPS.length;
-        userPrompt = `BELANGRIJKE INSTRUCTIE: Je krijgt hieronder ${stopsCount} concrete stops. Gebruik de EXACTE namen. Verzin GEEN extra plaatsen.\n\nROUTE GEGEVENS:\n- ORIGIN: ${routePayload.ORIGIN}\n- DESTINATION: ${routePayload.DESTINATION}\n- DISTANCE_KM: ${routePayload.DISTANCE_KM}\n- DURATION_NOSTOPS: ${routePayload.DURATION_NOSTOPS}\n- DURATION_WITH_STOPS: ${routePayload.DURATION_WITH_STOPS}\n- ROUTE_LINE: ${routePayload.ROUTE_LINE}\n${routePayload.TIME_BUDGET ? `- TIME_BUDGET: ${routePayload.TIME_BUDGET}\n` : ''}\nSTOPS (${stopsCount} stops - gebruik deze EXACTE namen):\n${routePayload.STOPS.map((stop: string, i: number) => `${i + 1}. "${stop}"`).join('\n')}\n\nOPDRACHT:\nSchrijf een volledige routebeschrijving volgens de structuur in je system prompt.\n- Gebruik voor ELKE stop hierboven een sectie in "Routebeschrijving & tussenstops"\n- Gebruik de EXACTE naam zoals hierboven staat (bijv. als er staat "Livermore", schrijf dan "Livermore")\n- Bedenk zelf sfeervolle beschrijvingen, activiteiten, eettips en weetjes voor elke stop\n- Maak het levendig en praktisch\n- Verzin GEEN extra stops die niet in bovenstaande lijst staan\n${routePayload.SCENIC_LOOP ? `\nSCENIC LOOP info (voor Mix variant):\n${routePayload.SCENIC_LOOP.description}` : ''}`;
+
+        if (stopsCount === 0) {
+          // No stops found - create a basic route description
+          userPrompt = `Schrijf een uitgebreide routebeschrijving van ${routePayload.ORIGIN} naar ${routePayload.DESTINATION}.\n\nROUTE GEGEVENS:\n- Afstand: ${routePayload.DISTANCE_KM} km\n- Reistijd: ${routePayload.DURATION_NOSTOPS}\n- Route: ${routePayload.ROUTE_LINE}\n\nOPDRACHT:\nSchrijf een volledige routebeschrijving volgens de structuur in je system prompt.\nOmdat er geen specifieke stops beschikbaar zijn, beschrijf de route algemeen en noem enkele interessante steden/plaatsen die waarschijnlijk langs de route liggen. Maak het levendig en praktisch.`;
+        } else {
+          userPrompt = `BELANGRIJKE INSTRUCTIE: Je krijgt hieronder ${stopsCount} concrete stops. Gebruik de EXACTE namen. Verzin GEEN extra plaatsen.\n\nROUTE GEGEVENS:\n- ORIGIN: ${routePayload.ORIGIN}\n- DESTINATION: ${routePayload.DESTINATION}\n- DISTANCE_KM: ${routePayload.DISTANCE_KM}\n- DURATION_NOSTOPS: ${routePayload.DURATION_NOSTOPS}\n- DURATION_WITH_STOPS: ${routePayload.DURATION_WITH_STOPS}\n- ROUTE_LINE: ${routePayload.ROUTE_LINE}\n${routePayload.TIME_BUDGET ? `- TIME_BUDGET: ${routePayload.TIME_BUDGET}\n` : ''}\nSTOPS (${stopsCount} stops - gebruik deze EXACTE namen):\n${routePayload.STOPS.map((stop: string, i: number) => `${i + 1}. "${stop}"`).join('\n')}\n\nOPDRACHT:\nSchrijf een volledige routebeschrijving volgens de structuur in je system prompt.\n- Gebruik voor ELKE stop hierboven een sectie in "Routebeschrijving & tussenstops"\n- Gebruik de EXACTE naam zoals hierboven staat (bijv. als er staat "Livermore", schrijf dan "Livermore")\n- Bedenk zelf sfeervolle beschrijvingen, activiteiten, eettips en weetjes voor elke stop\n- Maak het levendig en praktisch\n- Verzin GEEN extra stops die niet in bovenstaande lijst staan\n${routePayload.SCENIC_LOOP ? `\nSCENIC LOOP info (voor Mix variant):\n${routePayload.SCENIC_LOOP.description}` : ''}`;
+        }
       } else {
         userPrompt = `Schrijf een volledige routebeschrijving voor: ${prompt}`;
       }
