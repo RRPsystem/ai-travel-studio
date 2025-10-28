@@ -47,6 +47,16 @@ export function TravelBroSetup() {
   const [schedulePhone, setSchedulePhone] = useState('');
   const [savingSchedule, setSavingSchedule] = useState(false);
 
+  const [isEditingTrip, setIsEditingTrip] = useState(false);
+  const [editTripName, setEditTripName] = useState('');
+  const [editSourceUrls, setEditSourceUrls] = useState<string[]>(['']);
+  const [editTravelers, setEditTravelers] = useState<any[]>([]);
+  const [editCustomContext, setEditCustomContext] = useState('');
+  const [editGptModel, setEditGptModel] = useState('gpt-4o');
+  const [editGptTemperature, setEditGptTemperature] = useState(0.7);
+  const [editPdfFile, setEditPdfFile] = useState<File | null>(null);
+  const [savingTripEdit, setSavingTripEdit] = useState(false);
+
   useEffect(() => {
     loadData();
   }, []);
@@ -921,6 +931,362 @@ export function TravelBroSetup() {
             </div>
           ) : (
             <div className="space-y-6">
+              <div className="bg-white rounded-lg shadow-sm border p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <Settings className="w-5 h-5 mr-2 text-gray-600" />
+                    Reis Instellingen
+                  </h3>
+                  <button
+                    onClick={() => {
+                      if (isEditingTrip) {
+                        setIsEditingTrip(false);
+                      } else {
+                        setIsEditingTrip(true);
+                        setEditTripName(selectedTrip.name);
+                        setEditSourceUrls(selectedTrip.source_urls?.length > 0 ? selectedTrip.source_urls : ['']);
+                        setEditTravelers(selectedTrip.intake_template?.travelers || [{ name: '', age: '', relation: 'adult' }]);
+                        setEditCustomContext(selectedTrip.custom_context || '');
+                        setEditGptModel(selectedTrip.gpt_model || 'gpt-4o');
+                        setEditGptTemperature(selectedTrip.gpt_temperature ?? 0.7);
+                      }
+                    }}
+                    className="flex items-center space-x-2 px-4 py-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                  >
+                    {isEditingTrip ? (
+                      <>
+                        <XCircle size={18} />
+                        <span>Annuleren</span>
+                      </>
+                    ) : (
+                      <>
+                        <Edit size={18} />
+                        <span>Bewerken</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {isEditingTrip ? (
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Reis Naam
+                      </label>
+                      <input
+                        type="text"
+                        value={editTripName}
+                        onChange={(e) => setEditTripName(e.target.value)}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <FileText className="inline w-4 h-4 mr-1" />
+                        Extra PDF Toevoegen
+                      </label>
+                      <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-orange-500 transition-colors">
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => setEditPdfFile(e.target.files?.[0] || null)}
+                          className="hidden"
+                          id="edit-pdf-upload"
+                        />
+                        <label htmlFor="edit-pdf-upload" className="cursor-pointer">
+                          {editPdfFile ? (
+                            <div className="text-sm text-gray-700">
+                              <CheckCircle className="w-6 h-6 text-green-500 mx-auto mb-2" />
+                              <p className="font-medium">{editPdfFile.name}</p>
+                            </div>
+                          ) : (
+                            <div className="text-sm text-gray-600">
+                              <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                              <p>Klik om extra PDF toe te voegen</p>
+                            </div>
+                          )}
+                        </label>
+                      </div>
+                      {selectedTrip.pdf_url && (
+                        <p className="text-xs text-gray-500 mt-2">
+                          Huidige PDF: <a href={selectedTrip.pdf_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Bekijk</a>
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        <LinkIcon className="inline w-4 h-4 mr-1" />
+                        Bron URLs
+                      </label>
+                      {editSourceUrls.map((url, index) => (
+                        <div key={index} className="flex space-x-2 mb-2">
+                          <input
+                            type="url"
+                            value={url}
+                            onChange={(e) => {
+                              const updated = [...editSourceUrls];
+                              updated[index] = e.target.value;
+                              setEditSourceUrls(updated);
+                            }}
+                            placeholder="https://example.com/reis-info"
+                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                          />
+                          {editSourceUrls.length > 1 && (
+                            <button
+                              onClick={() => setEditSourceUrls(editSourceUrls.filter((_, i) => i !== index))}
+                              className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => setEditSourceUrls([...editSourceUrls, ''])}
+                        className="text-sm text-orange-600 hover:text-orange-700 flex items-center space-x-1"
+                      >
+                        <Plus size={16} />
+                        <span>URL toevoegen</span>
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Reizigers Pre-fill
+                      </label>
+                      {editTravelers.map((traveler, index) => (
+                        <div key={index} className="bg-gray-50 rounded-lg p-4 mb-3">
+                          <div className="grid grid-cols-3 gap-3">
+                            <input
+                              type="text"
+                              value={traveler.name}
+                              onChange={(e) => {
+                                const updated = [...editTravelers];
+                                updated[index].name = e.target.value;
+                                setEditTravelers(updated);
+                              }}
+                              placeholder="Naam"
+                              className="px-3 py-2 border border-gray-300 rounded-lg"
+                            />
+                            <input
+                              type="number"
+                              value={traveler.age}
+                              onChange={(e) => {
+                                const updated = [...editTravelers];
+                                updated[index].age = e.target.value;
+                                setEditTravelers(updated);
+                              }}
+                              placeholder="Leeftijd"
+                              className="px-3 py-2 border border-gray-300 rounded-lg"
+                            />
+                            <select
+                              value={traveler.relation}
+                              onChange={(e) => {
+                                const updated = [...editTravelers];
+                                updated[index].relation = e.target.value;
+                                setEditTravelers(updated);
+                              }}
+                              className="px-3 py-2 border border-gray-300 rounded-lg"
+                            >
+                              <option value="adult">Volwassene</option>
+                              <option value="child">Kind</option>
+                              <option value="teen">Tiener</option>
+                            </select>
+                          </div>
+                          {editTravelers.length > 1 && (
+                            <button
+                              onClick={() => setEditTravelers(editTravelers.filter((_, i) => i !== index))}
+                              className="mt-2 text-sm text-red-600 hover:text-red-700"
+                            >
+                              Verwijder
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => setEditTravelers([...editTravelers, { name: '', age: '', relation: 'adult' }])}
+                        className="text-sm text-orange-600 hover:text-orange-700 flex items-center space-x-1"
+                      >
+                        <Plus size={16} />
+                        <span>Reiziger toevoegen</span>
+                      </button>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Custom Context / Instructies voor AI
+                      </label>
+                      <textarea
+                        value={editCustomContext}
+                        onChange={(e) => setEditCustomContext(e.target.value)}
+                        rows={4}
+                        placeholder="Bijvoorbeeld: Dit is een huwelijksreis voor een jong stel. Ze houden van avontuur en romantiek..."
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          GPT Model
+                        </label>
+                        <select
+                          value={editGptModel}
+                          onChange={(e) => setEditGptModel(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                        >
+                          <option value="gpt-4o">GPT-4o (aanbevolen)</option>
+                          <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                          <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Temperature ({editGptTemperature})
+                        </label>
+                        <input
+                          type="range"
+                          min="0"
+                          max="2"
+                          step="0.1"
+                          value={editGptTemperature}
+                          onChange={(e) => setEditGptTemperature(parseFloat(e.target.value))}
+                          className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                          <span>Precies</span>
+                          <span>Creatief</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={async () => {
+                        if (!editTripName.trim()) {
+                          alert('Vul een naam in');
+                          return;
+                        }
+
+                        setSavingTripEdit(true);
+                        try {
+                          let newPdfUrl = selectedTrip.pdf_url;
+                          let newParsedData = selectedTrip.parsed_data;
+
+                          if (editPdfFile) {
+                            const fileName = `${Date.now()}_${editPdfFile.name}`;
+                            const { data: uploadData, error: uploadError } = await supabase.storage
+                              .from('travel-documents')
+                              .upload(fileName, editPdfFile);
+
+                            if (uploadError) throw uploadError;
+
+                            const { data: { publicUrl } } = supabase.storage
+                              .from('travel-documents')
+                              .getPublicUrl(fileName);
+
+                            newPdfUrl = publicUrl;
+
+                            const parseResponse = await fetch(
+                              `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-trip-pdf`,
+                              {
+                                method: 'POST',
+                                headers: {
+                                  'Content-Type': 'application/json',
+                                  'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                                },
+                                body: JSON.stringify({ pdfUrl: newPdfUrl }),
+                              }
+                            );
+
+                            if (parseResponse.ok) {
+                              newParsedData = await parseResponse.json();
+                            }
+                          }
+
+                          const filteredUrls = editSourceUrls.filter(u => u.trim());
+                          const intakeTemplate = editTravelers.some(t => t.name || t.age)
+                            ? { travelers: editTravelers }
+                            : null;
+
+                          const { error } = await db.supabase
+                            .from('travel_trips')
+                            .update({
+                              name: editTripName,
+                              pdf_url: newPdfUrl,
+                              parsed_data: newParsedData || {},
+                              source_urls: filteredUrls,
+                              intake_template: intakeTemplate,
+                              custom_context: editCustomContext,
+                              gpt_model: editGptModel,
+                              gpt_temperature: editGptTemperature,
+                            })
+                            .eq('id', selectedTrip.id);
+
+                          if (error) throw error;
+
+                          alert('✅ Reis bijgewerkt!');
+                          setIsEditingTrip(false);
+                          setEditPdfFile(null);
+                          await loadData();
+                          const updatedTrip = activeTravelBros.find(t => t.id === selectedTrip.id);
+                          if (updatedTrip) {
+                            setSelectedTrip(updatedTrip);
+                          }
+                        } catch (error) {
+                          console.error('Error updating trip:', error);
+                          alert('❌ Fout bij bijwerken: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
+                        } finally {
+                          setSavingTripEdit(false);
+                        }
+                      }}
+                      disabled={savingTripEdit}
+                      className="w-full flex items-center justify-center space-x-2 bg-orange-600 hover:bg-orange-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                    >
+                      {savingTripEdit ? (
+                        <>
+                          <Loader className="w-5 h-5 animate-spin" />
+                          <span>Opslaan...</span>
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle size={20} />
+                          <span>Wijzigingen Opslaan</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-gray-600">PDF:</span>
+                        <span className="ml-2 text-gray-900">{selectedTrip.pdf_url ? '✓ Ja' : '– Nee'}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">URLs:</span>
+                        <span className="ml-2 text-gray-900">{selectedTrip.source_urls?.length || 0}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">Reizigers:</span>
+                        <span className="ml-2 text-gray-900">{selectedTrip.intake_template?.travelers?.length || 0}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-600">GPT Model:</span>
+                        <span className="ml-2 text-gray-900">{selectedTrip.gpt_model || 'gpt-4o'}</span>
+                      </div>
+                    </div>
+                    {selectedTrip.custom_context && (
+                      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                        <p className="text-xs text-gray-600 mb-1">Custom Context:</p>
+                        <p className="text-sm text-gray-900">{selectedTrip.custom_context}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div className="bg-white rounded-lg shadow-sm border p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                   <Phone className="w-5 h-5 mr-2 text-orange-600" />
