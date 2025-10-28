@@ -97,7 +97,7 @@ Deno.serve(async (req: Request) => {
 
     // Check if message is location/route related and add Maps/Places data
     let locationData = "";
-    const locationKeywords = ['route', 'routes', 'hoe kom ik', 'afstand', 'reistijd', 'navigatie', 'rijden', 'hotel', 'restaurant', 'attractie', 'adres', 'locatie', 'waar is', 'waar ligt'];
+    const locationKeywords = ['route', 'routes', 'hoe kom ik', 'afstand', 'reistijd', 'navigatie', 'rijden', 'hotel', 'restaurant', 'attractie', 'adres', 'locatie', 'waar is', 'waar ligt', 'te doen', 'activiteiten', 'bezienswaardigheden', 'doen', 'zien', 'bezichtigen', 'uitje', 'dagje uit'];
     const isLocationQuery = locationKeywords.some(keyword => message.toLowerCase().includes(keyword));
 
     if (isLocationQuery && googleMapsApiKey) {
@@ -191,6 +191,92 @@ Deno.serve(async (req: Request) => {
               });
             }
           }
+        } else if (message.toLowerCase().includes('te doen') || message.toLowerCase().includes('activiteiten') || message.toLowerCase().includes('bezienswaardigheden') || message.toLowerCase().includes('omgeving')) {
+          // Search for activities/attractions near trip location
+          let searchLocation = trip.name;
+          let searchCoordinates = null;
+
+          // Try to get exact coordinates from first accommodation
+          if (trip.parsed_data?.accommodations && trip.parsed_data.accommodations.length > 0) {
+            const firstAccommodation = trip.parsed_data.accommodations[0];
+            searchLocation = firstAccommodation.location || firstAccommodation.name || trip.name;
+
+            // Try to geocode the accommodation to get coordinates
+            const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchLocation)}&key=${googleMapsApiKey}&language=nl`;
+            const geocodeResponse = await fetch(geocodeUrl);
+
+            if (geocodeResponse.ok) {
+              const geocodeData = await geocodeResponse.json();
+              if (geocodeData.status === 'OK' && geocodeData.results && geocodeData.results.length > 0) {
+                searchCoordinates = geocodeData.results[0].geometry.location;
+              }
+            }
+          }
+
+          if (searchCoordinates) {
+            // Use Nearby Search for better results with coordinates
+            const types = ['tourist_attraction', 'museum', 'amusement_park', 'zoo', 'aquarium', 'park'];
+            const radius = 15000; // 15km radius
+
+            const nearbyUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${searchCoordinates.lat},${searchCoordinates.lng}&radius=${radius}&type=${types[0]}&key=${googleMapsApiKey}&language=nl`;
+
+            const nearbyResponse = await fetch(nearbyUrl);
+            if (nearbyResponse.ok) {
+              const nearbyData = await nearbyResponse.json();
+
+              if (nearbyData.status === 'OK' && nearbyData.results && nearbyData.results.length > 0) {
+                locationData = `\n\n🎯 Activiteiten & Bezienswaardigheden in de omgeving van ${searchLocation}:\n\n`;
+
+                // Sort by rating and take top results
+                const sortedResults = nearbyData.results
+                  .filter((place: any) => place.rating && place.rating >= 4.0)
+                  .sort((a: any, b: any) => (b.rating || 0) - (a.rating || 0))
+                  .slice(0, 8);
+
+                sortedResults.forEach((place: any, index: number) => {
+                  locationData += `${index + 1}. **${place.name}**\n`;
+                  locationData += `   ⭐ ${place.rating}/5 (${place.user_ratings_total || 0} reviews)\n`;
+                  locationData += `   📍 ${place.vicinity}\n`;
+
+                  if (place.types && place.types.length > 0) {
+                    const typeMap: any = {
+                      'tourist_attraction': '🎭 Attractie',
+                      'museum': '🏛️ Museum',
+                      'amusement_park': '🎢 Pretpark',
+                      'zoo': '🦁 Dierentuin',
+                      'aquarium': '🐠 Aquarium',
+                      'park': '🌳 Park'
+                    };
+                    const displayType = place.types.find((t: string) => typeMap[t]);
+                    if (displayType && typeMap[displayType]) {
+                      locationData += `   ${typeMap[displayType]}\n`;
+                    }
+                  }
+
+                  if (place.opening_hours) {
+                    locationData += `   ${place.opening_hours.open_now ? '✅ Nu open' : '❌ Gesloten'}\n`;
+                  }
+                  locationData += `\n`;
+                });
+              }
+            }
+          } else {
+            // Fallback to text search if no coordinates
+            const searchQuery = `things to do near ${searchLocation}`;
+            const placesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchQuery)}&key=${googleMapsApiKey}&language=nl`;
+
+            const placesResponse = await fetch(placesUrl);
+            if (placesResponse.ok) {
+              const placesData = await placesResponse.json();
+
+              if (placesData.status === 'OK' && placesData.results && placesData.results.length > 0) {
+                locationData = `\n\n🎯 Activiteiten in de omgeving:\n`;
+                placesData.results.slice(0, 6).forEach((place: any) => {
+                  locationData += `- **${place.name}** (⭐ ${place.rating || 'n.v.t.'}/5) - ${place.formatted_address}\n`;
+                });
+              }
+            }
+          }
         }
       } catch (error) {
         console.error("Location data error:", error);
@@ -281,17 +367,17 @@ Deno.serve(async (req: Request) => {
 
     const systemPrompt = `Je bent TravelBRO, een vriendelijke en behulpzame Nederlandse reisassistent voor de reis "${trip.name}".
 
-Reis informatie:
+🗺️ REIS INFORMATIE:
 ${tripDataText}
 
-${trip.source_urls && trip.source_urls.length > 0 ? `Extra informatie bronnen:\n${trip.source_urls.join("\n")}\n` : ''}
+${trip.source_urls && trip.source_urls.length > 0 ? `📚 Extra informatie bronnen:\n${trip.source_urls.join("\n")}\n` : ''}
 
-${trip.custom_context ? `\n🎯 SPECIFIEKE REIS CONTEXT:\n${trip.custom_context}\n` : ''}
+${trip.custom_context ? `\n🎯 SPECIFIEKE REIS CONTEXT & INSTRUCTIES:\n${trip.custom_context}\n` : ''}
 
-Reiziger informatie:
+👥 REIZIGER INFORMATIE:
 ${intake ? JSON.stringify(intake.intake_data, null, 2) : "Geen intake data beschikbaar"}
 
-BELANGRIJKE INSTRUCTIES voor het gebruik van reiziger informatie:
+⚡ BELANGRIJKE INSTRUCTIES voor het gebruik van reiziger informatie:
 
 1. FAVORIET ETEN: Als reizigers favoriet eten hebben vermeld (bijv. "Pizza", "Mac Donalds"), gebruik dit actief in je adviezen:
    - Suggereer restaurants die dit eten serveren in de buurt van de accommodatie
@@ -319,7 +405,28 @@ BELANGRIJKE INSTRUCTIES voor het gebruik van reiziger informatie:
    - Geef praktische tips zoals parkeren, openbaar vervoer alternatieven
    - Wees specifiek: "Het is 15 minuten rijden (12 km) via de A1"
 
-Geef persoonlijke, vriendelijke adviezen waar reizigers bij naam genoemd worden. Wees altijd positief, behulpzaam en enthousiast. Gebruik emoji's waar passend. Houd antwoorden kort en to the point tenzij meer detail gevraagd wordt.${searchResults}${locationData}`;
+7. ACTIVITEITEN & BEZIENSWAARDIGHEDEN:
+   - Als hieronder specifieke plaatsen met namen, adressen en ratings staan: GEBRUIK DEZE INFORMATIE!
+   - Noem de plekken bij naam: "Je moet zeker naar het Wildlands Adventure Zoo (4.5/5 sterren)!"
+   - Verwijs naar de ratings: "Een echte aanrader met 4.8 sterren!"
+   - Geef de adressen door als die beschikbaar zijn
+   - Match activiteiten aan de interesses van de reizigers uit de intake data
+   - Prioriteer hoogst gewaardeerde plekken (4.5+ sterren)
+
+8. PERSONALISATIE IS KEY:
+   - Gebruik ALTIJD de namen van de reizigers uit de intake data
+   - Match suggesties aan leeftijden: kindvriendelijk voor kinderen, tiener-proof voor tieners
+   - Als er specifieke wensen/verwachtingen zijn vermeld: prioriteer deze in je antwoorden
+   - Wees enthousiast en betrokken: "Ik zie dat jullie met het hele gezin gaan! Leuk!"
+
+🎯 ANTWOORD KWALITEIT:
+- Geef CONCRETE, SPECIFIEKE antwoorden met namen en details
+- GEEN algemene tips zoals "er zijn veel restaurants" → SPECIFIEKE NAMEN!
+- GEEN "je kunt skiën" → "Je kunt skiën bij Skiarena Silvretta Montafon (4.6/5)"
+- Wees persoonlijk en noem reizigers bij naam waar relevant
+- Gebruik emoji's om je antwoorden levendig te maken
+
+${searchResults}${locationData}`;
 
     const messages = [
       { role: "system", content: systemPrompt },
