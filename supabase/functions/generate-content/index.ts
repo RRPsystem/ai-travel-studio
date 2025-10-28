@@ -282,10 +282,11 @@ Deno.serve(async (req: Request) => {
                 locationRestriction: {
                   circle: {
                     center: { latitude: point.lat, longitude: point.lng },
-                    radius: 15000
+                    radius: 12000
                   }
                 },
-                maxResultCount: 20
+                includedTypes: ['tourist_attraction', 'park', 'museum', 'art_gallery', 'aquarium', 'zoo', 'amusement_park'],
+                maxResultCount: 15
               })
             }
           );
@@ -397,15 +398,21 @@ Deno.serve(async (req: Request) => {
         let routingPreference = 'TRAFFIC_UNAWARE';
 
         if (routeType === 'snelle-route') {
+          // Fast route: use highways, optimize for time
           routeModifiers.avoidHighways = false;
           routeModifiers.avoidTolls = false;
           routingPreference = 'TRAFFIC_AWARE_OPTIMAL';
         } else if (routeType === 'toeristische-route') {
-          routeModifiers.avoidHighways = true;
+          // Scenic route: prefer scenic roads but DON'T avoid highways completely (Google interprets this wrong)
+          // Instead, use TRAFFIC_UNAWARE to get scenic alternatives
+          routeModifiers.avoidHighways = false; // Changed from true
           routeModifiers.avoidTolls = false;
+          routingPreference = 'TRAFFIC_UNAWARE';
         } else if (routeType === 'gemengd') {
+          // Mixed: balance speed and scenery
           routeModifiers.avoidHighways = false;
           routeModifiers.avoidTolls = false;
+          routingPreference = 'TRAFFIC_UNAWARE';
         }
 
         const response = await fetch(
@@ -598,7 +605,37 @@ Deno.serve(async (req: Request) => {
           // No stops found - create a basic route description WITHOUT inventing stops
           userPrompt = `Schrijf een routebeschrijving van ${routePayload.ORIGIN} naar ${routePayload.DESTINATION}.\n\nROUTE GEGEVENS:\n- Afstand: ${routePayload.DISTANCE_KM} km\n- Reistijd: ${routePayload.DURATION_NOSTOPS}\n- Route: ${routePayload.ROUTE_LINE}\n\nKRITIEKE INSTRUCTIE:\nEr zijn GEEN specifieke stops gevonden voor deze route. Schrijf daarom een KORTE, EENVOUDIGE routebeschrijving met:\n\n1. Een korte intro (2-3 zinnen) over de route\n2. Route-overzicht met afstand en reistijd\n3. De hoofdwegen die je neemt (uit ROUTE_LINE)\n4. Algemene tips (beste vertrektijd, tankstations, etc.)\n\nVerzin GEEN stops, plaatsen of attracties. Houd het simpel en feitelijk. Max 200 woorden.`;
         } else {
-          userPrompt = `BELANGRIJKE INSTRUCTIE: Je krijgt hieronder ${stopsCount} concrete stops. Gebruik de EXACTE namen. Verzin GEEN extra plaatsen.\n\nROUTE GEGEVENS:\n- ORIGIN: ${routePayload.ORIGIN}\n- DESTINATION: ${routePayload.DESTINATION}\n- DISTANCE_KM: ${routePayload.DISTANCE_KM}\n- DURATION_NOSTOPS: ${routePayload.DURATION_NOSTOPS}\n- DURATION_WITH_STOPS: ${routePayload.DURATION_WITH_STOPS}\n- ROUTE_LINE: ${routePayload.ROUTE_LINE}\n${routePayload.TIME_BUDGET ? `- TIME_BUDGET: ${routePayload.TIME_BUDGET}\n` : ''}\nSTOPS (${stopsCount} stops - gebruik deze EXACTE namen):\n${routePayload.STOPS.map((stop: string, i: number) => `${i + 1}. "${stop}"`).join('\n')}\n\nOPDRACHT:\nSchrijf een volledige routebeschrijving volgens de structuur in je system prompt.\n- Gebruik voor ELKE stop hierboven een sectie in "Routebeschrijving & tussenstops"\n- Gebruik de EXACTE naam zoals hierboven staat (bijv. als er staat "Livermore", schrijf dan "Livermore")\n- Bedenk zelf sfeervolle beschrijvingen, activiteiten, eettips en weetjes voor elke stop\n- Maak het levendig en praktisch\n- Verzin GEEN extra stops die niet in bovenstaande lijst staan\n${routePayload.SCENIC_LOOP ? `\nSCENIC LOOP info (voor Mix variant):\n${routePayload.SCENIC_LOOP.description}` : ''}`;
+          userPrompt = `🚨 STRIKTE REGELS - LEES DIT EERST:
+1. Gebruik ALLEEN de ${stopsCount} stops hieronder - GEEN andere plaatsen verzinnen
+2. Gebruik EXACT de wegnummers uit ROUTE_LINE - GEEN andere wegen verzinnen
+3. De route gaat via: ${routePayload.ROUTE_LINE}
+
+📊 ROUTE GEGEVENS:
+- Van: ${routePayload.ORIGIN}
+- Naar: ${routePayload.DESTINATION}
+- Afstand: ${routePayload.DISTANCE_KM} km
+- Reistijd zonder stops: ${routePayload.DURATION_NOSTOPS}
+- Reistijd met stops: ${routePayload.DURATION_WITH_STOPS}
+- Route: ${routePayload.ROUTE_LINE}
+${routePayload.TIME_BUDGET ? `- Tijdsbudget: ${routePayload.TIME_BUDGET}\n` : ''}
+
+🎯 VERPLICHTE STOPS (${stopsCount}x - gebruik deze EXACTE namen):
+${routePayload.STOPS.map((stop: string, i: number) => `${i + 1}. ${stop}`).join('\n')}
+
+✍️ OPDRACHT:
+Schrijf een routebeschrijving met:
+- Intro: korte pitch (3 zinnen) over het avontuur
+- Route-overzicht: afstand + reistijd zoals hierboven
+- Hoofdwegen: gebruik EXACT de wegen uit ROUTE_LINE (${routePayload.ROUTE_LINE})
+- Route in stappen: beschrijf de route aan de hand van ROUTE_LINE
+- Leuke stops: beschrijf ELKE stop hierboven met emoji, naam, en waarom het leuk is
+- Tips: tankstations, beste vertrektijd, parkeertips
+
+🚫 VERBODEN:
+- Andere plaatsen/stops verzinnen die niet in de lijst staan
+- Andere wegen/routes verzinnen die niet in ROUTE_LINE staan
+- Stops overslaan
+${routePayload.SCENIC_LOOP ? `\n📍 SCENIC LOOP (voor gemengde variant):\n${routePayload.SCENIC_LOOP.description}` : ''}`;
         }
       } else {
         userPrompt = `Schrijf een volledige routebeschrijving voor: ${prompt}`;
