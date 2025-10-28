@@ -430,6 +430,8 @@ Deno.serve(async (req: Request) => {
 
       for (const point of corridorPoints) {
         try {
+          console.log(`🔎 Searching near km ${point.corridorKm.toFixed(0)} (${point.lat.toFixed(4)}, ${point.lng.toFixed(4)})`);
+
           const searchBody = {
             textQuery: "scenic viewpoint tourist attraction park museum landmark nature cafe restaurant",
             locationBias: {
@@ -463,6 +465,7 @@ Deno.serve(async (req: Request) => {
 
           const data = await response.json();
           if (data.places && data.places.length > 0) {
+            console.log(`  Found ${data.places.length} places near km ${point.corridorKm.toFixed(0)}`);
             for (const place of data.places) {
               const types = place.types || [];
               const hasBlacklisted = types.some((t: string) => POI_BLACKLIST.includes(t));
@@ -474,9 +477,9 @@ Deno.serve(async (req: Request) => {
                   lng: place.location?.longitude || 0
                 };
 
-                const projection = projectPointOnPolyline(poiLocation, decodedPolyline, polylineDistances);
+                const distanceFromCorridorPoint = haversineDistance(poiLocation, point) / 1000;
 
-                if (projection.distanceKm >= routeConfig.minKmFromOrigin && projection.distanceKm <= (routeDistanceKm - 15)) {
+                if (distanceFromCorridorPoint <= routeConfig.searchRadiusKm) {
                   const detourMinutes = await calculateDetourMinutes(
                     poiLocation,
                     point,
@@ -492,13 +495,20 @@ Deno.serve(async (req: Request) => {
                       description: place.formattedAddress || '',
                       score,
                       types,
-                      corridorKm: projection.distanceKm,
+                      corridorKm: point.corridorKm,
                       detourMinutes
                     });
+                    console.log(`    ✅ Added: ${place.displayName?.text} (km ${point.corridorKm.toFixed(0)}, detour ${detourMinutes}min)`);
+                  } else {
+                    console.log(`    ❌ Rejected ${place.displayName?.text}: detour ${detourMinutes}min > ${MAX_DETOUR_MINUTES}min`);
                   }
+                } else {
+                  console.log(`    ❌ Rejected ${place.displayName?.text}: ${distanceFromCorridorPoint.toFixed(1)}km > ${routeConfig.searchRadiusKm}km from corridor`);
                 }
               }
             }
+          } else {
+            console.log(`  No places found near km ${point.corridorKm.toFixed(0)}`);
           }
         } catch (error) {
           console.error(`❌ Error searching corridor point:`, error);
