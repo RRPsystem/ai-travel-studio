@@ -288,13 +288,41 @@ Deno.serve(async (req: Request) => {
 
         if (polyline?.encodedPolyline) {
           // Decode the polyline to get actual route coordinates
-          const decoded = decodePolyline(polyline.encodedPolyline);
-          console.log(`🗺️ Decoded polyline: ${decoded.length} coordinates`);
+          try {
+            const decoded = decodePolyline(polyline.encodedPolyline);
+            console.log(`🗺️ Decoded polyline: ${decoded.length} coordinates`);
 
-          // Sample evenly along the route (every ~20% of the route)
-          const sampleInterval = Math.floor(decoded.length / 7);
-          for (let i = sampleInterval; i < decoded.length; i += sampleInterval) {
-            searchPoints.push(decoded[i]);
+            if (decoded.length === 0) {
+              console.error('❌ Polyline decoded to 0 coordinates!');
+              throw new Error('Empty polyline');
+            }
+
+            // Sample evenly along the route (every ~14% of the route = 7 points)
+            const sampleInterval = Math.max(1, Math.floor(decoded.length / 7));
+            console.log(`📍 Sampling every ${sampleInterval} coordinates (target: 7 points)`);
+
+            for (let i = sampleInterval; i < decoded.length; i += sampleInterval) {
+              searchPoints.push(decoded[i]);
+            }
+
+            console.log(`✅ Generated ${searchPoints.length} search points from polyline`);
+          } catch (error) {
+            console.error('❌ Polyline decode error:', error);
+            console.log('⚠️ Falling back to straight line');
+
+            // Fallback to straight line
+            const distance = Math.sqrt(
+              Math.pow(destLat - originLat, 2) + Math.pow(destLng - originLng, 2)
+            );
+            const segments = distance > 2.0 ? 7 : 5;
+
+            for (let i = 1; i <= segments; i++) {
+              const ratio = i / (segments + 1);
+              searchPoints.push({
+                lat: originLat + (destLat - originLat) * ratio,
+                lng: originLng + (destLng - originLng) * ratio
+              });
+            }
           }
         } else {
           // Fallback: straight line interpolation
@@ -353,7 +381,7 @@ Deno.serve(async (req: Request) => {
 
           const searchData = await searchResponse.json();
           const candidates = searchData.places || [];
-          console.log(`📍 Point ${point.lat.toFixed(2)},${point.lng.toFixed(2)}: found ${candidates.length} candidates`);
+          console.log(`📍 Point ${point.lat.toFixed(2)},${point.lng.toFixed(2)}: found ${candidates.length} candidates${candidates.length > 0 ? ` (first: ${candidates[0].displayName?.text || 'unknown'})` : ''}`);
 
           for (const place of candidates) {
             if (seenPlaceIds.has(place.id)) continue;
@@ -381,6 +409,13 @@ Deno.serve(async (req: Request) => {
         }
 
         console.log(`\ud83d\udd0d Found ${allStops.length} candidate stops (deduplicated)`);
+
+        if (allStops.length === 0) {
+          console.error(`❌ NO STOPS FOUND! This is the problem.`);
+          console.error(`   - Search points: ${searchPoints.length}`);
+          console.error(`   - Polyline provided: ${polyline?.encodedPolyline ? 'YES' : 'NO'}`);
+          return [];
+        }
 
         allStops.sort((a, b) => {
           const ratingDiff = (b.rating || 0) - (a.rating || 0);
@@ -489,6 +524,9 @@ Deno.serve(async (req: Request) => {
         const originLower = origin.toLowerCase();
         const destLower = destination.toLowerCase();
 
+        console.log(`🔍 Route detection: "${originLower}" → "${destLower}"`);
+        console.log(`   Route type: "${routeType}"`);
+
         // SF/Bay Area → Yosemite area: force via Central Valley
         if (
           (originLower.includes('san francisco') || originLower.includes('oakland') || originLower.includes('san jose')) &&
@@ -496,13 +534,15 @@ Deno.serve(async (req: Request) => {
         ) {
           if (routeType === 'toeristische-route') {
             // Scenic: via Pacheco Pass (CA-152)
-            console.log('🗺️ SF→Yosemite scenic: via Pacheco Pass');
+            console.log('✅ WAYPOINT MATCH: SF→Yosemite scenic → adding Casa de Fruta waypoint');
             intermediates.push({ address: 'Casa de Fruta, CA' });
           } else {
             // Fast/Mixed: via Merced (CA-99)
-            console.log('🗺️ SF→Yosemite fast: via Merced');
+            console.log('✅ WAYPOINT MATCH: SF→Yosemite fast → adding Merced waypoint');
             intermediates.push({ address: 'Merced, CA' });
           }
+        } else {
+          console.log('ℹ️ No waypoint match for this corridor');
         }
 
         const routeRequest: any = {
@@ -515,11 +555,17 @@ Deno.serve(async (req: Request) => {
 
         if (intermediates.length > 0) {
           routeRequest.intermediates = intermediates;
+          console.log(`🎯 Using ${intermediates.length} waypoint(s): ${intermediates.map((i: any) => i.address).join(', ')}`);
         }
 
         if (Object.keys(routeModifiers).length > 0) {
           routeRequest.routeModifiers = routeModifiers;
         }
+
+        console.log(`📤 Sending Google Routes API request...`);
+        console.log(`   Origin: ${origin}`);
+        console.log(`   Destination: ${destination}`);
+        console.log(`   Waypoints: ${intermediates.length > 0 ? intermediates.map((i: any) => i.address).join(', ') : 'none'}`);
 
         const response = await fetch(
           `https://routes.googleapis.com/directions/v2:computeRoutes`,
@@ -556,6 +602,12 @@ Deno.serve(async (req: Request) => {
           }
 
           const compressedSteps = compressSteps(allSteps);
+
+          console.log(`📍 Route breakdown:`);
+          console.log(`   - Legs: ${legs.length}`);
+          console.log(`   - Total steps: ${allSteps.length}`);
+          console.log(`   - Compressed to: ${compressedSteps.length} highway segments`);
+          console.log(`   - Highways: ${compressedSteps.map(s => s.highway).join(' → ')}`);
 
           // Use start of first leg and end of last leg
           const originLoc = legs[0].startLocation.latLng;
