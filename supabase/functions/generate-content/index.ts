@@ -180,6 +180,47 @@ Deno.serve(async (req: Request) => {
       return compressed.slice(0, 6);
     };
 
+    const decodePolyline = (encoded: string): Array<{lat: number, lng: number}> => {
+      const coordinates: Array<{lat: number, lng: number}> = [];
+      let index = 0;
+      let lat = 0;
+      let lng = 0;
+
+      while (index < encoded.length) {
+        let shift = 0;
+        let result = 0;
+        let byte: number;
+
+        do {
+          byte = encoded.charCodeAt(index++) - 63;
+          result |= (byte & 0x1f) << shift;
+          shift += 5;
+        } while (byte >= 0x20);
+
+        const deltaLat = ((result & 1) ? ~(result >> 1) : (result >> 1));
+        lat += deltaLat;
+
+        shift = 0;
+        result = 0;
+
+        do {
+          byte = encoded.charCodeAt(index++) - 63;
+          result |= (byte & 0x1f) << shift;
+          shift += 5;
+        } while (byte >= 0x20);
+
+        const deltaLng = ((result & 1) ? ~(result >> 1) : (result >> 1));
+        lng += deltaLng;
+
+        coordinates.push({
+          lat: lat / 1e5,
+          lng: lng / 1e5
+        });
+      }
+
+      return coordinates;
+    };
+
     const calculateDetour = async (currentLat: number, currentLng: number, placeLat: number, placeLng: number, destLat: number, destLng: number): Promise<number> => {
       if (!googleMapsApiKey) return 999;
 
@@ -242,28 +283,37 @@ Deno.serve(async (req: Request) => {
       if (!googleMapsApiKey) return [];
 
       try {
-        // Create search points along the route
+        // Create search points along the ACTUAL route polyline
         const searchPoints: Array<{lat: number, lng: number}> = [];
 
-        // For California routes, use known corridor points instead of straight line
-        // SF→Mariposa typically goes: SF → Livermore → Modesto → Merced → Mariposa
-        const distance = Math.sqrt(
-          Math.pow(destLat - originLat, 2) + Math.pow(destLng - originLng, 2)
-        );
+        if (polyline?.encodedPolyline) {
+          // Decode the polyline to get actual route coordinates
+          const decoded = decodePolyline(polyline.encodedPolyline);
+          console.log(`🗺️ Decoded polyline: ${decoded.length} coordinates`);
 
-        // Use more segments for longer routes
-        const segments = distance > 2.0 ? 7 : 5;
+          // Sample evenly along the route (every ~20% of the route)
+          const sampleInterval = Math.floor(decoded.length / 7);
+          for (let i = sampleInterval; i < decoded.length; i += sampleInterval) {
+            searchPoints.push(decoded[i]);
+          }
+        } else {
+          // Fallback: straight line interpolation
+          console.log('⚠️ No polyline provided, using straight line');
+          const distance = Math.sqrt(
+            Math.pow(destLat - originLat, 2) + Math.pow(destLng - originLng, 2)
+          );
+          const segments = distance > 2.0 ? 7 : 5;
 
-        // Sample points along straight line (will be improved with polyline decoding)
-        for (let i = 1; i <= segments; i++) {
-          const ratio = i / (segments + 1);
-          searchPoints.push({
-            lat: originLat + (destLat - originLat) * ratio,
-            lng: originLng + (destLng - originLng) * ratio
-          });
+          for (let i = 1; i <= segments; i++) {
+            const ratio = i / (segments + 1);
+            searchPoints.push({
+              lat: originLat + (destLat - originLat) * ratio,
+              lng: originLng + (destLng - originLng) * ratio
+            });
+          }
         }
 
-        console.log(`🗺️ Searching along ${segments} points from ${originLat.toFixed(2)},${originLng.toFixed(2)} to ${destLat.toFixed(2)},${destLng.toFixed(2)}`);
+        console.log(`🗺️ Searching along ${searchPoints.length} points from ${originLat.toFixed(2)},${originLng.toFixed(2)} to ${destLat.toFixed(2)},${destLng.toFixed(2)}`);
 
         const allStops: RouteStop[] = [];
         const seenPlaceIds = new Set<string>();
