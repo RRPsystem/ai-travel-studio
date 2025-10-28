@@ -225,7 +225,7 @@ Deno.serve(async (req: Request) => {
       for (const point of routePoints) {
         try {
           const searchBody = {
-            textQuery: "scenic viewpoint tourist attraction park museum",
+            textQuery: "tourist attraction scenic viewpoint park museum landmark natural feature",
             locationBias: {
               circle: {
                 center: {
@@ -235,7 +235,6 @@ Deno.serve(async (req: Request) => {
                 radius: searchRadius
               }
             },
-            includedTypes: supportedTypes,
             maxResultCount: 5,
             languageCode: "nl"
           };
