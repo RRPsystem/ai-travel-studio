@@ -95,13 +95,74 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Check if message is location/route related and add Maps/Places data
+    // Check if message is location/service related and add Maps/Places data
     let locationData = "";
-    const locationKeywords = ['route', 'routes', 'hoe kom ik', 'afstand', 'reistijd', 'navigatie', 'rijden', 'hotel', 'restaurant', 'attractie', 'adres', 'locatie', 'waar is', 'waar ligt', 'te doen', 'activiteiten', 'bezienswaardigheden', 'doen', 'zien', 'bezichtigen', 'uitje', 'dagje uit'];
+    const locationKeywords = [
+      // Routes & navigatie
+      'route', 'routes', 'hoe kom ik', 'afstand', 'reistijd', 'navigatie', 'rijden', 'waar is', 'waar ligt', 'adres', 'locatie',
+      // Accommodatie
+      'hotel', 'accommodatie', 'overnachten', 'slapen',
+      // Eten & drinken
+      'restaurant', 'eten', 'drinken', 'cafe', 'bar', 'bakker', 'bakkerij', 'supermarkt', 'winkel', 'boodschappen', 'brood', 'ontbijt', 'lunch', 'diner', 'koffie',
+      // Activiteiten
+      'activiteiten', 'te doen', 'bezienswaardigheden', 'attractie', 'museum', 'park', 'doen', 'zien', 'bezichtigen', 'uitje', 'dagje uit',
+      // Medisch & gezondheid
+      'dokter', 'arts', 'huisarts', 'ziekenhuis', 'apotheek', 'pharmacy', 'medisch', 'ehbo', 'tandarts',
+      // Vervoer
+      'taxi', 'bus', 'trein', 'station', 'vliegveld', 'airport', 'vervoer', 'openbaar vervoer', 'parkeren', 'fiets', 'fietsen', 'huren', 'autoverhuur', 'scooter',
+      // Diensten
+      'bank', 'atm', 'pinautomaat', 'geld', 'wisselkantoor', 'benzinestation', 'tankstation', 'postkantoor', 'post',
+      // Winkelen
+      'winkelen', 'shoppen', 'winkelcentrum', 'mall', 'markt', 'kopen',
+      // Noodgevallen
+      'politie', 'brandweer', 'hulpdiensten', 'noodgeval',
+      // Sport & recreatie
+      'zwembad', 'gym', 'fitness', 'sport', 'sporten', 'wandelen', 'hiken',
+      // Overig
+      'dichtbij', 'nabij', 'omgeving', 'buurt', 'in de buurt'
+    ];
     const isLocationQuery = locationKeywords.some(keyword => message.toLowerCase().includes(keyword));
 
     if (isLocationQuery && googleMapsApiKey) {
       try {
+        // Determine what type of place the user is looking for
+        const serviceMappings: { [key: string]: { types: string[], emoji: string, label: string } } = {
+          'dokter|arts|huisarts|medisch|ehbo': { types: ['doctor', 'hospital'], emoji: '🏥', label: 'Medische voorzieningen' },
+          'ziekenhuis': { types: ['hospital'], emoji: '🏥', label: 'Ziekenhuizen' },
+          'apotheek|pharmacy': { types: ['pharmacy'], emoji: '💊', label: 'Apotheken' },
+          'tandarts': { types: ['dentist'], emoji: '🦷', label: 'Tandartsen' },
+          'supermarkt|boodschappen': { types: ['supermarket', 'grocery_or_supermarket'], emoji: '🛒', label: 'Supermarkten' },
+          'bakker|bakkerij|brood': { types: ['bakery'], emoji: '🥖', label: 'Bakkerijen' },
+          'restaurant|eten': { types: ['restaurant'], emoji: '🍽️', label: 'Restaurants' },
+          'cafe|koffie': { types: ['cafe'], emoji: '☕', label: 'Cafés' },
+          'bar|drinken': { types: ['bar'], emoji: '🍺', label: 'Bars' },
+          'bank|atm|pinautomaat|geld': { types: ['bank', 'atm'], emoji: '🏦', label: 'Banken & Geldautomaten' },
+          'benzine|tankstation': { types: ['gas_station'], emoji: '⛽', label: 'Tankstations' },
+          'fiets|fietsen huren': { types: ['bicycle_store'], emoji: '🚲', label: 'Fietsverhuur' },
+          'taxi': { types: ['taxi_stand'], emoji: '🚕', label: 'Taxi standplaatsen' },
+          'busstation|bus': { types: ['bus_station', 'transit_station'], emoji: '🚌', label: 'Bushaltes & Stations' },
+          'treinstation|trein|station': { types: ['train_station', 'transit_station'], emoji: '🚂', label: 'Treinstations' },
+          'vliegveld|airport': { types: ['airport'], emoji: '✈️', label: 'Vliegvelden' },
+          'parkeren': { types: ['parking'], emoji: '🅿️', label: 'Parkeerplaatsen' },
+          'politie': { types: ['police'], emoji: '👮', label: 'Politiebureaus' },
+          'postkantoor|post': { types: ['post_office'], emoji: '📮', label: 'Postkantoren' },
+          'zwembad': { types: ['swimming_pool'], emoji: '🏊', label: 'Zwembaden' },
+          'gym|fitness': { types: ['gym'], emoji: '💪', label: 'Sportscholen' },
+          'winkel|winkelen|shoppen|winkelcentrum|mall': { types: ['shopping_mall', 'store'], emoji: '🛍️', label: 'Winkels' },
+          'markt': { types: ['store'], emoji: '🏪', label: 'Markten & Winkels' },
+        };
+
+        let selectedService: { types: string[], emoji: string, label: string } | null = null;
+        const messageLower = message.toLowerCase();
+
+        for (const [keywords, service] of Object.entries(serviceMappings)) {
+          const keywordList = keywords.split('|');
+          if (keywordList.some(kw => messageLower.includes(kw))) {
+            selectedService = service;
+            break;
+          }
+        }
+
         // Extract potential locations from parsed trip data
         let destinations = [];
 
@@ -171,24 +232,96 @@ Deno.serve(async (req: Request) => {
               }
             }
           }
-        } else if (message.toLowerCase().includes('restaurant') || message.toLowerCase().includes('eten')) {
-          // Search for restaurants near trip location
+        } else if (selectedService) {
+          // User is looking for a specific service (doctor, supermarket, etc.)
           let searchLocation = trip.name;
+          let searchCoordinates = null;
+
+          // Get coordinates from accommodation
           if (trip.parsed_data?.accommodations && trip.parsed_data.accommodations.length > 0) {
-            searchLocation = trip.parsed_data.accommodations[0].location || trip.name;
+            const firstAccommodation = trip.parsed_data.accommodations[0];
+            searchLocation = firstAccommodation.location || firstAccommodation.name || trip.name;
+
+            const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchLocation)}&key=${googleMapsApiKey}&language=nl`;
+            const geocodeResponse = await fetch(geocodeUrl);
+
+            if (geocodeResponse.ok) {
+              const geocodeData = await geocodeResponse.json();
+              if (geocodeData.status === 'OK' && geocodeData.results && geocodeData.results.length > 0) {
+                searchCoordinates = geocodeData.results[0].geometry.location;
+              }
+            }
           }
 
-          const placesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=restaurant+${encodeURIComponent(searchLocation)}&key=${googleMapsApiKey}&language=nl`;
+          if (searchCoordinates) {
+            // Search for the specific service type nearby
+            const radius = 10000; // 10km radius
+            const primaryType = selectedService.types[0];
 
-          const placesResponse = await fetch(placesUrl);
-          if (placesResponse.ok) {
-            const placesData = await placesResponse.json();
+            const nearbyUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${searchCoordinates.lat},${searchCoordinates.lng}&radius=${radius}&type=${primaryType}&key=${googleMapsApiKey}&language=nl`;
 
-            if (placesData.status === 'OK' && placesData.results && placesData.results.length > 0) {
-              locationData = `\n\n🍽️ Restaurants in de buurt:\n`;
-              placesData.results.slice(0, 5).forEach((place: any) => {
-                locationData += `- ${place.name} (${place.rating || 'geen'}/5) - ${place.formatted_address}\n`;
-              });
+            const nearbyResponse = await fetch(nearbyUrl);
+            if (nearbyResponse.ok) {
+              const nearbyData = await nearbyResponse.json();
+
+              if (nearbyData.status === 'OK' && nearbyData.results && nearbyData.results.length > 0) {
+                locationData = `\n\n${selectedService.emoji} ${selectedService.label} in de buurt van ${searchLocation}:\n\n`;
+
+                const sortedResults = nearbyData.results
+                  .sort((a: any, b: any) => {
+                    // Sort by: 1) currently open, 2) rating, 3) distance
+                    if (a.opening_hours?.open_now !== b.opening_hours?.open_now) {
+                      return (b.opening_hours?.open_now ? 1 : 0) - (a.opening_hours?.open_now ? 1 : 0);
+                    }
+                    return (b.rating || 0) - (a.rating || 0);
+                  })
+                  .slice(0, 6);
+
+                sortedResults.forEach((place: any, index: number) => {
+                  locationData += `${index + 1}. **${place.name}**\n`;
+
+                  if (place.rating) {
+                    locationData += `   ⭐ ${place.rating}/5`;
+                    if (place.user_ratings_total) {
+                      locationData += ` (${place.user_ratings_total} reviews)`;
+                    }
+                    locationData += `\n`;
+                  }
+
+                  locationData += `   📍 ${place.vicinity}\n`;
+
+                  if (place.opening_hours) {
+                    locationData += `   ${place.opening_hours.open_now ? '✅ Nu open' : '❌ Gesloten'}\n`;
+                  }
+
+                  // Calculate approximate distance
+                  if (place.geometry?.location) {
+                    const lat1 = searchCoordinates.lat;
+                    const lon1 = searchCoordinates.lng;
+                    const lat2 = place.geometry.location.lat;
+                    const lon2 = place.geometry.location.lng;
+
+                    const R = 6371; // Earth's radius in km
+                    const dLat = (lat2 - lat1) * Math.PI / 180;
+                    const dLon = (lon2 - lon1) * Math.PI / 180;
+                    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                              Math.sin(dLon/2) * Math.sin(dLon/2);
+                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                    const distance = R * c;
+
+                    if (distance < 1) {
+                      locationData += `   🚶 ${Math.round(distance * 1000)}m lopen (ca. ${Math.round(distance * 12)} min)\n`;
+                    } else {
+                      locationData += `   🚗 ${distance.toFixed(1)}km rijden (ca. ${Math.round(distance * 2)} min)\n`;
+                    }
+                  }
+
+                  locationData += `\n`;
+                });
+              } else {
+                locationData = `\n\n${selectedService.emoji} Helaas geen ${selectedService.label.toLowerCase()} gevonden in de directe omgeving. Probeer het in de dichtstbijzijnde stad.\n`;
+              }
             }
           }
         } else if (message.toLowerCase().includes('te doen') || message.toLowerCase().includes('activiteiten') || message.toLowerCase().includes('bezienswaardigheden') || message.toLowerCase().includes('omgeving')) {
@@ -405,13 +538,15 @@ ${intake ? JSON.stringify(intake.intake_data, null, 2) : "Geen intake data besch
    - Geef praktische tips zoals parkeren, openbaar vervoer alternatieven
    - Wees specifiek: "Het is 15 minuten rijden (12 km) via de A1"
 
-7. ACTIVITEITEN & BEZIENSWAARDIGHEDEN:
+7. ACTIVITEITEN, SERVICES & VOORZIENINGEN:
    - Als hieronder specifieke plaatsen met namen, adressen en ratings staan: GEBRUIK DEZE INFORMATIE!
-   - Noem de plekken bij naam: "Je moet zeker naar het Wildlands Adventure Zoo (4.5/5 sterren)!"
-   - Verwijs naar de ratings: "Een echte aanrader met 4.8 sterren!"
-   - Geef de adressen door als die beschikbaar zijn
-   - Match activiteiten aan de interesses van de reizigers uit de intake data
-   - Prioriteer hoogst gewaardeerde plekken (4.5+ sterren)
+   - Noem de plekken bij naam: "De dichtstbijzijnde apotheek is Apotheek De Zon op 500m lopen"
+   - Verwijs naar de ratings en afstanden: "Supermarkt Albert Heijn (4.2/5) ligt 800m verderop"
+   - Geef ALTIJD de afstand en looptijd/rijtijd door als beschikbaar
+   - Voor medische noodgevallen: geef het dichtstbijzijnde ziekenhuis/dokter met afstand
+   - Voor eten: match aan favoriet eten uit intake data
+   - Voor activiteiten: match aan leeftijden en interesses van reizigers
+   - Prioriteer hoogst gewaardeerde plekken en die nu open zijn
 
 8. PERSONALISATIE IS KEY:
    - Gebruik ALTIJD de namen van de reizigers uit de intake data
@@ -423,8 +558,11 @@ ${intake ? JSON.stringify(intake.intake_data, null, 2) : "Geen intake data besch
 - Geef CONCRETE, SPECIFIEKE antwoorden met namen en details
 - GEEN algemene tips zoals "er zijn veel restaurants" → SPECIFIEKE NAMEN!
 - GEEN "je kunt skiën" → "Je kunt skiën bij Skiarena Silvretta Montafon (4.6/5)"
+- GEEN "er is een supermarkt in de buurt" → "Albert Heijn op 800m (10 min lopen)"
+- Bij medische vragen: geef EXACT adres en afstand tot dichtstbijzijnde voorziening
 - Wees persoonlijk en noem reizigers bij naam waar relevant
 - Gebruik emoji's om je antwoorden levendig te maken
+- Als je specifieke locatie data hebt gekregen: GEBRUIK DEZE VOLLEDIG!
 
 ${searchResults}${locationData}`;
 
