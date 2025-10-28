@@ -415,6 +415,43 @@ Deno.serve(async (req: Request) => {
           routingPreference = 'TRAFFIC_UNAWARE';
         }
 
+        // Add waypoints for known corridors to guide Google Routes API
+        const intermediates: any[] = [];
+        const originLower = origin.toLowerCase();
+        const destLower = destination.toLowerCase();
+
+        // SF/Bay Area → Yosemite area: force via Central Valley
+        if (
+          (originLower.includes('san francisco') || originLower.includes('oakland') || originLower.includes('san jose')) &&
+          (destLower.includes('mariposa') || destLower.includes('yosemite'))
+        ) {
+          if (routeType === 'toeristische-route') {
+            // Scenic: via Pacheco Pass (CA-152)
+            console.log('🗺️ SF→Yosemite scenic: via Pacheco Pass');
+            intermediates.push({ address: 'Casa de Fruta, CA' });
+          } else {
+            // Fast/Mixed: via Merced (CA-99)
+            console.log('🗺️ SF→Yosemite fast: via Merced');
+            intermediates.push({ address: 'Merced, CA' });
+          }
+        }
+
+        const routeRequest: any = {
+          origin: { address: origin },
+          destination: { address: destination },
+          travelMode: 'DRIVE',
+          routingPreference,
+          languageCode: 'nl'
+        };
+
+        if (intermediates.length > 0) {
+          routeRequest.intermediates = intermediates;
+        }
+
+        if (Object.keys(routeModifiers).length > 0) {
+          routeRequest.routeModifiers = routeModifiers;
+        }
+
         const response = await fetch(
           `https://routes.googleapis.com/directions/v2:computeRoutes`,
           {
@@ -424,14 +461,7 @@ Deno.serve(async (req: Request) => {
               'X-Goog-Api-Key': googleMapsApiKey,
               'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.legs.steps.navigationInstruction,routes.legs.steps.localizedValues,routes.legs.startLocation,routes.legs.endLocation,routes.polyline'
             },
-            body: JSON.stringify({
-              origin: { address: origin },
-              destination: { address: destination },
-              travelMode: 'DRIVE',
-              routingPreference,
-              routeModifiers: Object.keys(routeModifiers).length > 0 ? routeModifiers : undefined,
-              languageCode: 'nl'
-            })
+            body: JSON.stringify(routeRequest)
           }
         );
 
@@ -444,14 +474,24 @@ Deno.serve(async (req: Request) => {
 
         if (data.routes && data.routes.length > 0) {
           const route = data.routes[0];
-          const leg = route.legs?.[0];
+          const legs = route.legs || [];
 
-          if (!leg) return null;
+          if (legs.length === 0) return null;
 
-          const compressedSteps = compressSteps(leg.steps || []);
+          // Combine all legs (important when we have waypoints)
+          const allSteps: any[] = [];
+          for (const leg of legs) {
+            if (leg.steps) {
+              allSteps.push(...leg.steps);
+            }
+          }
 
-          const originLoc = leg.startLocation.latLng;
-          const destLoc = leg.endLocation.latLng;
+          const compressedSteps = compressSteps(allSteps);
+
+          // Use start of first leg and end of last leg
+          const originLoc = legs[0].startLocation.latLng;
+          const destLoc = legs[legs.length - 1].endLocation.latLng;
+
           const stops = await findRouteStops(
             originLoc.latitude,
             originLoc.longitude,
