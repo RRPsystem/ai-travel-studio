@@ -1706,9 +1706,9 @@ export function TravelBroSetup() {
 
                     <div className="flex items-center space-x-2 ml-4">
                       <button
-                        onClick={(e) => { e.stopPropagation(); startEditingTrip(trip); }}
+                        onClick={(e) => { e.stopPropagation(); loadTripDetails(trip); }}
                         className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                        title="Bewerk TravelBRO"
+                        title="Open details"
                       >
                         <Edit size={18} />
                       </button>
@@ -1718,6 +1718,13 @@ export function TravelBroSetup() {
                         title="Kopieer client link voor reizigers"
                       >
                         <Share2 size={18} />
+                      </button>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); startEditingTrip(trip); }}
+                        className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
+                        title="Bewerk TravelBRO"
+                      >
+                        <Edit size={18} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); deleteTravelBro(trip.id); }}
