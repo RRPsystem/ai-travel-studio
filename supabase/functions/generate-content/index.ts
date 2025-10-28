@@ -127,11 +127,23 @@ Deno.serve(async (req: Request) => {
       .replace(/{DESTINATION}/g, options.destination || '');
 
     const compressSteps = (steps: any[]): CompressedStep[] => {
-      const highwayRegex = /(I-\d+|US-\d+|[A-Z]{2}-\d+|A\d+|E\d+|N\d+)/gi;
+      const highwayRegex = /(I-\d+|US-\d+|[A-Z]{2}-\d+|A\d+|E\d+|N\d+|B\d+|L\d+|Gerlos|Nassfeld|Predil|Vršič|Soča)/gi;
       const compressed: CompressedStep[] = [];
 
       for (const step of steps) {
         const instruction = step.navigationInstruction?.instructions || step.html_instructions || '';
+        const cleanInstruction = instruction.replace(/<[^>]*>/g, '');
+
+        if (
+          cleanInstruction.toLowerCase().includes('turn left') ||
+          cleanInstruction.toLowerCase().includes('turn right') ||
+          cleanInstruction.toLowerCase().includes('roundabout') ||
+          cleanInstruction.toLowerCase().includes('street') ||
+          cleanInstruction.toLowerCase().includes('continue straight')
+        ) {
+          continue;
+        }
+
         const matches = instruction.match(highwayRegex);
 
         if (matches && matches.length > 0) {
@@ -139,21 +151,28 @@ Deno.serve(async (req: Request) => {
 
           if (compressed.length === 0 || compressed[compressed.length - 1].highway !== highway) {
             compressed.push({
-              instruction: instruction.replace(/<[^>]*>/g, ''),
+              instruction: cleanInstruction,
               highway: highway
             });
           }
         }
       }
 
-      if (steps.length > 0 && compressed.length > 0) {
+      if (steps.length > 0) {
         const lastStep = steps[steps.length - 1];
         const lastInstruction = lastStep.navigationInstruction?.instructions || lastStep.html_instructions || '';
+        const cleanLast = lastInstruction.replace(/<[^>]*>/g, '');
 
-        if (!compressed.some(s => s.instruction === lastInstruction.replace(/<[^>]*>/g, ''))) {
+        if (
+          (cleanLast.toLowerCase().includes('destination') ||
+           cleanLast.toLowerCase().includes('arrive') ||
+           cleanLast.toLowerCase().includes('visitor center') ||
+           cleanLast.toLowerCase().includes('entrance')) &&
+          !compressed.some(s => s.instruction === cleanLast)
+        ) {
           compressed.push({
-            instruction: lastInstruction.replace(/<[^>]*>/g, ''),
-            highway: 'FINAL'
+            instruction: cleanLast,
+            highway: 'ARRIVAL'
           });
         }
       }
@@ -219,86 +238,107 @@ Deno.serve(async (req: Request) => {
       }
     };
 
-    const findRouteStops = async (originLat: number, originLng: number, destLat: number, destLng: number, routeType: string): Promise<RouteStop[]> => {
+    const findRouteStops = async (originLat: number, originLng: number, destLat: number, destLng: number, routeType: string, timeBudget?: string): Promise<RouteStop[]> => {
       if (!googleMapsApiKey) return [];
 
       try {
-        const midLat = (originLat + destLat) / 2;
-        const midLng = (originLng + destLng) / 2;
+        const searchPoints: Array<{lat: number, lng: number}> = [];
+        const segments = 3;
 
-        const searchResponse = await fetch(
-          `https://places.googleapis.com/v1/places:searchNearby`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Goog-Api-Key': googleMapsApiKey,
-              'X-Goog-FieldMask': 'places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.types'
-            },
-            body: JSON.stringify({
-              locationRestriction: {
-                circle: {
-                  center: { latitude: midLat, longitude: midLng },
-                  radius: 50000
-                }
-              },
-              includedTypes: routeType === 'toeristische-route'
-                ? ['tourist_attraction', 'park', 'natural_feature', 'museum']
-                : ['tourist_attraction', 'park'],
-              maxResultCount: 20,
-              languageCode: 'nl'
-            })
-          }
-        );
-
-        if (!searchResponse.ok) {
-          console.error('Places search error:', searchResponse.status);
-          return [];
+        for (let i = 1; i <= segments; i++) {
+          const ratio = i / (segments + 1);
+          searchPoints.push({
+            lat: originLat + (destLat - originLat) * ratio,
+            lng: originLng + (destLng - originLng) * ratio
+          });
         }
 
-        const searchData = await searchResponse.json();
-        const candidates = searchData.places || [];
-
-        console.log(`🔍 Found ${candidates.length} candidate stops`);
-
-        const stops: RouteStop[] = [];
+        const allStops: RouteStop[] = [];
         const seenPlaceIds = new Set<string>();
 
-        for (const place of candidates) {
-          if (seenPlaceIds.has(place.id)) continue;
+        for (const point of searchPoints) {
+          const searchResponse = await fetch(
+            `https://places.googleapis.com/v1/places:searchNearby`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-Goog-Api-Key': googleMapsApiKey,
+                'X-Goog-FieldMask': 'places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.types'
+              },
+              body: JSON.stringify({
+                locationRestriction: {
+                  circle: {
+                    center: { latitude: point.lat, longitude: point.lng },
+                    radius: routeType === 'toeristische-route' ? 8000 : 5000
+                  }
+                },
+                includedTypes: routeType === 'toeristische-route'
+                  ? ['tourist_attraction', 'park', 'natural_feature', 'museum', 'viewpoint']
+                  : ['tourist_attraction', 'park'],
+                maxResultCount: 10,
+                languageCode: 'nl'
+              })
+            }
+          );
 
-          const placeLat = place.location.latitude;
-          const placeLng = place.location.longitude;
+          if (!searchResponse.ok) continue;
 
-          const detourMinutes = await calculateDetour(originLat, originLng, placeLat, placeLng, destLat, destLng);
+          const searchData = await searchResponse.json();
+          const candidates = searchData.places || [];
 
-          if (detourMinutes <= 15) {
-            stops.push({
-              name: place.displayName?.text || 'Unknown',
-              place_id: place.id,
-              types: place.types || [],
-              rating: place.rating,
-              detour_minutes: detourMinutes,
-              reason: `${place.displayName?.text || 'Interessante stop'} (${detourMinutes} min omweg)`,
-              location: {
-                lat: placeLat,
-                lng: placeLng
-              }
-            });
-            seenPlaceIds.add(place.id);
+          for (const place of candidates) {
+            if (seenPlaceIds.has(place.id)) continue;
+
+            const placeLat = place.location.latitude;
+            const placeLng = place.location.longitude;
+
+            const detourMinutes = await calculateDetour(originLat, originLng, placeLat, placeLng, destLat, destLng);
+
+            if (detourMinutes <= 15) {
+              allStops.push({
+                name: place.displayName?.text || 'Unknown',
+                place_id: place.id,
+                types: place.types || [],
+                rating: place.rating,
+                detour_minutes: detourMinutes,
+                reason: `${place.displayName?.text || 'Interessante stop'} (${detourMinutes} min omweg)`,
+                location: {
+                  lat: placeLat,
+                  lng: placeLng
+                }
+              });
+              seenPlaceIds.add(place.id);
+            }
           }
         }
 
-        stops.sort((a, b) => {
+        console.log(`\ud83d\udd0d Found ${allStops.length} candidate stops (deduplicated)`);
+
+        allStops.sort((a, b) => {
           const ratingDiff = (b.rating || 0) - (a.rating || 0);
           if (Math.abs(ratingDiff) > 0.5) return ratingDiff;
           return a.detour_minutes - b.detour_minutes;
         });
 
-        const selectedStops = stops.slice(0, 5);
-        console.log(`✅ Selected ${selectedStops.length} stops (≤15 min detour)`);
+        const diverseStops: RouteStop[] = [];
+        const usedTypes = new Set<string>();
 
-        return selectedStops;
+        for (const stop of allStops) {
+          const primaryType = stop.types[0];
+
+          if (!usedTypes.has(primaryType) || (stop.rating && stop.rating >= 4.5)) {
+            diverseStops.push(stop);
+            usedTypes.add(primaryType);
+          }
+
+          if (timeBudget === '1 dag' && diverseStops.length >= 3) break;
+          if (diverseStops.length >= 5) break;
+        }
+
+        console.log(`\u2705 Selected ${diverseStops.length} diverse stops (max ${timeBudget === '1 dag' ? '3-4' : '4-5'} for time budget)`);
+
+        return diverseStops;
       } catch (error) {
         console.error('Route stops error:', error);
         return [];
@@ -307,7 +347,7 @@ Deno.serve(async (req: Request) => {
 
     const fetchGoogleSearch = async (query: string): Promise<string> => {
       if (!googleSearchApiKey || !googleSearchEngineId) {
-        console.log('⚠️ Google Search not configured');
+        console.log('\u26a0\ufe0f Google Search not configured');
         return '';
       }
 
@@ -326,7 +366,7 @@ Deno.serve(async (req: Request) => {
           `${item.title}: ${item.snippet}`
         ).join('\n\n') || '';
 
-        console.log(`✅ Google Search results fetched for: ${query}`);
+        console.log(`\u2705 Google Search results fetched for: ${query}`);
         return results;
       } catch (error) {
         console.error('Google Search error:', error);
@@ -334,9 +374,9 @@ Deno.serve(async (req: Request) => {
       }
     };
 
-    const fetchCompleteRoute = async (origin: string, destination: string, routeType: string): Promise<any> => {
+    const fetchCompleteRoute = async (origin: string, destination: string, routeType: string, timeBudget?: string): Promise<any> => {
       if (!googleMapsApiKey) {
-        console.log('⚠️ Google Maps not configured');
+        console.log('\u26a0\ufe0f Google Maps not configured');
         return null;
       }
 
@@ -350,6 +390,9 @@ Deno.serve(async (req: Request) => {
           routingPreference = 'TRAFFIC_AWARE_OPTIMAL';
         } else if (routeType === 'toeristische-route') {
           routeModifiers.avoidHighways = true;
+          routeModifiers.avoidTolls = false;
+        } else if (routeType === 'gemengd') {
+          routeModifiers.avoidHighways = false;
           routeModifiers.avoidTolls = false;
         }
 
@@ -395,7 +438,8 @@ Deno.serve(async (req: Request) => {
             originLoc.longitude,
             destLoc.latitude,
             destLoc.longitude,
-            routeType
+            routeType,
+            timeBudget
           );
 
           const durationSeconds = parseInt(route.duration.replace('s', ''));
@@ -403,35 +447,35 @@ Deno.serve(async (req: Request) => {
           const estimatedStopTime = stops.length * 30;
           const durationWithStops = durationNoStops + estimatedStopTime;
 
-          const routeLine = compressedSteps.map(s => s.highway).filter(h => h !== 'FINAL').join(' → ');
+          const routeLine = compressedSteps.map(s => s.highway).filter(h => h !== 'ARRIVAL').join(' \u2192 ');
 
-          return {
-            WRITING_STYLE: writingStyle,
-            ROUTE_VARIANT: routeType === 'snelle-route' ? 'Snelweg' : routeType === 'toeristische-route' ? 'Toeristisch' : 'Mix',
+          const payload = {
             ORIGIN: origin,
             DESTINATION: destination,
             DISTANCE_KM: (route.distanceMeters / 1000).toFixed(0),
-            DURATION_NOSTOPS: `±${Math.floor(durationNoStops / 60)}u ${durationNoStops % 60}min`,
-            DURATION_WITH_STOPS: `±${Math.floor(durationWithStops / 60)}–${Math.floor(durationWithStops / 60) + 1}u`,
+            DURATION_NOSTOPS: `\u00b1${Math.floor(durationNoStops / 60)}u ${durationNoStops % 60}min`,
+            DURATION_WITH_STOPS: `\u00b1${Math.floor(durationWithStops / 60)}\u2013${Math.floor(durationWithStops / 60) + 1}u`,
             ROUTE_LINE: routeLine,
             STEPS: compressedSteps.map(s => s.instruction),
-            STOPS: stops.map(s => ({
-              name: s.name,
-              place_id: s.place_id,
-              types: s.types,
-              rating: s.rating,
-              detour_minutes: s.detour_minutes,
-              reason: s.reason
-            })),
+            STOPS: stops.map(s => s.name),
             EATERIES: [],
+            LODGINGS: [],
             SEASON_ALERTS: [],
             HOP_ON_HOP_OFF_AVAILABLE: false,
-            _DEBUG: {
-              steps_count: compressedSteps.length,
-              stops_count: stops.length,
-              last_step: compressedSteps[compressedSteps.length - 1]?.instruction || 'N/A'
-            }
+            TIME_BUDGET: timeBudget || '',
+            SCENIC_LOOP: routeType === 'gemengd' ? {
+              description: 'Voor een mooie scenic lus: neem afslag bij [punt X], volg [wegcode], sluit weer aan bij [wegcode]',
+              start: 'TBD',
+              end: 'TBD',
+              roads: 'TBD'
+            } : null
           };
+
+          console.log('\n\ud83d\udce6 PAYLOAD TO LLM:');
+          console.log(JSON.stringify(payload, null, 2));
+          console.log(`\n\ud83d\udcca QA: steps=${compressedSteps.length}, stops=${stops.length}, last_step="${compressedSteps[compressedSteps.length - 1]?.instruction || 'N/A'}"`);
+
+          return payload;
         }
 
         return null;
@@ -443,7 +487,7 @@ Deno.serve(async (req: Request) => {
 
     const fetchPlacesInfo = async (destination: string): Promise<string> => {
       if (!googleMapsApiKey) {
-        console.log('⚠️ Google Places not configured');
+        console.log('\u26a0\ufe0f Google Places not configured');
         return '';
       }
 
@@ -474,13 +518,13 @@ Deno.serve(async (req: Request) => {
         if (data.places && data.places.length > 0) {
           const place = data.places[0];
 
-          let placeInfo = `\n📍 ${place.displayName?.text || destination}`;
-          if (place.formattedAddress) placeInfo += `\n📮 Adres: ${place.formattedAddress}`;
-          if (place.rating) placeInfo += `\n⭐ Rating: ${place.rating}/5 (${place.userRatingCount || 0} reviews)`;
-          if (place.editorialSummary) placeInfo += `\n📝 ${place.editorialSummary.text}`;
-          if (place.types) placeInfo += `\n🏷️ Type: ${place.types.slice(0, 3).join(', ')}`;
+          let placeInfo = `\n\ud83d\udccd ${place.displayName?.text || destination}`;
+          if (place.formattedAddress) placeInfo += `\n\ud83d\udcee Adres: ${place.formattedAddress}`;
+          if (place.rating) placeInfo += `\n\u2b50 Rating: ${place.rating}/5 (${place.userRatingCount || 0} reviews)`;
+          if (place.editorialSummary) placeInfo += `\n\ud83d\udcdd ${place.editorialSummary.text}`;
+          if (place.types) placeInfo += `\n\ud83c\udff7\ufe0f Type: ${place.types.slice(0, 3).join(', ')}`;
 
-          console.log(`✅ Google Places API: ${destination}`);
+          console.log(`\u2705 Google Places API: ${destination}`);
           return placeInfo;
         }
 
@@ -511,11 +555,7 @@ Deno.serve(async (req: Request) => {
         const origin = routeMatch[1].trim();
         const destination = routeMatch[2].trim();
 
-        routePayload = await fetchCompleteRoute(origin, destination, options.routeType || 'snelle-route');
-
-        if (routePayload) {
-          realTimeContext = `=== ROUTE PAYLOAD ===\n${JSON.stringify(routePayload, null, 2)}\n=== END ROUTE PAYLOAD ===`;
-        }
+        routePayload = await fetchCompleteRoute(origin, destination, options.routeType || 'snelle-route', options.days);
       }
     } else if (contentType === 'planning') {
       const placesInfo = await fetchPlacesInfo(prompt);
@@ -539,20 +579,7 @@ Deno.serve(async (req: Request) => {
       userPrompt = `Schrijf een volledige bestemmingstekst over: ${prompt}`;
     } else if (contentType === 'route') {
       if (routePayload) {
-        userPrompt = `Schrijf een uitgebreide routebeschrijving volgens de structuur in je system prompt.
-
-ROUTE GEGEVENS:
-Vertrek: ${routePayload.ORIGIN}
-Bestemming: ${routePayload.DESTINATION}
-Afstand: ${routePayload.DISTANCE_KM} km
-Reistijd zonder stops: ${routePayload.DURATION_NOSTOPS}
-Reistijd met stops: ${routePayload.DURATION_WITH_STOPS}
-Route: ${routePayload.ROUTE_LINE}
-
-STOPS ONDERWEG (gebruik deze):
-${routePayload.STOPS.map((stop: any, i: number) => `${i + 1}. ${stop.name} (${stop.detour_minutes} min omweg${stop.rating ? `, rating ${stop.rating}/5` : ''})`).join('\n')}
-
-Schrijf de routebeschrijving nu uit volgens de structuur. Maak het levendig en praktisch.`;
+        userPrompt = `Schrijf een uitgebreide routebeschrijving volgens de structuur in je system prompt.\n\nROUTE GEGEVENS:\nVertrek: ${routePayload.ORIGIN}\nBestemming: ${routePayload.DESTINATION}\nAfstand: ${routePayload.DISTANCE_KM} km\nReistijd zonder stops: ${routePayload.DURATION_NOSTOPS}\nReistijd met stops: ${routePayload.DURATION_WITH_STOPS}\nRoute corridor: ${routePayload.ROUTE_LINE}\n${routePayload.TIME_BUDGET ? `Tijd beschikbaar: ${routePayload.TIME_BUDGET}` : ''}\n\nSTOPS ONDERWEG (gebruik ALLEEN deze):\n${routePayload.STOPS.map((stop: string, i: number) => `${i + 1}. ${stop}`).join('\n')}\n\n${routePayload.SCENIC_LOOP ? `\nSCENIC LOOP (voor Mix variant):\n${routePayload.SCENIC_LOOP.description}` : ''}\n\nSchrijf de routebeschrijving nu uit volgens de structuur. Maak het levendig en praktisch. Verzin GEEN extra stops die niet in de lijst staan.`;
       } else {
         userPrompt = `Schrijf een volledige routebeschrijving voor: ${prompt}`;
       }
@@ -574,24 +601,15 @@ Schrijf de routebeschrijving nu uit volgens de structuur. Maak het levendig en p
     const maxTokens = options.maxTokens || gptConfig?.max_tokens || 1500;
     const temperature = options.temperature !== undefined ? options.temperature : (gptConfig?.temperature || 0.7);
 
-    console.log(`\n🎯 Using GPT config: ${gptConfig?.name || 'default'} (${modelToUse})`);
-    console.log(`📝 Writing Style: "${writingStyle}"`);
-    console.log(`🏖️ Vacation Type: "${vacationTypeContext}"`);
-    console.log(`📅 Days: "${daysContext}"`);
-    console.log(`🛣️ Route Type: "${routeTypeContext}"`);
-    console.log(`\n🌐 Google APIs Status:`);
-    console.log(`  - Google Search: ${googleSearchApiKey ? '✅' : '❌'}`);
-    console.log(`  - Google Places API (New): ${googleMapsApiKey ? '✅' : '❌'}`);
-    console.log(`  - Google Routes API: ${googleMapsApiKey ? '✅' : '❌'}`);
-    console.log(`  - Real-time context: ${realTimeContext ? `✅ (${realTimeContext.length} chars)` : '❌'}`);
-
-    if (routePayload) {
-      console.log(`\n🚗 ROUTE PAYLOAD DEBUG:`);
-      console.log(`  - Steps: ${routePayload._DEBUG.steps_count}`);
-      console.log(`  - Stops: ${routePayload._DEBUG.stops_count}`);
-      console.log(`  - Last step: "${routePayload._DEBUG.last_step}"`);
-      console.log(`  - Route line: ${routePayload.ROUTE_LINE}`);
-    }
+    console.log(`\n\ud83c\udfaf Using GPT config: ${gptConfig?.name || 'default'} (${modelToUse})`);
+    console.log(`\ud83d\udcdd Writing Style: "${writingStyle}"`);
+    console.log(`\ud83c\udfd6\ufe0f Vacation Type: "${vacationTypeContext}"`);
+    console.log(`\ud83d\udcc5 Days: "${daysContext}"`);
+    console.log(`\ud83d\udee3\ufe0f Route Type: "${routeTypeContext}"`);
+    console.log(`\n\ud83c\udf10 Google APIs Status:`);
+    console.log(`  - Google Search: ${googleSearchApiKey ? '\u2705' : '\u274c'}`);
+    console.log(`  - Google Places API (New): ${googleMapsApiKey ? '\u2705' : '\u274c'}`);
+    console.log(`  - Google Routes API: ${googleMapsApiKey ? '\u2705' : '\u274c'}`);
 
     if (gptConfig) {
       await supabaseClient
