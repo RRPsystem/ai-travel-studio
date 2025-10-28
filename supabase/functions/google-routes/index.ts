@@ -38,7 +38,10 @@ const POI_BLACKLIST = [
   'bank'
 ];
 
-const MAJOR_ROAD_PATTERN = /\b(I-\d+|US-\d+|CA-\d+|State Route \d+|Highway \d+|A\d+|D\d+|SS\d+|N\d+|M\d+|E\d+|Route \d+)\b/i;
+const MAJOR_ROAD_PATTERN = /\b(I-?\d+|US-?\d+|CA-?\d+|State Route \d+|Highway \d+|A\d+|D\d+|SS\d+|N\d+|M\d+|E\d+|Route \d+)\b/i;
+const MIN_KM_FROM_ORIGIN = 20;
+const BUFFER_KM = 7;
+const MAX_DETOUR_MINUTES = 15;
 
 function decodePolyline(encoded: string): Array<{ lat: number; lng: number }> {
   const points = [];
@@ -81,30 +84,6 @@ function decodePolyline(encoded: string): Array<{ lat: number; lng: number }> {
   return points;
 }
 
-function extractCorridorPoints(encodedPolyline: string, intervalMeters: number = 30000): Array<{ lat: number; lng: number }> {
-  const decodedPoints = decodePolyline(encodedPolyline);
-  if (decodedPoints.length === 0) return [];
-
-  const points = [decodedPoints[0]];
-  let distanceAccumulated = 0;
-
-  for (let i = 1; i < decodedPoints.length; i++) {
-    const prev = decodedPoints[i - 1];
-    const curr = decodedPoints[i];
-    const segmentDistance = haversineDistance(prev, curr);
-    distanceAccumulated += segmentDistance;
-
-    if (distanceAccumulated >= intervalMeters) {
-      points.push(curr);
-      distanceAccumulated = 0;
-    }
-  }
-
-  points.push(decodedPoints[decodedPoints.length - 1]);
-
-  return points;
-}
-
 function haversineDistance(point1: { lat: number; lng: number }, point2: { lat: number; lng: number }): number {
   const R = 6371000;
   const dLat = (point2.lat - point1.lat) * Math.PI / 180;
@@ -115,6 +94,82 @@ function haversineDistance(point1: { lat: number; lng: number }, point2: { lat: 
     Math.sin(dLng / 2) * Math.sin(dLng / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+}
+
+function calculatePolylineDistances(points: Array<{ lat: number; lng: number }>): Array<number> {
+  const distances = [0];
+  let cumulative = 0;
+
+  for (let i = 1; i < points.length; i++) {
+    const dist = haversineDistance(points[i - 1], points[i]);
+    cumulative += dist;
+    distances.push(cumulative);
+  }
+
+  return distances;
+}
+
+function projectPointOnPolyline(
+  point: { lat: number; lng: number },
+  polylinePoints: Array<{ lat: number; lng: number }>,
+  distances: Array<number>
+): { distanceKm: number; closestPointIndex: number } {
+  let minDistance = Infinity;
+  let closestIndex = 0;
+
+  for (let i = 0; i < polylinePoints.length; i++) {
+    const dist = haversineDistance(point, polylinePoints[i]);
+    if (dist < minDistance) {
+      minDistance = dist;
+      closestIndex = i;
+    }
+  }
+
+  return {
+    distanceKm: distances[closestIndex] / 1000,
+    closestPointIndex: closestIndex
+  };
+}
+
+function extractCorridorPoints(
+  encodedPolyline: string,
+  intervalMeters: number = 30000,
+  skipFirstKm: number = MIN_KM_FROM_ORIGIN
+): Array<{ lat: number; lng: number; corridorKm: number }> {
+  const decodedPoints = decodePolyline(encodedPolyline);
+  if (decodedPoints.length === 0) return [];
+
+  const points = [];
+  let distanceAccumulated = 0;
+  let totalDistance = 0;
+
+  for (let i = 1; i < decodedPoints.length; i++) {
+    const prev = decodedPoints[i - 1];
+    const curr = decodedPoints[i];
+    const segmentDistance = haversineDistance(prev, curr);
+    distanceAccumulated += segmentDistance;
+    totalDistance += segmentDistance;
+
+    if (totalDistance / 1000 >= skipFirstKm && distanceAccumulated >= intervalMeters) {
+      points.push({
+        lat: curr.lat,
+        lng: curr.lng,
+        corridorKm: totalDistance / 1000
+      });
+      distanceAccumulated = 0;
+    }
+  }
+
+  const last = decodedPoints[decodedPoints.length - 1];
+  if (totalDistance / 1000 >= skipFirstKm) {
+    points.push({
+      lat: last.lat,
+      lng: last.lng,
+      corridorKm: totalDistance / 1000
+    });
+  }
+
+  return points;
 }
 
 function compressStepsToMajorTransitions(steps: any[]): Array<{ instruction: string; distance: string; duration: string }> {
@@ -133,8 +188,9 @@ function compressStepsToMajorTransitions(steps: any[]): Array<{ instruction: str
   }
 
   if (compressed.length === 0 && steps.length > 0) {
+    const firstInstruction = steps[0].html_instructions?.replace(/<[^>]*>/g, '') || 'Vertrek';
     compressed.push({
-      instruction: steps[0].html_instructions?.replace(/<[^>]*>/g, '') || 'Vertrek',
+      instruction: firstInstruction,
       distance: steps[0].distance.text,
       duration: steps[0].duration.text
     });
@@ -142,8 +198,9 @@ function compressStepsToMajorTransitions(steps: any[]): Array<{ instruction: str
 
   const lastStep = steps[steps.length - 1];
   if (lastStep) {
+    const lastInstruction = lastStep.html_instructions?.replace(/<[^>]*>/g, '') || 'Aankomst bestemming';
     compressed.push({
-      instruction: lastStep.html_instructions?.replace(/<[^>]*>/g, '') || 'Aankomst bestemming',
+      instruction: lastInstruction,
       distance: lastStep.distance.text,
       duration: lastStep.duration.text
     });
@@ -152,7 +209,28 @@ function compressStepsToMajorTransitions(steps: any[]): Array<{ instruction: str
   return compressed.slice(0, 6);
 }
 
-function scorePOI(poi: any, routePoint: { lat: number; lng: number }, previousTypes: string[]): number {
+async function calculateDetourMinutes(
+  poi: { lat: number; lng: number },
+  routePoint: { lat: number; lng: number },
+  apiKey: string
+): Promise<number> {
+  try {
+    const detourUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${routePoint.lat},${routePoint.lng}&destination=${poi.lat},${poi.lng}&mode=driving&key=${apiKey}`;
+
+    const response = await fetch(detourUrl);
+    const data = await response.json();
+
+    if (data.status === 'OK' && data.routes?.[0]?.legs?.[0]) {
+      return Math.round(data.routes[0].legs[0].duration.value / 60);
+    }
+  } catch (error) {
+    console.error('Detour calculation error:', error);
+  }
+
+  return 999;
+}
+
+function scorePOI(poi: any, detourMinutes: number, previousTypes: string[]): number {
   let score = 0;
 
   const types = poi.types || [];
@@ -162,12 +240,7 @@ function scorePOI(poi: any, routePoint: { lat: number; lng: number }, previousTy
     score += 0.5;
   }
 
-  const distance = haversineDistance(
-    routePoint,
-    { lat: poi.location?.latitude || 0, lng: poi.location?.longitude || 0 }
-  );
-  const detourPenalty = Math.min(distance / 1000, 10) / 10;
-  score -= detourPenalty * 0.3;
+  score -= (detourMinutes / MAX_DETOUR_MINUTES) * 0.3;
 
   if (poi.rating) {
     score += (poi.rating / 5) * 0.2;
@@ -203,6 +276,8 @@ interface RouteResponse {
       location: { lat: number; lng: number };
       placeId?: string;
       description?: string;
+      corridorKm?: number;
+      detourMinutes?: number;
     }>;
     overview: {
       summary: string;
@@ -292,7 +367,7 @@ Deno.serve(async (req: Request) => {
 
     let waypoints = [];
     if (includeWaypoints && routeType === 'toeristische-route') {
-      console.log('🔍 Searching POIs along corridor...');
+      console.log(`🔍 Searching corridor POIs (skip first ${MIN_KM_FROM_ORIGIN}km)...`);
 
       const polyline = route.overview_polyline?.points;
       if (!polyline) {
@@ -303,11 +378,14 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      const placesSearchUrl = 'https://places.googleapis.com/v1/places:searchText';
-      const searchRadius = 6000;
+      const decodedPolyline = decodePolyline(polyline);
+      const polylineDistances = calculatePolylineDistances(decodedPolyline);
 
-      const corridorPoints = extractCorridorPoints(polyline, 30000);
-      console.log(`📍 Extracted ${corridorPoints.length} corridor points (30km intervals)`);
+      const corridorPoints = extractCorridorPoints(polyline, 30000, MIN_KM_FROM_ORIGIN);
+      console.log(`📍 Extracted ${corridorPoints.length} corridor points (after ${MIN_KM_FROM_ORIGIN}km)`);
+
+      const placesSearchUrl = 'https://places.googleapis.com/v1/places:searchText';
+      const searchRadius = BUFFER_KM * 1000;
 
       const allCandidates = [];
       const usedTypes: string[] = [];
@@ -353,18 +431,34 @@ Deno.serve(async (req: Request) => {
               const hasWhitelisted = types.some((t: string) => POI_WHITELIST.includes(t));
 
               if (!hasBlacklisted && hasWhitelisted) {
-                const score = scorePOI(place, point, usedTypes);
-                allCandidates.push({
-                  name: place.displayName?.text || 'Unknown',
-                  location: {
-                    lat: place.location?.latitude,
-                    lng: place.location?.longitude
-                  },
-                  placeId: place.id,
-                  description: place.formattedAddress || '',
-                  score,
-                  types
-                });
+                const poiLocation = {
+                  lat: place.location?.latitude || 0,
+                  lng: place.location?.longitude || 0
+                };
+
+                const projection = projectPointOnPolyline(poiLocation, decodedPolyline, polylineDistances);
+
+                if (projection.distanceKm >= MIN_KM_FROM_ORIGIN) {
+                  const detourMinutes = await calculateDetourMinutes(
+                    poiLocation,
+                    point,
+                    googleMapsApiKey
+                  );
+
+                  if (detourMinutes <= MAX_DETOUR_MINUTES) {
+                    const score = scorePOI(place, detourMinutes, usedTypes);
+                    allCandidates.push({
+                      name: place.displayName?.text || 'Unknown',
+                      location: poiLocation,
+                      placeId: place.id,
+                      description: place.formattedAddress || '',
+                      score,
+                      types,
+                      corridorKm: projection.distanceKm,
+                      detourMinutes
+                    });
+                  }
+                }
               }
             }
           }
@@ -392,11 +486,13 @@ Deno.serve(async (req: Request) => {
           name: poi.name,
           location: poi.location,
           placeId: poi.placeId,
-          description: poi.description
+          description: poi.description,
+          corridorKm: Math.round(poi.corridorKm),
+          detourMinutes: poi.detourMinutes
         };
       });
 
-      console.log(`✅ Selected ${waypoints.length} corridor POIs (scored & deduplicated)`);
+      console.log(`✅ Selected ${waypoints.length} corridor POIs (all ≥${MIN_KM_FROM_ORIGIN}km, detour ≤${MAX_DETOUR_MINUTES}min)`);
     }
 
     const response: RouteResponse = {
