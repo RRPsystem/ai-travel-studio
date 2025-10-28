@@ -438,7 +438,7 @@ Deno.serve(async (req: Request) => {
 
           const searchBody = {
             textQuery: "scenic viewpoint tourist attraction park museum landmark nature cafe restaurant",
-            locationBias: {
+            locationRestriction: {
               circle: {
                 center: {
                   latitude: point.lat,
