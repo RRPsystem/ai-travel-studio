@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { db, supabase } from '../../lib/supabase';
-import { Bot, Phone, MessageSquare, Users, Settings, CheckCircle, XCircle, ExternalLink, Copy, Send, Plus, FileText, Link as LinkIcon, Trash2, Eye, Share2, Upload, Loader, Edit, Clock, Calendar, ArrowRight } from 'lucide-react';
+import { Bot, Phone, MessageSquare, Users, Settings, CheckCircle, XCircle, ExternalLink, Copy, Send, Plus, FileText, Link as LinkIcon, Trash2, Share2, Upload, Loader, Edit, Clock, Calendar, ArrowRight } from 'lucide-react';
 
 export function TravelBroSetup() {
   const { user } = useAuth();
@@ -1706,11 +1706,11 @@ export function TravelBroSetup() {
 
                     <div className="flex items-center space-x-2 ml-4">
                       <button
-                        onClick={(e) => { e.stopPropagation(); loadTripDetails(trip); }}
+                        onClick={(e) => { e.stopPropagation(); startEditingTrip(trip); }}
                         className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                        title="Open details"
+                        title="Bewerk TravelBRO"
                       >
-                        <Eye size={18} />
+                        <Edit size={18} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); copyClientLink(trip.share_token); }}
@@ -1718,13 +1718,6 @@ export function TravelBroSetup() {
                         title="Kopieer client link voor reizigers"
                       >
                         <Share2 size={18} />
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); startEditingTrip(trip); }}
-                        className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        title="Bewerk TravelBRO"
-                      >
-                        <Edit size={18} />
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); deleteTravelBro(trip.id); }}
