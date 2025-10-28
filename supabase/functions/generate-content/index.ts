@@ -238,19 +238,33 @@ Deno.serve(async (req: Request) => {
       }
     };
 
-    const findRouteStops = async (originLat: number, originLng: number, destLat: number, destLng: number, routeType: string, timeBudget?: string): Promise<RouteStop[]> => {
+    const findRouteStops = async (originLat: number, originLng: number, destLat: number, destLng: number, routeType: string, timeBudget?: string, polyline?: any): Promise<RouteStop[]> => {
       if (!googleMapsApiKey) return [];
 
       try {
+        // Use polyline if available, otherwise fallback to straight-line interpolation
         const searchPoints: Array<{lat: number, lng: number}> = [];
-        const segments = 3;
 
-        for (let i = 1; i <= segments; i++) {
-          const ratio = i / (segments + 1);
-          searchPoints.push({
-            lat: originLat + (destLat - originLat) * ratio,
-            lng: originLng + (destLng - originLng) * ratio
-          });
+        if (polyline && polyline.encodedPolyline) {
+          // TODO: Decode polyline and sample points along it
+          // For now, use a better interpolation: sample more points along straight line
+          const segments = 5; // Increased from 3 to 5 for better coverage
+          for (let i = 1; i <= segments; i++) {
+            const ratio = i / (segments + 1);
+            searchPoints.push({
+              lat: originLat + (destLat - originLat) * ratio,
+              lng: originLng + (destLng - originLng) * ratio
+            });
+          }
+        } else {
+          const segments = 5;
+          for (let i = 1; i <= segments; i++) {
+            const ratio = i / (segments + 1);
+            searchPoints.push({
+              lat: originLat + (destLat - originLat) * ratio,
+              lng: originLng + (destLng - originLng) * ratio
+            });
+          }
         }
 
         const allStops: RouteStop[] = [];
@@ -274,8 +288,8 @@ Deno.serve(async (req: Request) => {
                   }
                 },
                 includedTypes: routeType === 'toeristische-route'
-                  ? ['tourist_attraction', 'park', 'natural_feature', 'museum', 'viewpoint', 'locality', 'point_of_interest']
-                  : ['tourist_attraction', 'park', 'locality', 'point_of_interest'],
+                  ? ['tourist_attraction', 'park', 'natural_feature', 'museum', 'viewpoint', 'cafe', 'restaurant', 'rest_stop']
+                  : ['tourist_attraction', 'park', 'museum', 'cafe', 'rest_stop', 'point_of_interest'],
                 maxResultCount: 15, // Verhoogd van 10 naar 15
                 languageCode: 'nl'
               })
@@ -293,20 +307,19 @@ Deno.serve(async (req: Request) => {
             const placeLat = place.location.latitude;
             const placeLng = place.location.longitude;
 
-            // Skip expensive detour calculation for tourist routes - just include good rated places
-            let detourMinutes = 10;
-            if (routeType !== 'toeristische-route') {
-              detourMinutes = await calculateDetour(originLat, originLng, placeLat, placeLng, destLat, destLng);
-            }
+            // Skip expensive detour calculation - just check if place has good rating
+            // The radius filter already ensures places are reasonably close to the route
+            const hasGoodRating = (place.rating && place.rating >= 3.5) || !place.rating;
+            const estimatedDetour = 8; // Assume ~8 min detour for places within search radius
 
-            if (detourMinutes <= 20) {
+            if (hasGoodRating) {
               allStops.push({
                 name: place.displayName?.text || 'Unknown',
                 place_id: place.id,
                 types: place.types || [],
                 rating: place.rating,
-                detour_minutes: detourMinutes,
-                reason: `${place.displayName?.text || 'Interessante stop'} (${detourMinutes} min omweg)`,
+                detour_minutes: estimatedDetour,
+                reason: `${place.displayName?.text || 'Interessante stop'} (${estimatedDetour} min omweg)`,
                 location: {
                   lat: placeLat,
                   lng: placeLng
@@ -443,7 +456,8 @@ Deno.serve(async (req: Request) => {
             destLoc.latitude,
             destLoc.longitude,
             routeType,
-            timeBudget
+            timeBudget,
+            route.polyline
           );
 
           const durationSeconds = parseInt(route.duration.replace('s', ''));
