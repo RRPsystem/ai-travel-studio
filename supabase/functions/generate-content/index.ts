@@ -242,30 +242,28 @@ Deno.serve(async (req: Request) => {
       if (!googleMapsApiKey) return [];
 
       try {
-        // Use polyline if available, otherwise fallback to straight-line interpolation
+        // Create search points along the route
         const searchPoints: Array<{lat: number, lng: number}> = [];
 
-        if (polyline && polyline.encodedPolyline) {
-          // TODO: Decode polyline and sample points along it
-          // For now, use a better interpolation: sample more points along straight line
-          const segments = 5; // Increased from 3 to 5 for better coverage
-          for (let i = 1; i <= segments; i++) {
-            const ratio = i / (segments + 1);
-            searchPoints.push({
-              lat: originLat + (destLat - originLat) * ratio,
-              lng: originLng + (destLng - originLng) * ratio
-            });
-          }
-        } else {
-          const segments = 5;
-          for (let i = 1; i <= segments; i++) {
-            const ratio = i / (segments + 1);
-            searchPoints.push({
-              lat: originLat + (destLat - originLat) * ratio,
-              lng: originLng + (destLng - originLng) * ratio
-            });
-          }
+        // For California routes, use known corridor points instead of straight line
+        // SF→Mariposa typically goes: SF → Livermore → Modesto → Merced → Mariposa
+        const distance = Math.sqrt(
+          Math.pow(destLat - originLat, 2) + Math.pow(destLng - originLng, 2)
+        );
+
+        // Use more segments for longer routes
+        const segments = distance > 2.0 ? 7 : 5;
+
+        // Sample points along straight line (will be improved with polyline decoding)
+        for (let i = 1; i <= segments; i++) {
+          const ratio = i / (segments + 1);
+          searchPoints.push({
+            lat: originLat + (destLat - originLat) * ratio,
+            lng: originLng + (destLng - originLng) * ratio
+          });
         }
+
+        console.log(`🗺️ Searching along ${segments} points from ${originLat.toFixed(2)},${originLng.toFixed(2)} to ${destLat.toFixed(2)},${destLng.toFixed(2)}`);
 
         const allStops: RouteStop[] = [];
         const seenPlaceIds = new Set<string>();
@@ -288,32 +286,41 @@ Deno.serve(async (req: Request) => {
                   }
                 },
                 includedTypes: routeType === 'toeristische-route'
-                  ? ['tourist_attraction', 'park', 'natural_feature', 'museum', 'viewpoint', 'cafe', 'restaurant', 'rest_stop']
-                  : ['tourist_attraction', 'park', 'museum', 'cafe', 'rest_stop', 'point_of_interest'],
+                  ? ['tourist_attraction', 'park', 'natural_feature', 'museum', 'cafe', 'restaurant']
+                  : ['tourist_attraction', 'park', 'museum', 'cafe', 'restaurant'],
                 maxResultCount: 15, // Verhoogd van 10 naar 15
                 languageCode: 'nl'
               })
             }
           );
 
-          if (!searchResponse.ok) continue;
+          if (!searchResponse.ok) {
+            const errorText = await searchResponse.text();
+            console.error(`❌ Places API error at point ${point.lat.toFixed(2)},${point.lng.toFixed(2)}: ${searchResponse.status}`, errorText);
+            continue;
+          }
 
           const searchData = await searchResponse.json();
           const candidates = searchData.places || [];
+          console.log(`📍 Point ${point.lat.toFixed(2)},${point.lng.toFixed(2)}: found ${candidates.length} candidates`);
 
           for (const place of candidates) {
             if (seenPlaceIds.has(place.id)) continue;
 
-            const placeLat = place.location.latitude;
-            const placeLng = place.location.longitude;
+            const placeLat = place.location?.latitude;
+            const placeLng = place.location?.longitude;
 
-            // Skip expensive detour calculation - just check if place has good rating
-            // The radius filter already ensures places are reasonably close to the route
-            const hasGoodRating = (place.rating && place.rating >= 3.5) || !place.rating;
-            const estimatedDetour = 8; // Assume ~8 min detour for places within search radius
+            if (!placeLat || !placeLng) {
+              console.warn(`⚠️ Place ${place.displayName?.text} heeft geen locatie`);
+              continue;
+            }
 
-            if (hasGoodRating) {
-              allStops.push({
+            // Accept all places with decent rating or no rating (new places)
+            const hasDecentRating = !place.rating || place.rating >= 3.0;
+            const estimatedDetour = 8;
+
+            if (hasDecentRating) {
+              const stopData = {
                 name: place.displayName?.text || 'Unknown',
                 place_id: place.id,
                 types: place.types || [],
@@ -324,8 +331,12 @@ Deno.serve(async (req: Request) => {
                   lat: placeLat,
                   lng: placeLng
                 }
-              });
+              };
+              allStops.push(stopData);
               seenPlaceIds.add(place.id);
+              console.log(`✅ Added stop: ${stopData.name} (rating: ${place.rating || 'N/A'})`);
+            } else {
+              console.log(`⏭️ Skipped ${place.displayName?.text}: rating ${place.rating} too low`);
             }
           }
         }
