@@ -1720,13 +1720,6 @@ export function TravelBroSetup() {
                         <Share2 size={18} />
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); startEditingTrip(trip); }}
-                        className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        title="Bewerk TravelBRO"
-                      >
-                        <Edit size={18} />
-                      </button>
-                      <button
                         onClick={(e) => { e.stopPropagation(); deleteTravelBro(trip.id); }}
                         className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         title="Verwijder"
