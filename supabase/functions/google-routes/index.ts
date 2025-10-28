@@ -39,9 +39,29 @@ const POI_BLACKLIST = [
 ];
 
 const MAJOR_ROAD_PATTERN = /\b(I-?\d+|US-?\d+|CA-?\d+|State Route \d+|Highway \d+|A\d+|D\d+|SS\d+|N\d+|M\d+|E\d+|Route \d+)\b/i;
-const MIN_KM_FROM_ORIGIN = 20;
-const BUFFER_KM = 7;
 const MAX_DETOUR_MINUTES = 15;
+
+function getRouteConstants(routeDistanceKm: number) {
+  if (routeDistanceKm < 150) {
+    return {
+      minKmFromOrigin: Math.min(10, routeDistanceKm * 0.15),
+      corridorIntervalKm: Math.max(15, routeDistanceKm / 6),
+      searchRadiusKm: 10
+    };
+  } else if (routeDistanceKm < 300) {
+    return {
+      minKmFromOrigin: 20,
+      corridorIntervalKm: 25,
+      searchRadiusKm: 8
+    };
+  } else {
+    return {
+      minKmFromOrigin: 30,
+      corridorIntervalKm: 40,
+      searchRadiusKm: 7
+    };
+  }
+}
 
 function decodePolyline(encoded: string): Array<{ lat: number; lng: number }> {
   const points = [];
@@ -133,11 +153,15 @@ function projectPointOnPolyline(
 
 function extractCorridorPoints(
   encodedPolyline: string,
-  intervalMeters: number = 30000,
-  skipFirstKm: number = MIN_KM_FROM_ORIGIN
+  intervalKm: number,
+  skipFirstKm: number,
+  skipLastKm: number = 15
 ): Array<{ lat: number; lng: number; corridorKm: number }> {
   const decodedPoints = decodePolyline(encodedPolyline);
   if (decodedPoints.length === 0) return [];
+
+  const totalRouteDistance = calculatePolylineDistances(decodedPoints);
+  const maxDistance = totalRouteDistance[totalRouteDistance.length - 1] / 1000;
 
   const points = [];
   let distanceAccumulated = 0;
@@ -150,23 +174,29 @@ function extractCorridorPoints(
     distanceAccumulated += segmentDistance;
     totalDistance += segmentDistance;
 
-    if (totalDistance / 1000 >= skipFirstKm && distanceAccumulated >= intervalMeters) {
+    const currentKm = totalDistance / 1000;
+    const remainingKm = maxDistance - currentKm;
+
+    if (currentKm >= skipFirstKm && remainingKm >= skipLastKm && distanceAccumulated >= (intervalKm * 1000)) {
       points.push({
         lat: curr.lat,
         lng: curr.lng,
-        corridorKm: totalDistance / 1000
+        corridorKm: currentKm
       });
       distanceAccumulated = 0;
     }
   }
 
-  const last = decodedPoints[decodedPoints.length - 1];
-  if (totalDistance / 1000 >= skipFirstKm) {
-    points.push({
-      lat: last.lat,
-      lng: last.lng,
-      corridorKm: totalDistance / 1000
-    });
+  if (points.length === 0 && maxDistance > (skipFirstKm + skipLastKm)) {
+    const midIndex = Math.floor(decodedPoints.length / 2);
+    const midDistance = totalRouteDistance[midIndex] / 1000;
+    if (midDistance >= skipFirstKm && (maxDistance - midDistance) >= skipLastKm) {
+      points.push({
+        lat: decodedPoints[midIndex].lat,
+        lng: decodedPoints[midIndex].lng,
+        corridorKm: midDistance
+      });
+    }
   }
 
   return points;
@@ -367,8 +397,6 @@ Deno.serve(async (req: Request) => {
 
     let waypoints = [];
     if (includeWaypoints && routeType === 'toeristische-route') {
-      console.log(`🔍 Searching corridor POIs (skip first ${MIN_KM_FROM_ORIGIN}km)...`);
-
       const polyline = route.overview_polyline?.points;
       if (!polyline) {
         console.error('❌ No polyline in route response');
@@ -378,14 +406,24 @@ Deno.serve(async (req: Request) => {
         );
       }
 
+      const routeDistanceKm = leg.distance.value / 1000;
+      const routeConfig = getRouteConstants(routeDistanceKm);
+
+      console.log(`🔍 Route: ${routeDistanceKm.toFixed(0)}km | Config: skip=${routeConfig.minKmFromOrigin.toFixed(0)}km, interval=${routeConfig.corridorIntervalKm.toFixed(0)}km, radius=${routeConfig.searchRadiusKm}km`);
+
       const decodedPolyline = decodePolyline(polyline);
       const polylineDistances = calculatePolylineDistances(decodedPolyline);
 
-      const corridorPoints = extractCorridorPoints(polyline, 30000, MIN_KM_FROM_ORIGIN);
-      console.log(`📍 Extracted ${corridorPoints.length} corridor points (after ${MIN_KM_FROM_ORIGIN}km)`);
+      const corridorPoints = extractCorridorPoints(
+        polyline,
+        routeConfig.corridorIntervalKm,
+        routeConfig.minKmFromOrigin,
+        15
+      );
+      console.log(`📍 Extracted ${corridorPoints.length} corridor points`);
 
       const placesSearchUrl = 'https://places.googleapis.com/v1/places:searchText';
-      const searchRadius = BUFFER_KM * 1000;
+      const searchRadius = routeConfig.searchRadiusKm * 1000;
 
       const allCandidates = [];
       const usedTypes: string[] = [];
@@ -438,7 +476,7 @@ Deno.serve(async (req: Request) => {
 
                 const projection = projectPointOnPolyline(poiLocation, decodedPolyline, polylineDistances);
 
-                if (projection.distanceKm >= MIN_KM_FROM_ORIGIN) {
+                if (projection.distanceKm >= routeConfig.minKmFromOrigin && projection.distanceKm <= (routeDistanceKm - 15)) {
                   const detourMinutes = await calculateDetourMinutes(
                     poiLocation,
                     point,
@@ -492,7 +530,7 @@ Deno.serve(async (req: Request) => {
         };
       });
 
-      console.log(`✅ Selected ${waypoints.length} corridor POIs (all ≥${MIN_KM_FROM_ORIGIN}km, detour ≤${MAX_DETOUR_MINUTES}min)`);
+      console.log(`✅ Selected ${waypoints.length} corridor POIs (all between ${routeConfig.minKmFromOrigin.toFixed(0)}-${(routeDistanceKm - 15).toFixed(0)}km, detour ≤${MAX_DETOUR_MINUTES}min)`);
     }
 
     const response: RouteResponse = {
