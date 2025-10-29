@@ -268,7 +268,7 @@ function compressStepsToMajorTransitions(steps: any[]): Array<{ instruction: str
     }
   }
 
-  return compressed.slice(0, 6);
+  return compressed;
 }
 
 async function calculateDetourMinutes(
