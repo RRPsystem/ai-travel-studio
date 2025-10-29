@@ -32,6 +32,8 @@ interface ChatMessage {
   content: string;
   timestamp: Date;
   routeData?: {
+    from?: string;
+    to?: string;
     distance: string;
     duration: string;
     steps: Array<{
@@ -232,7 +234,11 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
           console.log('Eateries at arrival:', routeResult.route?.eateriesAtArrival);
 
           if (routeResult.success && routeResult.route) {
-            routeData = routeResult.route;
+            routeData = {
+              ...routeResult.route,
+              from: routeFrom,
+              to: routeTo
+            };
 
             const vacationTypeObj = moreSettings.find(s => s.id === selectedMoreSetting);
             const routeTypeObj = routeTypes.find(r => r.id === selectedRouteType);
@@ -560,19 +566,28 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
                               </div>
                             )}
 
-                            <div className="bg-gray-50 rounded-lg p-4">
-                              <h4 className="font-semibold text-gray-900 mb-3">Route stappen</h4>
-                              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
-                                {message.routeData.steps.map((step, idx) => (
-                                  <div key={idx} className="text-sm border-l-2 border-gray-300 pl-3 py-1">
-                                    <div className="text-gray-900">{step.instruction}</div>
-                                    <div className="text-gray-500 text-xs mt-1">
-                                      {step.distance} • {step.duration}
-                                    </div>
-                                  </div>
-                                ))}
+                            {message.routeData.from && message.routeData.to && (
+                              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 border border-blue-200">
+                                <h4 className="font-semibold text-blue-900 mb-3 flex items-center space-x-2">
+                                  <Route className="w-5 h-5" />
+                                  <span>Navigatie</span>
+                                </h4>
+                                <p className="text-sm text-gray-700 mb-3">
+                                  Gebruik Google Maps voor turn-by-turn navigatie tijdens je reis.
+                                </p>
+                                <a
+                                  href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(message.routeData.from)}&destination=${encodeURIComponent(message.routeData.to)}&travelmode=driving`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+                                >
+                                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                                  </svg>
+                                  <span>Open in Google Maps</span>
+                                </a>
                               </div>
-                            </div>
+                            )}
                           </div>
                         ) : (
                           <div className="whitespace-pre-wrap">{message.content}</div>

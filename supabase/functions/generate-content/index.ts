@@ -122,367 +122,239 @@ Deno.serve(async (req: Request) => {
       return coordinates;
     }
 
-    async function fetchCompleteRoute(
-      origin: string,
-      destination: string,
-      routeType: string = 'snelle-route',
-      timeBudget?: string
-    ) {
-      const { data: googleSettings } = await supabase
+    function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+      const R = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return R * c;
+    }
+
+    function compressSteps(steps: any[]): CompressedStep[] {
+      const compressed: CompressedStep[] = [];
+      const totalDistance = steps.reduce((sum, step) => {
+        const meters = step.distance?.value || 0;
+        return sum + meters;
+      }, 0);
+      const totalKm = totalDistance / 1000;
+
+      let targetSteps: number;
+      if (totalKm < 50) {
+        targetSteps = 5;
+      } else if (totalKm < 100) {
+        targetSteps = 7;
+      } else if (totalKm < 150) {
+        targetSteps = 9;
+      } else if (totalKm < 200) {
+        targetSteps = 11;
+      } else if (totalKm < 300) {
+        targetSteps = 13;
+      } else {
+        targetSteps = 15;
+      }
+
+      const interval = Math.max(1, Math.floor(steps.length / targetSteps));
+
+      for (let i = 0; i < steps.length; i += interval) {
+        const step = steps[i];
+        const instruction = step.html_instructions
+          ?.replace(/<[^>]*>/g, '')
+          ?.replace(/&nbsp;/g, ' ')
+          || step.instructions
+          || 'Volg de route';
+
+        const highway = step.html_instructions?.match(/>(A\d+|E\d+|N\d+)</) ||
+                       step.html_instructions?.match(/\b(A\d+|E\d+|N\d+)\b/);
+
+        compressed.push({
+          instruction,
+          highway: highway ? highway[1] : ''
+        });
+      }
+
+      if (compressed.length === 0 || compressed[compressed.length - 1].instruction !== steps[steps.length - 1].html_instructions) {
+        const lastStep = steps[steps.length - 1];
+        const lastInstruction = lastStep.html_instructions
+          ?.replace(/<[^>]*>/g, '')
+          ?.replace(/&nbsp;/g, ' ')
+          || lastStep.instructions
+          || 'Je bent aangekomen';
+
+        compressed.push({
+          instruction: lastInstruction,
+          highway: ''
+        });
+      }
+
+      return compressed;
+    }
+
+    async function getPlaceDetails(placeId: string): Promise<any> {
+      const { data: mapsSettings } = await supabase
         .from('api_settings')
         .select('api_key')
         .eq('service_name', 'Google Maps API')
         .eq('is_active', true)
         .maybeSingle();
 
-      if (!googleSettings?.api_key) {
-        throw new Error('ROUTE_CALCULATION_FAILED: Google Maps API key not configured');
-      }
+      if (!mapsSettings?.api_key) return null;
 
-      const googleMapsApiKey = googleSettings.api_key;
-      const originLower = origin.toLowerCase();
-      const destLower = destination.toLowerCase();
+      const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&fields=name,formatted_address,rating,user_ratings_total,opening_hours,types,photos,price_level,website&key=${mapsSettings.api_key}&language=nl`;
 
-      console.log(`🔍 Route detection: "${originLower}" → "${destLower}"`);
-      console.log(`   Route type: "${routeType}"`);
+      const response = await fetch(detailsUrl);
+      if (!response.ok) return null;
 
-      const corridorWaypoints: Record<string, { pattern: RegExp; waypoint: string; type: string }> = {
-        'sf_yosemite_scenic': {
-          pattern: /san francisco.*?(yosemite|mariposa)|yosemite.*?san francisco/i,
-          waypoint: 'Casa de Fruta, CA',
-          type: 'scenic'
-        },
-        'sf_yosemite_fast': {
-          pattern: /san francisco.*?(yosemite|mariposa)|yosemite.*?san francisco/i,
-          waypoint: 'Merced, CA',
-          type: 'fast'
-        },
-        'la_vegas': {
-          pattern: /los angeles.*?las vegas|las vegas.*?los angeles/i,
-          waypoint: 'Barstow, CA',
-          type: 'fast'
-        },
-        'sf_la_pch': {
-          pattern: /san francisco.*?los angeles|los angeles.*?san francisco/i,
-          waypoint: 'Big Sur, CA',
-          type: 'scenic'
-        }
-      };
+      const data = await response.json();
+      return data.status === 'OK' ? data.result : null;
+    }
 
-      let selectedWaypoint: string | undefined;
-      for (const [key, config] of Object.entries(corridorWaypoints)) {
-        const routeText = `${originLower} ${destLower}`;
-        if (config.pattern.test(routeText)) {
-          if (routeType === 'toeristische-route' && config.type === 'scenic') {
-            selectedWaypoint = config.waypoint;
-            console.log(`✅ WAYPOINT MATCH: ${key} → adding ${selectedWaypoint} waypoint`);
-            break;
-          } else if ((routeType === 'snelle-route' || routeType === 'gemengd') && config.type === 'fast') {
-            selectedWaypoint = config.waypoint;
-            console.log(`✅ WAYPOINT MATCH: ${key} → adding ${selectedWaypoint} waypoint`);
-            break;
-          }
-        }
-      }
-
-      if (!selectedWaypoint) {
-        console.log(`ℹ️ No waypoint match for this corridor`);
-      }
-
-      console.log(`📤 Sending Google Routes API request...`);
-      console.log(`   Origin: ${origin}`);
-      console.log(`   Destination: ${destination}`);
-      if (selectedWaypoint) {
-        console.log(`   Waypoints: ${selectedWaypoint}`);
-      }
-
-      const requestBody: any = {
-        origin: {
-          address: origin
-        },
-        destination: {
-          address: destination
-        },
-        travelMode: 'DRIVE',
-        routingPreference: routeType === 'toeristische-route' ? 'TRAFFIC_AWARE' : 'TRAFFIC_AWARE_OPTIMAL',
-        computeAlternativeRoutes: false,
-        routeModifiers: {
-          avoidTolls: false,
-          avoidHighways: false,
-          avoidFerries: false
-        },
-        languageCode: 'nl-NL',
-        units: 'METRIC'
-      };
-
-      if (selectedWaypoint) {
-        requestBody.intermediates = [{
-          address: selectedWaypoint
-        }];
-      }
-
-      const routesResponse = await fetch(
-        'https://routes.googleapis.com/directions/v2:computeRoutes',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': googleMapsApiKey,
-            'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters,routes.polyline,routes.legs.steps.navigationInstruction,routes.legs.steps.localizedValues,routes.legs.polyline'
-          },
-          body: JSON.stringify(requestBody)
-        }
-      );
-
-      if (!routesResponse.ok) {
-        const errorText = await routesResponse.text();
-        console.error('❌ Google Routes API error:', errorText);
-        throw new Error('ROUTE_CALCULATION_FAILED: Could not calculate route');
-      }
-
-      const routeData = await routesResponse.json();
-      
-      if (!routeData.routes || routeData.routes.length === 0) {
-        console.error('❌ No routes found in response');
-        throw new Error('ROUTE_CALCULATION_FAILED: No routes returned');
-      }
-
-      const route = routeData.routes[0];
-      const legs = route.legs || [];
-      
-      console.log(`📍 Route breakdown:`);
-      console.log(`   - Legs: ${legs.length}`);
-      
-      let allSteps: any[] = [];
-      for (const leg of legs) {
-        if (leg.steps) {
-          allSteps = allSteps.concat(leg.steps);
-        }
-      }
-      
-      console.log(`   - Total steps: ${allSteps.length}`);
-
-      const compressHighwaySteps = (steps: any[]): CompressedStep[] => {
-        const compressed: CompressedStep[] = [];
-        let currentHighway: string | null = null;
-        let lastInstruction = '';
-
-        for (const step of steps) {
-          const instruction = step.navigationInstruction?.instructions || '';
-          const highwayMatch = instruction.match(/(?:I-|US-|CA-|SR-)(\d+[A-Z]?)/i);
-          const highway = highwayMatch ? highwayMatch[0] : null;
-
-          if (highway && highway !== currentHighway) {
-            if (currentHighway) {
-              compressed.push({
-                instruction: lastInstruction,
-                highway: currentHighway
-              });
-            }
-            currentHighway = highway;
-            lastInstruction = instruction;
-          } else if (!highway && currentHighway) {
-            compressed.push({
-              instruction: lastInstruction,
-              highway: currentHighway
-            });
-            currentHighway = null;
-          }
-
-          if (!highway) {
-            lastInstruction = instruction;
-          }
-        }
-
-        if (currentHighway) {
-          compressed.push({
-            instruction: lastInstruction,
-            highway: currentHighway
-          });
-        }
-
-        return compressed;
-      };
-
-      const compressedSteps = compressHighwaySteps(allSteps);
-      console.log(`   - Compressed to: ${compressedSteps.length} highway segments`);
-      
-      const highways = compressedSteps.map(s => s.highway).join(' → ');
-      console.log(`   - Highways: ${highways}`);
-
-      let polyline = route.polyline?.encodedPolyline;
-      if (!polyline && legs.length > 0) {
-        polyline = legs[0].polyline?.encodedPolyline;
-      }
-
-      if (!polyline) {
-        console.error('❌ No polyline found in route response');
-        throw new Error('ROUTE_CALCULATION_FAILED: No polyline in route');
-      }
-
-      const decodedPolyline = decodePolyline(polyline);
-      console.log(`🗺️ Decoded polyline: ${decodedPolyline.length} coordinates`);
-
-      const origin_location = decodedPolyline[0];
-      const destination_location = decodedPolyline[decodedPolyline.length - 1];
-
-      const searchPoints: Array<{ lat: number; lng: number }> = [];
-      
-      if (decodedPolyline.length > 0) {
-        const segments = 7;
-        const step = Math.floor(decodedPolyline.length / (segments + 1));
-        
-        console.log(`📍 Sampling every ${step} coordinates (target: ${segments} points)`);
-        
-        for (let i = 1; i <= segments; i++) {
-          const idx = Math.min(i * step, decodedPolyline.length - 1);
-          searchPoints.push(decodedPolyline[idx]);
-        }
-        
-        console.log(`✅ Generated ${searchPoints.length} search points from polyline`);
-      } else {
-        console.log(`⚠️ Polyline too short, using linear interpolation`);
-        const originLat = origin_location.lat;
-        const originLng = origin_location.lng;
-        const destLat = destination_location.lat;
-        const destLng = destination_location.lng;
-        
-        const segments = 7;
-        for (let i = 1; i <= segments; i++) {
-          const ratio = i / (segments + 1);
-          searchPoints.push({
-            lat: originLat + (destLat - originLat) * ratio,
-            lng: originLng + (destLng - originLng) * ratio
-          });
-        }
-      }
-
-      console.log(`🗺️ Searching along ${searchPoints.length} points from ${origin_location.lat.toFixed(2)},${origin_location.lng.toFixed(2)} to ${destination_location.lat.toFixed(2)},${destination_location.lng.toFixed(2)}`);
-
-      const allStops: RouteStop[] = [];
-      const seenPlaceIds = new Set<string>();
-
-      for (const point of searchPoints) {
-        const searchResponse = await fetch(
-          `https://places.googleapis.com/v1/places:searchNearby`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Goog-Api-Key': googleMapsApiKey,
-              'X-Goog-FieldMask': 'places.id,places.displayName,places.location,places.rating,places.userRatingCount,places.types'
-            },
-            body: JSON.stringify({
-              locationRestriction: {
-                circle: {
-                  center: { latitude: point.lat, longitude: point.lng },
-                  radius: 8000
-                }
-              },
-              includedTypes: [
-                'tourist_attraction', 'park', 'museum', 'playground',
-                'cafe', 'restaurant', 'bakery', 'natural_feature',
-                'hiking_area', 'garden', 'art_gallery', 'aquarium', 'zoo',
-                'church', 'amusement_park', 'shopping_mall'
-              ],
-              maxResultCount: 20
-            })
-          }
-        );
-
-        if (!searchResponse.ok) {
-          const errorText = await searchResponse.text();
-          console.error(`❌ Places API error at point ${point.lat.toFixed(2)},${point.lng.toFixed(2)}: ${searchResponse.status}`, errorText);
-          continue;
-        }
-
-        const placesData = await searchResponse.json();
-        const places = placesData.places || [];
-        
-        console.log(`📍 Point ${point.lat.toFixed(2)},${point.lng.toFixed(2)}: found ${places.length} candidates${places.length > 0 ? ` (first: ${places[0].displayName?.text || 'unknown'})` : ''}`);
-
-        for (const place of places) {
-          if (seenPlaceIds.has(place.id)) continue;
-          seenPlaceIds.add(place.id);
-
-          if (!place.rating || place.rating < 3.5) continue;
-          if (!place.userRatingCount || place.userRatingCount < 10) continue;
-
-          const detour = Math.abs(place.location.latitude - point.lat) * 111 + 
-                        Math.abs(place.location.longitude - point.lng) * 85;
-          const detourMinutes = Math.round(detour * 2);
-
-          allStops.push({
-            name: place.displayName?.text || 'Unknown',
-            place_id: place.id,
-            types: place.types || [],
-            rating: place.rating,
-            detour_minutes: detourMinutes,
-            reason: `Highly rated ${place.types?.[0]?.replace(/_/g, ' ') || 'attraction'}`,
-            location: {
-              lat: place.location.latitude,
-              lng: place.location.longitude
-            }
-          });
-        }
-      }
-
-      console.log(`🔍 Found ${allStops.length} candidate stops (deduplicated)`);
-
-      if (allStops.length === 0) {
-        console.warn(`⚠️ NO STOPS FOUND - but continuing with route only`);
-        console.warn(`   - Search points: ${searchPoints.length}`);
-        console.warn(`   - Polyline provided: ${polyline ? 'YES' : 'NO'}`);
-      }
-
-      allStops.sort((a, b) => {
-        const ratingDiff = (b.rating || 0) - (a.rating || 0);
-        if (Math.abs(ratingDiff) > 0.5) return ratingDiff;
-        return a.detour_minutes - b.detour_minutes;
-      });
-
-      const normalizedTimeBudget = timeBudget?.replace(/-/g, ' ').trim().toLowerCase();
-      const is1Day = normalizedTimeBudget === '1 dag';
-
-      const maxStops = is1Day ? 4 : 7;
-      const minStops = is1Day ? 3 : 3;
-
-      const diverseStops: RouteStop[] = [];
-      const usedTypes = new Set<string>();
-      const typeGroups = {
-        nature: ['park', 'natural_feature', 'hiking_area', 'garden'],
-        culture: ['museum', 'church', 'art_gallery', 'tourist_attraction'],
-        food: ['cafe', 'restaurant', 'bakery'],
-        family: ['playground', 'zoo', 'aquarium', 'amusement_park']
-      };
-
-      for (const stop of allStops) {
-        if (diverseStops.length >= maxStops) break;
-
-        const primaryType = stop.types[0];
-
-        if (!usedTypes.has(primaryType)) {
-          diverseStops.push(stop);
-          usedTypes.add(primaryType);
-        }
-        else if (stop.rating && stop.rating >= 4.5 && diverseStops.length < maxStops) {
-          diverseStops.push(stop);
-        }
-      }
-
-      if (diverseStops.length < minStops && allStops.length >= minStops) {
-        for (const stop of allStops) {
-          if (diverseStops.length >= minStops) break;
-          if (!diverseStops.find(s => s.place_id === stop.place_id)) {
-            diverseStops.push(stop);
-          }
-        }
-      }
-
-      console.log(`✅ Selected ${diverseStops.length} diverse stops (${timeBudget || 'unlimited'} time budget)`);
+    async function enrichStopWithDetails(stop: RouteStop): Promise<RouteStop> {
+      const details = await getPlaceDetails(stop.place_id);
+      if (!details) return stop;
 
       return {
-        distance_km: Math.round(route.distanceMeters / 1000),
+        ...stop,
+        rating: details.rating || stop.rating,
+        types: details.types || stop.types
+      };
+    }
+
+    async function filterAndEnrichStops(stops: RouteStop[]): Promise<RouteStop[]> {
+      const excludedTypes = new Set([
+        'gas_station', 'car_repair', 'car_wash', 'parking',
+        'convenience_store', 'atm', 'bank'
+      ]);
+
+      const validStops = stops.filter(stop => {
+        const hasExcludedType = stop.types.some(type => excludedTypes.has(type));
+        return !hasExcludedType;
+      });
+
+      const enrichedStops = await Promise.all(
+        validStops.map(stop => enrichStopWithDetails(stop))
+      );
+
+      const finalStops = enrichedStops.filter(stop => {
+        if (!stop.rating || stop.rating < 4.0) return false;
+        return true;
+      });
+
+      return finalStops.slice(0, 10);
+    }
+
+    async function fetchCompleteRoute(origin: string, destination: string, routeType: string, days?: string) {
+      const { data: mapsSettings } = await supabase
+        .from('api_settings')
+        .select('api_key')
+        .eq('service_name', 'Google Maps API')
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (!mapsSettings?.api_key) {
+        throw new Error('Google Maps API key not configured');
+      }
+
+      const googleMapsApiKey = mapsSettings.api_key;
+      let waypoints: string[] = [];
+      let avoidHighways = false;
+
+      if (routeType === 'toeristische-route') {
+        avoidHighways = false;
+      } else if (routeType === 'binnendoor-weggetjes') {
+        avoidHighways = true;
+      }
+
+      const baseUrl = 'https://maps.googleapis.com/maps/api/directions/json';
+      const params = new URLSearchParams({
+        origin,
+        destination,
+        key: googleMapsApiKey,
+        language: 'nl',
+        mode: 'driving',
+        alternatives: 'true'
+      });
+
+      if (avoidHighways) {
+        params.set('avoid', 'highways');
+      }
+
+      if (waypoints.length > 0) {
+        params.set('waypoints', waypoints.join('|'));
+      }
+
+      const directionsResponse = await fetch(`${baseUrl}?${params.toString()}`);
+      if (!directionsResponse.ok) {
+        throw new Error(`Directions API failed: ${directionsResponse.status}`);
+      }
+
+      const directionsData = await directionsResponse.json();
+      if (directionsData.status !== 'OK' || !directionsData.routes || directionsData.routes.length === 0) {
+        throw new Error(`No route found: ${directionsData.status}`);
+      }
+
+      const route = directionsData.routes[0];
+      const leg = route.legs[0];
+
+      const polyline = route.overview_polyline?.encoded;
+      if (!polyline) {
+        throw new Error('No polyline in route');
+      }
+
+      const coordinates = decodePolyline(polyline);
+
+      const radius = 10000;
+      const placeTypes = ['tourist_attraction', 'museum', 'park', 'monument', 'art_gallery'];
+      const uniquePlaces = new Map<string, RouteStop>();
+
+      for (let i = 0; i < coordinates.length; i += Math.floor(coordinates.length / 15)) {
+        const coord = coordinates[i];
+        const nearbyUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${coord.lat},${coord.lng}&radius=${radius}&type=${placeTypes[0]}&key=${googleMapsApiKey}&language=nl`;
+
+        try {
+          const nearbyResponse = await fetch(nearbyUrl);
+          if (!nearbyResponse.ok) continue;
+
+          const nearbyData = await nearbyResponse.json();
+          if (nearbyData.status === 'OK' && nearbyData.results) {
+            for (const place of nearbyData.results.slice(0, 5)) {
+              if (!uniquePlaces.has(place.place_id)) {
+                const detourMinutes = Math.round(
+                  calculateDistance(coord.lat, coord.lng, place.geometry.location.lat, place.geometry.location.lng) * 2
+                );
+
+                if (detourMinutes <= 15) {
+                  uniquePlaces.set(place.place_id, {
+                    name: place.name,
+                    place_id: place.place_id,
+                    types: place.types || [],
+                    rating: place.rating,
+                    detour_minutes: detourMinutes,
+                    reason: 'Interessante bezienswaardigheid',
+                    location: place.geometry.location
+                  });
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.error('Error fetching nearby places:', e);
+        }
+      }
+
+      const allStops = Array.from(uniquePlaces.values());
+      const filteredStops = await filterAndEnrichStops(allStops);
+
+      const compressedSteps = compressSteps(leg.steps || []);
+
+      const diverseStops = filteredStops.slice(0, 8);
+
+      return {
+        distance: leg.distance.text,
+        duration: leg.duration.text,
+        distance_nonstop: leg.distance.text,
         duration_nonstop: route.duration,
         origin: origin,
         destination: destination,
@@ -504,22 +376,30 @@ Deno.serve(async (req: Request) => {
         try {
           routePayload = await fetchCompleteRoute(origin, destination, options.routeType || 'snelle-route', options.days);
           
-          console.log(JSON.stringify({
-            ORIGIN: origin,
-            DESTINATION: destination,
-            DISTANCE_KM: routePayload.distance_km,
-            DURATION_NONSTOP: routePayload.duration_nonstop,
-            STEPS: routePayload.steps?.length || 0,
-            STOPS: routePayload.stops?.length || 0,
-            LAST_STEP: routePayload.steps?.[routePayload.steps.length - 1] || null
-          }, null, 2));
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.log('📊 ROUTE PAYLOAD:');
+          console.log(`  Origin: ${routePayload.origin}`);
+          console.log(`  Destination: ${routePayload.destination}`);
+          console.log(`  Distance: ${routePayload.distance}`);
+          console.log(`  Duration: ${routePayload.duration}`);
+          console.log(`  Steps: ${routePayload.steps.length} compressed steps`);
+          console.log(`  Stops: ${routePayload.stops.length} interesting stops`);
 
-          if (errorMessage.includes('ROUTE_CALCULATION_FAILED')) {
+          if (routePayload.stops && routePayload.stops.length > 0) {
+            console.log('\n🎯 STOPS:');
+            routePayload.stops.forEach((stop: RouteStop, i: number) => {
+              console.log(`  ${i + 1}. ${stop.name} (${stop.detour_minutes} min detour, rating: ${stop.rating || 'n/a'})`);
+            });
+          }
+
+        } catch (error) {
+          console.error('❌ ERROR fetching route:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+
+          if (errorMessage.includes('API key')) {
             return new Response(
               JSON.stringify({
-                error: 'Er is een fout opgetreden bij het berekenen van de route',
+                success: false,
+                error: 'Google Maps API key is niet geconfigureerd. Ga naar Operator > API Settings om de key in te stellen.',
                 details: errorMessage
               }),
               {
@@ -547,7 +427,28 @@ Deno.serve(async (req: Request) => {
     const getSystemPrompt = (contentType: string) => {
       const basePrompts: Record<string, string> = {
         destination: `Je bent een professionele reisschrijver die boeiende bestemmingsteksten schrijft over {DESTINATION}. Schrijf in {WRITING_STYLE} stijl voor {VACATION_TYPE} reizigers. Gebruik actuele informatie en maak de tekst aantrekkelijk.`,
-        route: `Je bent een routeplanner die gedetailleerde routebeschrijvingen maakt. {ROUTE_TYPE_INSTRUCTION} Geef praktische informatie over de route, bezienswaardigheden onderweg, en reistips. Schrijf in {WRITING_STYLE} stijl voor {VACATION_TYPE} reizigers.`,
+        route: `Je bent een enthousiaste reisbuddy die routes tot een beleving maakt. {ROUTE_TYPE_INSTRUCTION}
+
+FOCUS OP BELEVING, NIET OP NAVIGATIE:
+- De routenavigatie wordt via Google Maps gedaan (die link wordt apart getoond)
+- Jouw focus is op DE ERVARING tijdens de reis
+- Vertel over wat ze ONDERWEG kunnen zien, doen, en beleven
+- Suggereer leuke stops voor foto's, koffie, of een snack
+- Geef tips voor waar ze kunnen eten/drinken onderweg
+- Bij aankomst: suggereer een supermarkt voor boodschappen of restaurant voor direct uit eten
+
+STRUCTUUR:
+1. Korte intro over de reis (afstand/tijd)
+2. Bezienswaardigheden onderweg (met waarom ze leuk zijn)
+3. Eet- en drinkgelegenheden onderweg (match aan reizigersvoorkeuren als bekend)
+4. Leuke stops voor foto's of een pauze
+5. Tips bij aankomst (supermarkt of restaurant in de buurt)
+
+STIJL:
+- Schrijf in {WRITING_STYLE} stijl voor {VACATION_TYPE} reizigers
+- Wees enthousiast en inspirerend
+- Geef concrete namen van plekken (niet "er zijn cafés" maar "Café De Zon")
+- Maak de reis tot een avontuur, niet alleen maar kilometers`,
         planning: `Je bent een reisplanner die {DAYS} dagplanningen maakt voor {DESTINATION}. Geef een praktische planning met tijden, activiteiten, en tips. Schrijf in {WRITING_STYLE} stijl voor {VACATION_TYPE} reizigers.`,
         hotel: `Je bent een hotelexpert die hotelzoekresultaten presenteert voor {VACATION_TYPE} reizigers. Geef gedetailleerde informatie over hotels, voorzieningen, en boekingsadvies. Schrijf in {WRITING_STYLE} stijl.`,
         image: `Je bent een AI die afbeeldingsbeschrijvingen genereert voor DALL-E. Maak een gedetailleerde, visuele beschrijving voor een {VACATION_TYPE} reisafbeelding in {WRITING_STYLE} stijl.`
@@ -583,69 +484,34 @@ Deno.serve(async (req: Request) => {
         });
       }
 
+      if (routePayload?.stops && routePayload.stops.length > 0) {
+        userPrompt += `\n## Leuke stops/bezienswaardigheden (${routePayload.stops.length}):\n`;
+        routePayload.stops.forEach((stop: RouteStop, idx: number) => {
+          userPrompt += `${idx + 1}. **${stop.name}**\n`;
+          userPrompt += `   - Omweg: ${stop.detour_minutes} minuten\n`;
+          if (stop.rating) userPrompt += `   - Rating: ${stop.rating}/5\n`;
+          userPrompt += `   - Reden: ${stop.reason}\n`;
+        });
+      }
+
       if (ctx.eateriesOnRoute && ctx.eateriesOnRoute.length > 0) {
-        userPrompt += `\n## Aanbevolen Eetgelegenheden onderweg (${ctx.eateriesOnRoute.length}):\n`;
-        ctx.eateriesOnRoute.forEach((eat: any, idx: number) => {
-          userPrompt += `${idx + 1}. ${eat.name} - ${eat.type}\n`;
-          userPrompt += `   Adres: ${eat.address}\n`;
-          userPrompt += `   Rating: ${eat.rating}/5 | Prijsklasse: ${'€'.repeat(eat.price_level || 2)}\n`;
-          userPrompt += `   Omweg: ${eat.detour_minutes} minuten\n`;
-          if (eat.kid_friendly) userPrompt += `   ⭐ Kindvriendelijk\n`;
-          if (eat.note) userPrompt += `   ${eat.note}\n`;
+        userPrompt += `\n## Eetgelegenheden onderweg:\n`;
+        ctx.eateriesOnRoute.forEach((eatery: any) => {
+          userPrompt += `- ${eatery.name} (${eatery.vicinity})\n`;
+          if (eatery.rating) userPrompt += `  Rating: ${eatery.rating}/5\n`;
         });
       }
 
       if (ctx.eateriesAtArrival && ctx.eateriesAtArrival.length > 0) {
-        userPrompt += `\n## Eetgelegenheden bij aankomst (${ctx.eateriesAtArrival.length}):\n`;
-        ctx.eateriesAtArrival.forEach((eat: any, idx: number) => {
-          userPrompt += `${idx + 1}. ${eat.name} - ${eat.type}\n`;
-          userPrompt += `   Adres: ${eat.address}\n`;
-          userPrompt += `   Rating: ${eat.rating}/5 | Prijsklasse: ${'€'.repeat(eat.price_level || 2)}\n`;
-          userPrompt += `   Afstand: ${Math.round(eat.distance_m || 0)}m van centrum\n`;
-          if (eat.kid_friendly) userPrompt += `   ⭐ Kindvriendelijk\n`;
-          if (eat.note) userPrompt += `   ${eat.note}\n`;
+        userPrompt += `\n## Eetgelegenheden bij aankomst (${ctx.to}):\n`;
+        ctx.eateriesAtArrival.forEach((eatery: any) => {
+          userPrompt += `- ${eatery.name} (${eatery.vicinity})\n`;
+          if (eatery.rating) userPrompt += `  Rating: ${eatery.rating}/5\n`;
         });
       }
-
-      userPrompt += `\n## Opdracht:\n`;
-      userPrompt += `Schrijf een boeiende routebeschrijving in ${writingStyle} stijl voor ${options.vacationType || 'algemene'} reizigers. `;
-      userPrompt += `Vermeld de bezienswaardigheden en eetgelegenheden op een natuurlijke manier in de tekst. `;
-      userPrompt += `Maak het persoonlijk en aantrekkelijk.`;
-    } else if (routePayload) {
-      userPrompt = `
-Genereer een routebeschrijving voor de volgende route:
-
-Van: ${routePayload.origin}
-Naar: ${routePayload.destination}
-Afstand: ${routePayload.distance_km} km
-Reistijd non-stop: ${routePayload.duration_nonstop}
-
-${routePayload.stops && routePayload.stops.length > 0 ? `Aanbevolen stops onderweg:
-${routePayload.stops.map((stop: RouteStop, i: number) =>
-  `${i + 1}. ${stop.name} (${stop.rating}⭐) - ${stop.reason}`
-).join('\n')}` : 'Geen stops aanbevolen voor deze route.'}
-
-${routePayload.steps && routePayload.steps.length > 0 ? `Route overzicht:
-${routePayload.steps.slice(0, 5).map((step: CompressedStep) =>
-  `- ${step.highway}: ${step.instruction}`
-).join('\n')}` : ''}
-
-Schrijf een inspirerende routebeschrijving in Nederlandse taal die reizigers helpt deze route te ervaren.
-`;
-    } else if (additionalContext && typeof additionalContext === 'string') {
-      userPrompt += `\n\nExtra context: ${additionalContext}`;
     }
 
-    const messages = [
-      {
-        role: 'system',
-        content: options.systemPrompt || getSystemPrompt(contentType)
-      },
-      {
-        role: 'user',
-        content: userPrompt
-      }
-    ];
+    const systemPrompt = options.systemPrompt || getSystemPrompt(contentType);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -654,20 +520,23 @@ Schrijf een inspirerende routebeschrijving in Nederlandse taal die reizigers hel
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: options.model || 'gpt-3.5-turbo',
-        messages,
-        max_tokens: options.maxTokens || 1500,
-        temperature: options.temperature || 0.7,
+        model: options.model || 'gpt-4o',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ],
+        temperature: options.temperature ?? 0.7,
+        max_tokens: options.maxTokens || 2000,
       }),
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.error?.message || `OpenAI API error: ${response.status}`);
+      const error = await response.text();
+      throw new Error(`OpenAI API error: ${error}`);
     }
 
     const data = await response.json();
-    const content = data.choices[0]?.message?.content || '';
+    const content = data.choices[0].message.content;
 
     return new Response(
       JSON.stringify({ content }),
@@ -675,13 +544,10 @@ Schrijf een inspirerende routebeschrijving in Nederlandse taal die reizigers hel
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
-
   } catch (error) {
-    console.error('Error in generate-content function:', error);
+    console.error('Error in generate-content:', error);
     return new Response(
-      JSON.stringify({
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
-      }),
+      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
