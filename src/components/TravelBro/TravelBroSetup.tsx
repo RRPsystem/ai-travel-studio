@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { db, supabase } from '../../lib/supabase';
-import { Bot, Phone, MessageSquare, Users, Settings, CheckCircle, XCircle, ExternalLink, Copy, Send, Plus, FileText, Link as LinkIcon, Trash2, Share2, Upload, Loader, Edit, Clock, Calendar, ArrowRight } from 'lucide-react';
+import { Bot, Phone, MessageSquare, Users, Settings, CheckCircle, XCircle, ExternalLink, Copy, Send, Plus, FileText, Link as LinkIcon, Trash2, Share2, Upload, Loader, Edit, Clock, Calendar, ArrowRight, MapPin, Route, Navigation } from 'lucide-react';
+import { GooglePlacesAutocomplete } from '../shared/GooglePlacesAutocomplete';
+import { edgeAIService } from '../../lib/apiServices';
 
 export function TravelBroSetup() {
   const { user } = useAuth();
@@ -46,6 +48,12 @@ export function TravelBroSetup() {
   const [scheduleType, setScheduleType] = useState('custom');
   const [schedulePhone, setSchedulePhone] = useState('');
   const [savingSchedule, setSavingSchedule] = useState(false);
+
+  const [showRouteGenerator, setShowRouteGenerator] = useState(false);
+  const [routeFrom, setRouteFrom] = useState('');
+  const [routeTo, setRouteTo] = useState('');
+  const [routeLength, setRouteLength] = useState<'short' | 'long'>('short');
+  const [generatingRoute, setGeneratingRoute] = useState(false);
 
   const [isEditingTrip, setIsEditingTrip] = useState(false);
   const [editTripName, setEditTripName] = useState('');
@@ -174,6 +182,46 @@ export function TravelBroSetup() {
       alert('❌ Fout bij opslaan: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
     } finally {
       setSavingSchedule(false);
+    }
+  };
+
+  const generateWhatsAppRoute = async () => {
+    if (!routeFrom.trim() || !routeTo.trim()) {
+      alert('Vul beide locaties in');
+      return;
+    }
+
+    setGeneratingRoute(true);
+    try {
+      const response = await edgeAIService.generateRouteDescription(
+        routeFrom,
+        routeTo,
+        routeLength === 'long'
+      );
+
+      if (response.error) throw new Error(response.error);
+
+      let message = `🗺️ Route van ${routeFrom} naar ${routeTo}\n\n`;
+      message += `📍 Afstand: ${response.distance}\n`;
+      message += `⏱️ Reistijd: ${response.duration}\n\n`;
+
+      if (response.story) {
+        message += `${response.story}\n\n`;
+      }
+
+      message += `🧭 Navigatie:\n`;
+      message += `${window.location.origin.replace('http://', 'https://')}/maps?from=${encodeURIComponent(routeFrom)}&to=${encodeURIComponent(routeTo)}`;
+
+      setScheduleMessage(message);
+      setScheduleType('route_description');
+      setShowRouteGenerator(false);
+
+      alert('✅ Route gegenereerd! Pas het bericht aan indien nodig.');
+    } catch (error) {
+      console.error('Error generating route:', error);
+      alert('❌ Fout bij genereren route: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
+    } finally {
+      setGeneratingRoute(false);
     }
   };
 
@@ -1548,6 +1596,101 @@ export function TravelBroSetup() {
                       </select>
                     </div>
 
+                    {scheduleType === 'route_description' && !showRouteGenerator && (
+                      <button
+                        onClick={() => setShowRouteGenerator(true)}
+                        className="w-full flex items-center justify-center space-x-2 bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-3 rounded-lg border-2 border-dashed border-blue-300 transition-colors"
+                      >
+                        <Route size={18} />
+                        <span className="font-medium">Genereer Route met AI</span>
+                      </button>
+                    )}
+
+                    {showRouteGenerator && (
+                      <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 space-y-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold text-blue-900 flex items-center space-x-2">
+                            <Navigation size={16} />
+                            <span>Route Generator</span>
+                          </h4>
+                          <button
+                            onClick={() => setShowRouteGenerator(false)}
+                            className="text-blue-600 hover:text-blue-800 text-sm"
+                          >
+                            Sluiten
+                          </button>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-blue-900 mb-1">
+                            Van
+                          </label>
+                          <GooglePlacesAutocomplete
+                            value={routeFrom}
+                            onChange={setRouteFrom}
+                            placeholder="Startlocatie..."
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-blue-900 mb-1">
+                            Naar
+                          </label>
+                          <GooglePlacesAutocomplete
+                            value={routeTo}
+                            onChange={setRouteTo}
+                            placeholder="Eindbestemming..."
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-blue-900 mb-2">
+                            Tekst lengte
+                          </label>
+                          <div className="flex space-x-2">
+                            <button
+                              onClick={() => setRouteLength('short')}
+                              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                routeLength === 'short'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white text-blue-900 border border-blue-300 hover:bg-blue-100'
+                              }`}
+                            >
+                              Kort
+                            </button>
+                            <button
+                              onClick={() => setRouteLength('long')}
+                              className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                routeLength === 'long'
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-white text-blue-900 border border-blue-300 hover:bg-blue-100'
+                              }`}
+                            >
+                              Lang
+                            </button>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={generateWhatsAppRoute}
+                          disabled={generatingRoute || !routeFrom.trim() || !routeTo.trim()}
+                          className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                        >
+                          {generatingRoute ? (
+                            <>
+                              <Loader className="w-4 h-4 animate-spin" />
+                              <span>Genereren...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Route size={16} />
+                              <span>Genereer Route</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Bericht
@@ -1555,9 +1698,9 @@ export function TravelBroSetup() {
                       <textarea
                         value={scheduleMessage}
                         onChange={(e) => setScheduleMessage(e.target.value)}
-                        rows={4}
+                        rows={8}
                         placeholder="Bijv: Hoi! Vandaag reis je van Bangkok naar Chiang Mai. Hier is je routebeschrijving..."
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent font-mono text-sm"
                       />
                       <p className="text-xs text-gray-500 mt-1">
                         💡 Tip: Schrijf het bericht alsof je direct met de klant praat
