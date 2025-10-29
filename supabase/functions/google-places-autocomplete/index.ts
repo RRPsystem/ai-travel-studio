@@ -47,7 +47,6 @@ Deno.serve(async (req: Request) => {
     url.searchParams.set('input', input);
     url.searchParams.set('key', apiSettings.api_key);
     url.searchParams.set('language', 'nl');
-    url.searchParams.set('components', 'country:nl|country:be|country:de|country:fr|country:lu');
 
     const response = await fetch(url.toString());
     const data = await response.json();
