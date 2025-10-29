@@ -504,10 +504,10 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
 
             {/* Chat Messages */}
             <div className="flex-1 overflow-y-auto p-6">
-              <div className="max-w-4xl mx-auto space-y-6">
+              <div className="w-full space-y-6">
                 {activeChat.messages.map((message) => (
                   <div key={message.id} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-3xl p-4 rounded-lg ${
+                    <div className={`${message.type === 'user' ? 'max-w-3xl' : 'w-full'} p-4 rounded-lg ${
                       message.type === 'user'
                         ? 'bg-blue-600 text-white'
                         : 'bg-white border border-gray-200'
