@@ -562,7 +562,7 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
 
                             <div className="bg-gray-50 rounded-lg p-4">
                               <h4 className="font-semibold text-gray-900 mb-3">Route stappen</h4>
-                              <div className="space-y-2 max-h-96 overflow-y-auto">
+                              <div className="space-y-2 max-h-[600px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">
                                 {message.routeData.steps.map((step, idx) => (
                                   <div key={idx} className="text-sm border-l-2 border-gray-300 pl-3 py-1">
                                     <div className="text-gray-900">{step.instruction}</div>
