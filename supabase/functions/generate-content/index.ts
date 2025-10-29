@@ -429,10 +429,9 @@ Deno.serve(async (req: Request) => {
       console.log(`🔍 Found ${allStops.length} candidate stops (deduplicated)`);
 
       if (allStops.length === 0) {
-        console.error(`❌ NO STOPS FOUND! This is the problem.`);
-        console.error(`   - Search points: ${searchPoints.length}`);
-        console.error(`   - Polyline provided: ${polyline ? 'YES' : 'NO'}`);
-        throw new Error('NO_STOPS_FOUND');
+        console.warn(`⚠️ NO STOPS FOUND - but continuing with route only`);
+        console.warn(`   - Search points: ${searchPoints.length}`);
+        console.warn(`   - Polyline provided: ${polyline ? 'YES' : 'NO'}`);
       }
 
       allStops.sort((a, b) => {
@@ -515,20 +514,7 @@ Deno.serve(async (req: Request) => {
           }, null, 2));
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : String(error);
-          
-          if (errorMessage.includes('NO_STOPS_FOUND')) {
-            return new Response(
-              JSON.stringify({
-                error: 'Er is een fout opgetreden: NO_STOPS_FOUND',
-                details: 'Er zijn geen interessante stops gevonden langs deze route. Dit kan komen doordat de route te kort is of door een probleem met de Google Places API.'
-              }),
-              {
-                status: 400,
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-              }
-            );
-          }
-          
+
           if (errorMessage.includes('ROUTE_CALCULATION_FAILED')) {
             return new Response(
               JSON.stringify({
@@ -541,7 +527,7 @@ Deno.serve(async (req: Request) => {
               }
             );
           }
-          
+
           throw error;
         }
       }
