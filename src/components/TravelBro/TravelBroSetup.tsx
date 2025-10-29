@@ -1403,6 +1403,23 @@ export function TravelBroSetup() {
                   </div>
                 )}
 
+                {isTwilioConfigured && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <p className="text-sm text-blue-900 font-semibold mb-2">
+                      📋 WhatsApp Business Account Info
+                    </p>
+                    <p className="text-xs text-blue-800 mb-1">
+                      • Voor het <strong>eerste bericht</strong> naar een klant heb je een <strong>approved message template</strong> nodig
+                    </p>
+                    <p className="text-xs text-blue-800 mb-1">
+                      • Als de klant <strong>eerst een bericht stuurt</strong>, kun je 24 uur lang vrije tekst sturen
+                    </p>
+                    <p className="text-xs text-blue-800">
+                      • Template maken: <a href="https://console.twilio.com/us1/develop/sms/content-editor" target="_blank" className="underline font-medium">Twilio Console → Content Templates</a>
+                    </p>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
