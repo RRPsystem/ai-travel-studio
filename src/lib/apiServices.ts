@@ -855,45 +855,82 @@ export class EdgeFunctionAIService {
     fromLocation: string,
     toLocation: string,
     isScenicRoute: boolean = false
-  ): Promise<string> {
-    const routeType = isScenicRoute ? 'scenic' : 'highway';
-    const routeDescription = isScenicRoute
-      ? 'een mooie binnendoorroute met bezienswaardigheden onderweg'
-      : 'de snelste route via de snelweg';
-
-    const prompt = `Genereer een WhatsApp-vriendelijke routebeschrijving van ${fromLocation} naar ${toLocation}.
-
-Route type: ${routeDescription}
-
-Maak een kort, enthousiast bericht met:
-- 🗺️ Korte intro
-- 📍 Van/Naar locaties
-- 🚗 Geschatte reistijd en afstand
-${isScenicRoute ? '- 🌟 2-3 highlights/bezienswaardigheden onderweg\n- 🍽️ Leuke stop onderweg (restaurant/café)' : '- 🛣️ Belangrijkste snelwegen'}
-- 🧭 Google Maps link voor navigatie
-
-Houd het kort (max 150 woorden), gebruik emoji's, en maak het persoonlijk en enthousiast!`;
-
+  ): Promise<{distance: string; duration: string; story: string; error?: string}> {
     try {
-      const content = await this.generateContent(
+      const routesResponse = await fetch(`${this.baseUrl}/google-routes`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          origin: fromLocation,
+          destination: toLocation,
+          avoidHighways: isScenicRoute
+        }),
+      });
+
+      if (!routesResponse.ok) {
+        throw new Error('Failed to fetch route data');
+      }
+
+      const routeData = await routesResponse.json();
+
+      const distanceKm = Math.round(routeData.distance / 1000);
+      const durationHours = Math.floor(routeData.duration / 3600);
+      const durationMinutes = Math.round((routeData.duration % 3600) / 60);
+
+      const distance = `${distanceKm} km`;
+      const duration = durationHours > 0
+        ? `${durationHours} uur ${durationMinutes} min`
+        : `${durationMinutes} min`;
+
+      const routeDescription = isScenicRoute
+        ? 'een mooie binnendoorroute met bezienswaardigheden onderweg'
+        : 'de snelste route via de snelweg';
+
+      const prompt = `Schrijf een vriendelijk, enthousiast WhatsApp-bericht voor een ${isScenicRoute ? 'mooie binnendoor' : 'snelweg'}route van ${fromLocation} naar ${toLocation}.
+
+De route is ${distance} en duurt ongeveer ${duration}.
+
+Maak een leuk bericht met:
+${isScenicRoute
+  ? `- 🌟 2-3 interessante stops of bezienswaardigheden onderweg
+- 🍽️ Een leuke plek om te eten/pauzeren (bijvoorbeeld een leuk restaurantje of café in een tussenstop)
+- 💚 Waarom deze route zo mooi is (natuur, uitzichten, sfeer)`
+  : `- 🛣️ Belangrijkste snelwegen die je neemt
+- ⚡ Waarom deze route het snelst is
+- ☕ Tip voor een goede stop (tankstation/wegrestaurant)`
+}
+
+Schrijf het in een gezellige, persoonlijke toon alsof je een vriend helpt. Gebruik emoji's. Max 120 woorden.`;
+
+      const story = await this.generateContent(
         'route_description',
         prompt,
         'friendly',
         '',
         {
-          routeType,
+          routeType: isScenicRoute ? 'scenic' : 'highway',
           routeTypeDescription: routeDescription,
-          temperature: 0.8,
-          maxTokens: 500
+          temperature: 0.9,
+          maxTokens: 400
         }
       );
 
-      const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(fromLocation)}&destination=${encodeURIComponent(toLocation)}&travelmode=driving`;
-
-      return `${content}\n\n🧭 *Navigatie*: ${mapsUrl}`;
+      return {
+        distance,
+        duration,
+        story
+      };
     } catch (error) {
       console.error('Error generating route description:', error);
-      throw error;
+      return {
+        distance: 'Onbekend',
+        duration: 'Onbekend',
+        story: '',
+        error: error instanceof Error ? error.message : 'Onbekende fout'
+      };
     }
   }
 }
