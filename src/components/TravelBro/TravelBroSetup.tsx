@@ -555,10 +555,14 @@ export function TravelBroSetup() {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Verzenden mislukt');
+        console.error('WhatsApp send error:', result);
+        const errorMsg = result.error || 'Verzenden mislukt';
+        const details = result.details ? `\n\nDetails: ${JSON.stringify(result.details, null, 2)}` : '';
+        throw new Error(errorMsg + details);
       }
 
-      alert(`✅ WhatsApp uitnodiging verzonden naar ${invitePhone}!`);
+      console.log('WhatsApp sent successfully:', result);
+      alert(`✅ WhatsApp uitnodiging verzonden naar ${invitePhone}!\n\nMessage SID: ${result.messageSid}`);
       setInvitePhone('');
       setInviteClientName('');
       setSkipIntake(false);
