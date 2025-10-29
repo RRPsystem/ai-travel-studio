@@ -52,7 +52,7 @@ export function TravelBroSetup() {
   const [showRouteGenerator, setShowRouteGenerator] = useState(false);
   const [routeFrom, setRouteFrom] = useState('');
   const [routeTo, setRouteTo] = useState('');
-  const [routeLength, setRouteLength] = useState<'short' | 'long'>('short');
+  const [routeType, setRouteType] = useState<'short' | 'long'>('short');
   const [generatingRoute, setGeneratingRoute] = useState(false);
 
   const [isEditingTrip, setIsEditingTrip] = useState(false);
@@ -196,7 +196,7 @@ export function TravelBroSetup() {
       const response = await edgeAIService.generateRouteDescription(
         routeFrom,
         routeTo,
-        routeLength === 'long'
+        routeType === 'long'
       );
 
       if (response.error) throw new Error(response.error);
@@ -1645,28 +1645,28 @@ export function TravelBroSetup() {
 
                         <div>
                           <label className="block text-sm font-medium text-blue-900 mb-2">
-                            Tekst lengte
+                            Route type
                           </label>
                           <div className="flex space-x-2">
                             <button
-                              onClick={() => setRouteLength('short')}
+                              onClick={() => setRouteType('short')}
                               className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                routeLength === 'short'
+                                routeType === 'short'
                                   ? 'bg-blue-600 text-white'
                                   : 'bg-white text-blue-900 border border-blue-300 hover:bg-blue-100'
                               }`}
                             >
-                              Kort
+                              🛣️ Snelweg
                             </button>
                             <button
-                              onClick={() => setRouteLength('long')}
+                              onClick={() => setRouteType('long')}
                               className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                routeLength === 'long'
+                                routeType === 'long'
                                   ? 'bg-blue-600 text-white'
                                   : 'bg-white text-blue-900 border border-blue-300 hover:bg-blue-100'
                               }`}
                             >
-                              Lang
+                              🌳 Binnendoor
                             </button>
                           </div>
                         </div>
