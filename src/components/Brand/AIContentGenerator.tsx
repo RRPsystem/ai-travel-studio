@@ -230,7 +230,34 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
 
           if (routeResult.success && routeResult.route) {
             routeData = routeResult.route;
-            response = `Route van ${routeFrom} naar ${routeTo} is berekend.`;
+
+            const vacationTypeObj = moreSettings.find(s => s.id === selectedMoreSetting);
+            const routeTypeObj = routeTypes.find(r => r.id === selectedRouteType);
+            const daysObj = dayOptions.find(d => d.id === selectedDays);
+
+            response = await edgeAIService.generateContent(
+              'route',
+              `Route van ${routeFrom} naar ${routeTo}`,
+              selectedWritingStyle || 'zakelijk',
+              {
+                from: routeFrom,
+                to: routeTo,
+                distance: routeData.distance,
+                duration: routeData.duration,
+                waypoints: routeData.waypoints || [],
+                eateriesOnRoute: routeData.eateriesOnRoute || [],
+                eateriesAtArrival: routeData.eateriesAtArrival || []
+              },
+              {
+                vacationType: selectedMoreSetting || 'algemene',
+                vacationTypeDescription: vacationTypeObj?.description,
+                routeType: selectedRouteType,
+                routeTypeDescription: routeTypeObj?.description,
+                days: selectedDays,
+                daysDescription: daysObj?.description,
+                destination: routeTo
+              }
+            );
           } else {
             response = `Kon geen route vinden: ${routeResult.error || 'Onbekende fout'}`;
           }

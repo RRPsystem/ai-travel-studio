@@ -89,7 +89,7 @@ export class OpenAIService {
     contentType: string,
     prompt: string,
     writingStyle: string = 'professional',
-    additionalContext: string = '',
+    additionalContext: string | object = '',
     options: {
       vacationType?: string;
       routeType?: string;
@@ -146,6 +146,59 @@ export class OpenAIService {
       return systemPrompt;
     };
 
+    let userPrompt = prompt;
+
+    if (contentType === 'route' && additionalContext && typeof additionalContext === 'object') {
+      const ctx = additionalContext as any;
+
+      userPrompt += `\n\n## Route Informatie:\n`;
+      userPrompt += `- Afstand: ${ctx.distance || 'Onbekend'}\n`;
+      userPrompt += `- Reistijd: ${ctx.duration || 'Onbekend'}\n`;
+
+      if (ctx.waypoints && ctx.waypoints.length > 0) {
+        userPrompt += `\n## Bezienswaardigheden onderweg (${ctx.waypoints.length}):\n`;
+        ctx.waypoints.forEach((wp: any, idx: number) => {
+          userPrompt += `${idx + 1}. ${wp.name} (km ${wp.corridorKm}, omweg ${wp.detourMinutes} min)\n`;
+          if (wp.description) userPrompt += `   ${wp.description}\n`;
+        });
+      }
+
+      if (ctx.eateriesOnRoute && ctx.eateriesOnRoute.length > 0) {
+        userPrompt += `\n## Aanbevolen Eetgelegenheden onderweg (${ctx.eateriesOnRoute.length}):\n`;
+        ctx.eateriesOnRoute.forEach((eat: any, idx: number) => {
+          userPrompt += `${idx + 1}. ${eat.name} - ${eat.type}\n`;
+          userPrompt += `   Adres: ${eat.address}\n`;
+          userPrompt += `   Rating: ${eat.rating}/5 | Prijsklasse: ${'€'.repeat(eat.price_level || 2)}\n`;
+          userPrompt += `   Omweg: ${eat.detour_minutes} minuten\n`;
+          if (eat.kid_friendly) userPrompt += `   ⭐ Kindvriendelijk\n`;
+          if (eat.note) userPrompt += `   ${eat.note}\n`;
+        });
+      }
+
+      if (ctx.eateriesAtArrival && ctx.eateriesAtArrival.length > 0) {
+        userPrompt += `\n## Eetgelegenheden bij aankomst (${ctx.eateriesAtArrival.length}):\n`;
+        ctx.eateriesAtArrival.forEach((eat: any, idx: number) => {
+          userPrompt += `${idx + 1}. ${eat.name} - ${eat.type}\n`;
+          userPrompt += `   Adres: ${eat.address}\n`;
+          userPrompt += `   Rating: ${eat.rating}/5 | Prijsklasse: ${'€'.repeat(eat.price_level || 2)}\n`;
+          userPrompt += `   Afstand: ${Math.round(eat.distance_m || 0)}m van centrum\n`;
+          if (eat.kid_friendly) userPrompt += `   ⭐ Kindvriendelijk\n`;
+          if (eat.note) userPrompt += `   ${eat.note}\n`;
+        });
+      }
+
+      userPrompt += `\n## Opdracht:\n`;
+      userPrompt += `Schrijf een boeiende routebeschrijving in {WRITING_STYLE} stijl voor {VACATION_TYPE} reizigers. `;
+      userPrompt += `Vermeld de bezienswaardigheden en eetgelegenheden op een natuurlijke manier in de tekst. `;
+      userPrompt += `Maak het persoonlijk en aantrekkelijk.`;
+
+      userPrompt = userPrompt
+        .replace('{WRITING_STYLE}', writingStyle)
+        .replace('{VACATION_TYPE}', options.vacationType || 'algemene');
+    } else if (additionalContext && typeof additionalContext === 'string') {
+      userPrompt += `\n\nExtra context: ${additionalContext}`;
+    }
+
     const messages: OpenAIMessage[] = [
       {
         role: 'system',
@@ -153,7 +206,7 @@ export class OpenAIService {
       },
       {
         role: 'user',
-        content: `${prompt}${additionalContext ? `\n\nExtra context: ${additionalContext}` : ''}`
+        content: userPrompt
       }
     ];
 
@@ -759,7 +812,7 @@ export class EdgeFunctionAIService {
     contentType: string,
     prompt: string,
     writingStyle: string = 'professional',
-    additionalContext: string = '',
+    additionalContext: string | object = '',
     options: {
       vacationType?: string;
       vacationTypeDescription?: string;
