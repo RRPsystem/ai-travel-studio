@@ -24,7 +24,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: messages, error: fetchError } = await supabase
       .from('scheduled_whatsapp_messages')
-      .select('*, travel_trips(phone_number)')
+      .select('*, travel_trips(whatsapp_number)')
       .eq('is_sent', false)
       .lte('scheduled_date', now.toISOString().split('T')[0])
       .order('scheduled_date', { ascending: true })
@@ -67,7 +67,7 @@ Deno.serve(async (req: Request) => {
           continue;
         }
 
-        const phoneNumber = msg.recipient_phone || msg.travel_trips?.phone_number;
+        const phoneNumber = msg.recipient_phone || msg.travel_trips?.whatsapp_number;
 
         if (!phoneNumber) {
           console.error(`Message ${msg.id} has no phone number`);
