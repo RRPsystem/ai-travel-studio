@@ -16,13 +16,13 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { to, message, brandId } = await req.json();
+    const { to, message, brandId, useTemplate, templateSid, templateVariables } = await req.json();
 
-    if (!to || !message) {
+    if (!to || (!message && !useTemplate)) {
       return new Response(
         JSON.stringify({
           success: false,
-          error: 'Telefoonnummer en bericht zijn verplicht'
+          error: 'Telefoonnummer en bericht (of template) zijn verplicht'
         }),
         {
           status: 400,
@@ -86,13 +86,21 @@ Deno.serve(async (req: Request) => {
     console.log('Sending WhatsApp message:', {
       to: toNumber,
       from: fromWhatsApp,
-      messageLength: message.length
+      messageLength: message?.length || 0
     });
 
     const formData = new URLSearchParams();
     formData.append('To', toNumber);
     formData.append('From', fromWhatsApp);
-    formData.append('Body', message);
+
+    if (useTemplate && templateSid) {
+      formData.append('ContentSid', templateSid);
+      if (templateVariables) {
+        formData.append('ContentVariables', JSON.stringify(templateVariables));
+      }
+    } else {
+      formData.append('Body', message);
+    }
 
     const twilioResponse = await fetch(twilioUrl, {
       method: 'POST',
@@ -107,11 +115,23 @@ Deno.serve(async (req: Request) => {
 
     if (!twilioResponse.ok) {
       console.error('Twilio error:', responseData);
+
+      let errorMessage = responseData.message || 'Fout bij verzenden WhatsApp bericht';
+
+      if (responseData.code === 63016 || errorMessage.includes('template')) {
+        errorMessage = '❌ WhatsApp Business vereist een approved message template voor het eerste bericht.\n\n' +
+                      'Oplossingen:\n' +
+                      '1. Maak een template in Twilio Console\n' +
+                      '2. Of: laat de klant eerst een bericht sturen (dan heb je 24u voor vrije tekst)';
+      }
+
       return new Response(
         JSON.stringify({
           success: false,
-          error: responseData.message || 'Fout bij verzenden WhatsApp bericht',
-          details: responseData
+          error: errorMessage,
+          details: responseData,
+          twilioCode: responseData.code,
+          moreInfo: responseData.more_info
         }),
         {
           status: 400,
