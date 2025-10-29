@@ -519,7 +519,7 @@ export function TravelBroSetup() {
     }
   };
 
-  const generateOptInCode = () => {
+  const generateQRCode = () => {
     if (!selectedTrip) {
       alert('Selecteer eerst een reis');
       return;
@@ -528,30 +528,165 @@ export function TravelBroSetup() {
     const code = selectedTrip.share_token.substring(0, 8).toUpperCase();
     const whatsappNumber = apiSettings?.twilio_whatsapp_number || '+14155238886';
     const cleanNumber = whatsappNumber.replace('whatsapp:', '').replace('+', '');
-    const clientNameText = inviteClientName.trim() || 'Reiziger';
 
-    const message = `📱 WhatsApp Uitnodiging voor ${clientNameText}
+    const whatsappUrl = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(code)}`;
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(whatsappUrl)}`;
 
-🔐 Activatie Code: ${code}
+    const qrWindow = window.open('', '_blank', 'width=500,height=700');
+    if (qrWindow) {
+      const clientNameText = inviteClientName.trim() || 'Reiziger';
+      qrWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>WhatsApp QR Code - ${selectedTrip.name}</title>
+          <style>
+            body {
+              font-family: system-ui, -apple-system, sans-serif;
+              max-width: 500px;
+              margin: 0 auto;
+              padding: 20px;
+              text-align: center;
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              min-height: 100vh;
+            }
+            .container {
+              background: white;
+              border-radius: 20px;
+              padding: 30px;
+              box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            }
+            h1 {
+              color: #1f2937;
+              font-size: 24px;
+              margin-bottom: 10px;
+            }
+            .trip-name {
+              color: #6b7280;
+              font-size: 16px;
+              margin-bottom: 20px;
+            }
+            .qr-code {
+              margin: 20px 0;
+              padding: 20px;
+              background: white;
+              border-radius: 15px;
+              border: 3px solid #f3f4f6;
+            }
+            .qr-code img {
+              width: 100%;
+              max-width: 300px;
+              height: auto;
+            }
+            .code {
+              font-size: 28px;
+              font-weight: bold;
+              color: #ea580c;
+              letter-spacing: 3px;
+              margin: 20px 0;
+              padding: 15px;
+              background: #fff7ed;
+              border-radius: 10px;
+              border: 2px dashed #ea580c;
+            }
+            .instructions {
+              text-align: left;
+              background: #f0fdf4;
+              padding: 20px;
+              border-radius: 10px;
+              margin-top: 20px;
+              border-left: 4px solid #22c55e;
+            }
+            .instructions h3 {
+              color: #166534;
+              margin-top: 0;
+              font-size: 16px;
+            }
+            .instructions ol {
+              color: #166534;
+              margin: 10px 0 0 0;
+              padding-left: 20px;
+            }
+            .instructions li {
+              margin: 8px 0;
+              line-height: 1.5;
+            }
+            .info-box {
+              background: #dbeafe;
+              padding: 15px;
+              border-radius: 10px;
+              margin-top: 20px;
+              border-left: 4px solid #3b82f6;
+              text-align: left;
+            }
+            .info-box strong {
+              color: #1e40af;
+              display: block;
+              margin-bottom: 5px;
+            }
+            .info-box p {
+              color: #1e40af;
+              margin: 5px 0;
+              font-size: 14px;
+              line-height: 1.5;
+            }
+            .print-btn {
+              background: #059669;
+              color: white;
+              border: none;
+              padding: 12px 30px;
+              border-radius: 8px;
+              font-size: 16px;
+              font-weight: 600;
+              cursor: pointer;
+              margin-top: 20px;
+            }
+            .print-btn:hover {
+              background: #047857;
+            }
+            @media print {
+              body {
+                background: white;
+              }
+              .print-btn {
+                display: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h1>📱 WhatsApp QR Code</h1>
+            <div class="trip-name">Voor ${clientNameText} - ${selectedTrip.name}</div>
 
-Stuur de klant het volgende bericht:
+            <div class="qr-code">
+              <img src="${qrCodeUrl}" alt="QR Code" />
+            </div>
 
-━━━━━━━━━━━━━━━━━━━━━
-"Hoi ${clientNameText}! 👋
+            <div class="code">${code}</div>
 
-Voor jouw reis "${selectedTrip.name}" hebben we een persoonlijke TravelBRO assistent klaargezet.
+            <div class="instructions">
+              <h3>✅ Hoe te gebruiken:</h3>
+              <ol>
+                <li><strong>Scan de QR code</strong> met je telefoon, of</li>
+                <li><strong>Stuur de code</strong> (${code}) naar +${cleanNumber}</li>
+                <li><strong>Chat direct</strong> met je TravelBRO assistent!</li>
+              </ol>
+            </div>
 
-Stuur de volgende code naar dit nummer om te starten:
+            <div class="info-box">
+              <strong>💡 Over de 24-uur regel:</strong>
+              <p>WhatsApp Business heeft een 24-uur regel: na elk bericht van jou kunnen wij 24 uur lang vrij antwoorden.</p>
+              <p><strong>Voor een 4-weken vakantie is dit geen probleem!</strong> Elke vraag die je stelt herstart de 24-uur window. Zolang je af en toe een vraag stelt, blijft het gesprek actief. ✈️</p>
+            </div>
 
-📱 +${cleanNumber}
-🔐 Code: ${code}
-
-Stuur gewoon de code als bericht en je TravelBRO is direct beschikbaar! ✈️"
-━━━━━━━━━━━━━━━━━━━━━
-
-De klant kan nu de code sturen en daarna direct chatten zonder template restricties!`;
-
-    alert(message);
+            <button class="print-btn" onclick="window.print()">🖨️ Printen</button>
+          </div>
+        </body>
+        </html>
+      `);
+      qrWindow.document.close();
+    }
   };
 
   const sendWhatsAppInvite = async () => {
@@ -1495,12 +1630,12 @@ De klant kan nu de code sturen en daarna direct chatten zonder template restrict
 
                   <div className="grid grid-cols-2 gap-3">
                     <button
-                      onClick={generateOptInCode}
+                      onClick={generateQRCode}
                       disabled={!selectedTrip}
-                      className="flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-semibold transition-colors"
+                      className="flex items-center justify-center space-x-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-3 rounded-lg font-semibold transition-colors"
                     >
                       <Phone size={20} />
-                      <span>Opt-in Code</span>
+                      <span>📱 QR Code</span>
                     </button>
 
                     <button
@@ -1522,10 +1657,12 @@ De klant kan nu de code sturen en daarna direct chatten zonder template restrict
                     </button>
                   </div>
 
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mt-4">
-                    <p className="text-xs text-amber-900">
-                      <strong>💡 Tip:</strong> Gebruik de <strong>Opt-in Code</strong> optie om template problemen te vermijden.
-                      De klant stuurt eerst een code naar jouw WhatsApp nummer, waarna je 24 uur vrij kunt chatten!
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                    <p className="text-xs text-blue-900 mb-2">
+                      <strong>📱 QR Code (Aanbevolen):</strong> Genereer een QR code die klanten kunnen scannen. Ze sturen automatisch de activatie code en kunnen daarna direct chatten!
+                    </p>
+                    <p className="text-xs text-blue-800">
+                      <strong>⏰ Over de 24-uur regel:</strong> Na elk bericht van de klant krijg je 24 uur om vrij te antwoorden. Voor een 4-weken vakantie is dit geen probleem - elke vraag herstart de timer!
                     </p>
                   </div>
                 </div>
