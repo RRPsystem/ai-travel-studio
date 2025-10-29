@@ -504,7 +504,7 @@ Deno.serve(async (req: Request) => {
       );
 
       const corridorKms = corridorPoints.map(p => `${p.corridorKm.toFixed(0)}km`).join(', ');
-      console.log(`📍 Corridor points: ${corridorKms}`);
+      console.log(`�� Corridor points: ${corridorKms}`);
 
       const placesSearchUrl = 'https://places.googleapis.com/v1/places:searchNearby';
       const searchRadius = routeConfig.searchRadiusKm * 1000;
@@ -739,7 +739,7 @@ Deno.serve(async (req: Request) => {
           name: e.name,
           address: e.address,
           type: e.type,
-          detour_min: e.detourMinutes,
+          detour_minutes: e.detourMinutes,
           kid_friendly: e.kidFriendly,
           price_level: e.priceLevel,
           rating: e.rating,
