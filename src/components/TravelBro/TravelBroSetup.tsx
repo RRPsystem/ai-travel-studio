@@ -78,7 +78,19 @@ export function TravelBroSetup() {
         .eq('brand_id', user?.brand_id)
         .maybeSingle();
 
-      setApiSettings(settings);
+      const { data: systemTwilio } = await db.supabase
+        .from('api_settings')
+        .select('*')
+        .eq('provider', 'system')
+        .eq('service_name', 'Twilio')
+        .maybeSingle();
+
+      setApiSettings({
+        ...settings,
+        twilio_account_sid: systemTwilio?.twilio_account_sid || settings?.twilio_account_sid,
+        twilio_auth_token: systemTwilio?.twilio_auth_token || settings?.twilio_auth_token,
+        twilio_phone_number: systemTwilio?.twilio_phone_number || settings?.twilio_phone_number,
+      });
 
       const { data: brand } = await db.supabase
         .from('brands')
