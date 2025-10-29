@@ -62,8 +62,8 @@ const MAJOR_ROAD_PATTERN = /\b(I-?\d+|US-?\d+|CA-?\d+|State Route \d+|Highway \d
 const MAX_DETOUR_MINUTES = 30;
 
 function getRouteConstants(routeDistanceKm: number) {
-  const minKmFromOrigin = 20;
-  const minKmBeforeDestination = 20;
+  const minKmFromOrigin = 10;
+  const minKmBeforeDestination = 10;
 
   const searchableDistance = routeDistanceKm - minKmFromOrigin - minKmBeforeDestination;
 
@@ -665,11 +665,12 @@ Deno.serve(async (req: Request) => {
       console.log(`✅ Selected ${waypoints.length} corridor POIs (all between km ${routeConfig.minKmFromOrigin}-${(routeDistanceKm - routeConfig.minKmBeforeDestination).toFixed(0)}, detour ≤${MAX_DETOUR_MINUTES}min)`);
 
       console.log('\n🍽️ Searching for eateries...');
+      console.log(`🍽️ Searching at ${corridorPoints.length} corridor points`);
 
       const allEateries: any[] = [];
       const usedCuisines: string[] = [];
 
-      const eateryPoints = corridorPoints.filter((_, idx) => idx % 2 === 0);
+      const eateryPoints = corridorPoints;
 
       for (const point of eateryPoints) {
         try {
@@ -698,6 +699,7 @@ Deno.serve(async (req: Request) => {
           if (response.ok) {
             const data = await response.json();
             const places = data.places || [];
+            console.log(`  🍽️ Found ${places.length} eateries near corridor point`);
 
             for (const place of places) {
               const poiLocation = { lat: place.location?.latitude || 0, lng: place.location?.longitude || 0 };
@@ -718,7 +720,12 @@ Deno.serve(async (req: Request) => {
                     rating: place.rating || 3.0,
                     placeId: place.id
                   });
+                  console.log(`    ✅ Added eatery: ${place.displayName?.text} (${detourMinutes}min detour)`);
+                } else {
+                  console.log(`    ❌ Rejected ${place.displayName?.text}: detour ${detourMinutes}min > ${MAX_DETOUR_MINUTES}min`);
                 }
+              } else {
+                console.log(`    ❌ Rejected ${place.displayName?.text}: only ${distanceFromOrigin.toFixed(0)}km from origin (min ${routeConfig.minKmFromOrigin}km)`);
               }
             }
           }
