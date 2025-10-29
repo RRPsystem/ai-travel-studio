@@ -441,8 +441,6 @@ Deno.serve(async (req: Request) => {
         return a.detour_minutes - b.detour_minutes;
       });
 
-      // BOLT requirements: TIME_BUDGET limits + diversity
-      // Handle both "1-dag" and "1 dag" formats
       const normalizedTimeBudget = timeBudget?.replace(/-/g, ' ').trim().toLowerCase();
       const is1Day = normalizedTimeBudget === '1 dag';
 
