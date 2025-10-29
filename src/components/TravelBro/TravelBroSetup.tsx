@@ -170,7 +170,7 @@ export function TravelBroSetup() {
 
       if (error) throw error;
 
-      alert('✅ Gepland bericht opgeslagen!');
+      alert('✅ Gepland bericht opgeslagen!\n\nLet op: Berichten worden automatisch verstuurd op de geplande tijd. Je kunt de scheduler ook handmatig triggeren via de knop onderaan.');
       setScheduleMessage('');
       setScheduleDate('');
       setScheduleTime('09:00');
@@ -182,6 +182,39 @@ export function TravelBroSetup() {
       alert('❌ Fout bij opslaan: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
     } finally {
       setSavingSchedule(false);
+    }
+  };
+
+  const processScheduledMessages = async () => {
+    if (!confirm('Wil je alle geplande berichten verwerken die nu verstuurd zouden moeten worden?')) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-scheduled-messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        alert(`✅ Scheduler uitgevoerd!\n\nVerwerkt: ${result.processed}\nSuccesvol: ${result.successful}\nMislukt: ${result.failed}`);
+        if (selectedTrip) {
+          await loadTripDetails(selectedTrip);
+        }
+      } else {
+        throw new Error(result.error || 'Onbekende fout');
+      }
+    } catch (error) {
+      console.error('Error processing scheduled messages:', error);
+      alert('❌ Fout bij verwerken: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1794,6 +1827,38 @@ export function TravelBroSetup() {
                     ))}
                   </div>
                 )}
+
+                <div className="mt-6 pt-6 border-t">
+                  <div className="bg-blue-50 rounded-lg p-4 mb-4">
+                    <div className="flex items-start space-x-3">
+                      <Clock className="w-5 h-5 text-blue-600 mt-0.5" />
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-blue-900 mb-1">Automatische Scheduler</h4>
+                        <p className="text-sm text-blue-700 mb-2">
+                          Geplande berichten worden automatisch verstuurd op de ingestelde datum en tijd.
+                          Je kunt de scheduler ook handmatig triggeren om berichten die nu verstuurd zouden moeten worden direct te verwerken.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={processScheduledMessages}
+                    disabled={loading}
+                    className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader className="w-5 h-5 animate-spin" />
+                        <span>Verwerken...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="w-5 h-5" />
+                        <span>Verwerk Geplande Berichten Nu</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           )}
