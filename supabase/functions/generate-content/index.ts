@@ -298,9 +298,21 @@ Deno.serve(async (req: Request) => {
       const route = directionsData.routes[0];
       const leg = route.legs[0];
 
-      const polyline = route.overview_polyline?.encoded;
+      const polyline = route.overview_polyline?.encoded || route.overview_polyline?.points;
       if (!polyline) {
-        throw new Error('No polyline in route');
+        console.error('Route data:', JSON.stringify(route, null, 2));
+
+        const compressedSteps = compressSteps(leg.steps || []);
+        return {
+          distance: leg.distance.text,
+          duration: leg.duration.text,
+          distance_nonstop: leg.distance.text,
+          duration_nonstop: leg.duration.text,
+          origin: origin,
+          destination: destination,
+          steps: compressedSteps,
+          stops: []
+        };
       }
 
       const coordinates = decodePolyline(polyline);
