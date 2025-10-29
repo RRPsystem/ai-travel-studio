@@ -3,12 +3,12 @@ import { edgeAIService } from '../../lib/apiServices';
 import { supabase } from '../../lib/supabase';
 import { APIStatusChecker } from './APIStatusChecker';
 import { GooglePlacesAutocomplete } from '../shared/GooglePlacesAutocomplete';
-import { 
-  X, 
-  MapPin, 
-  Route, 
-  Calendar, 
-  Building, 
+import {
+  X,
+  MapPin,
+  Route,
+  Calendar,
+  Building,
   Image as ImageIcon,
   Plus,
   Send,
@@ -19,7 +19,8 @@ import {
   Shuffle,
   Globe,
   Paperclip,
-  MoreHorizontal
+  MoreHorizontal,
+  Copy
 } from 'lucide-react';
 
 interface AIContentGeneratorProps {
@@ -588,9 +589,67 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
                                 </a>
                               </div>
                             )}
+
+                            {message.content && (
+                              <div className="bg-white rounded-lg p-4 border border-gray-200">
+                                <div className="flex items-center justify-between mb-3">
+                                  <h4 className="font-semibold text-gray-900">Verhaal</h4>
+                                  <button
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(message.content);
+                                      alert('Tekst gekopieerd!');
+                                    }}
+                                    className="flex items-center space-x-1 text-sm text-gray-600 hover:text-blue-600 transition-colors"
+                                  >
+                                    <Copy size={14} />
+                                    <span>Kopieer tekst</span>
+                                  </button>
+                                </div>
+                                <div className="whitespace-pre-wrap text-gray-700">{message.content}</div>
+                              </div>
+                            )}
+
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => {
+                                  const url = `${window.location.origin}${window.location.pathname}?chat=${message.id}`;
+                                  navigator.clipboard.writeText(url);
+                                  alert('Link gekopieerd!');
+                                }}
+                                className="flex items-center space-x-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg transition-colors text-sm"
+                              >
+                                <Copy size={14} />
+                                <span>Kopieer Link</span>
+                              </button>
+                              <button
+                                onClick={() => {
+                                  const fullText = `Route Overzicht\nAfstand: ${message.routeData.distance}\nReistijd: ${message.routeData.duration}\n\n${message.content}`;
+                                  navigator.clipboard.writeText(fullText);
+                                  alert('Alles gekopieerd!');
+                                }}
+                                className="flex items-center space-x-2 bg-blue-100 hover:bg-blue-200 text-blue-700 px-4 py-2 rounded-lg transition-colors text-sm"
+                              >
+                                <Copy size={14} />
+                                <span>Kopieer Alles</span>
+                              </button>
+                            </div>
                           </div>
                         ) : (
-                          <div className="whitespace-pre-wrap">{message.content}</div>
+                          <div className="space-y-3">
+                            <div className="whitespace-pre-wrap">{message.content}</div>
+                            {message.type === 'assistant' && (
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(message.content);
+                                  alert('Tekst gekopieerd!');
+                                }}
+                                className="flex items-center space-x-1 text-sm text-gray-600 hover:text-blue-600 transition-colors"
+                              >
+                                <Copy size={14} />
+                                <span>Kopieer tekst</span>
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
