@@ -850,6 +850,52 @@ export class EdgeFunctionAIService {
     const data = await response.json();
     return data.content;
   }
+
+  async generateRouteDescription(
+    fromLocation: string,
+    toLocation: string,
+    isScenicRoute: boolean = false
+  ): Promise<string> {
+    const routeType = isScenicRoute ? 'scenic' : 'highway';
+    const routeDescription = isScenicRoute
+      ? 'een mooie binnendoorroute met bezienswaardigheden onderweg'
+      : 'de snelste route via de snelweg';
+
+    const prompt = `Genereer een WhatsApp-vriendelijke routebeschrijving van ${fromLocation} naar ${toLocation}.
+
+Route type: ${routeDescription}
+
+Maak een kort, enthousiast bericht met:
+- 🗺️ Korte intro
+- 📍 Van/Naar locaties
+- 🚗 Geschatte reistijd en afstand
+${isScenicRoute ? '- 🌟 2-3 highlights/bezienswaardigheden onderweg\n- 🍽️ Leuke stop onderweg (restaurant/café)' : '- 🛣️ Belangrijkste snelwegen'}
+- 🧭 Google Maps link voor navigatie
+
+Houd het kort (max 150 woorden), gebruik emoji's, en maak het persoonlijk en enthousiast!`;
+
+    try {
+      const content = await this.generateContent(
+        'route_description',
+        prompt,
+        'friendly',
+        '',
+        {
+          routeType,
+          routeTypeDescription: routeDescription,
+          temperature: 0.8,
+          maxTokens: 500
+        }
+      );
+
+      const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(fromLocation)}&destination=${encodeURIComponent(toLocation)}&travelmode=driving`;
+
+      return `${content}\n\n🧭 *Navigatie*: ${mapsUrl}`;
+    } catch (error) {
+      console.error('Error generating route description:', error);
+      throw error;
+    }
+  }
 }
 
 // Export singleton instances
