@@ -332,14 +332,31 @@ export function TravelBroSetup() {
       let parsedData = null;
 
       if (pdfFile) {
-        console.log('📄 Preparing file upload:', pdfFile.name);
+        console.log('📄 Preparing file upload:', {
+          name: pdfFile.name,
+          size: pdfFile.size,
+          type: pdfFile.type
+        });
+
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('🔐 User session:', session ? 'authenticated' : 'NOT authenticated');
+
         const fileName = `${Date.now()}_${pdfFile.name}`;
         console.log('📄 fileName:', fileName);
-
         console.log('🔄 Calling supabase.storage.upload...');
-        const { data: uploadData, error: uploadError } = await supabase.storage
+
+        const uploadPromise = supabase.storage
           .from('travel-documents')
           .upload(fileName, pdfFile);
+
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Upload timeout after 30s')), 30000)
+        );
+
+        const { data: uploadData, error: uploadError } = await Promise.race([
+          uploadPromise,
+          timeoutPromise
+        ]) as any;
 
         console.log('✅ Upload response:', { uploadData, uploadError });
         if (uploadError) throw uploadError;
