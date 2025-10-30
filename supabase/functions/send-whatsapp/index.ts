@@ -102,11 +102,8 @@ Deno.serve(async (req: Request) => {
 
       if (templateVariables && typeof templateVariables === 'object' && Object.keys(templateVariables).length > 0) {
         console.log('Setting ContentVariables with values:', templateVariables);
-        Object.entries(templateVariables).forEach(([key, value]) => {
-          const fieldName = `ContentVariables[${key}]`;
-          formData.append(fieldName, String(value));
-          console.log(`✅ Added: ${fieldName} = ${value}`);
-        });
+        formData.append('ContentVariables', JSON.stringify(templateVariables));
+        console.log(`✅ Added ContentVariables: ${JSON.stringify(templateVariables)}`);
       } else {
         console.log('✅ No ContentVariables - using template without variables');
       }
