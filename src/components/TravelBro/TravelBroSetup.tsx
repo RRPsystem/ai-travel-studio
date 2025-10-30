@@ -369,24 +369,35 @@ export function TravelBroSetup() {
         console.log('🔗 Public URL:', publicUrl);
         pdfUrl = publicUrl;
 
-        const parseResponse = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-trip-pdf`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            },
-            body: JSON.stringify({ pdfUrl }),
-          }
-        );
+        console.log('🤖 Calling parse-trip-pdf...');
+        console.log('🤖 PDF URL:', pdfUrl);
 
-        if (parseResponse.ok) {
-          parsedData = await parseResponse.json();
-        } else {
-          const errorText = await parseResponse.text();
-          console.error('PDF parsing failed:', errorText);
-          alert(`⚠️ PDF parsing mislukt: ${errorText.substring(0, 200)}. De TravelBRO wordt wel aangemaakt, maar zonder PDF data.`);
+        try {
+          const parseResponse = await fetch(
+            `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-trip-pdf`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              },
+              body: JSON.stringify({ pdfUrl }),
+            }
+          );
+
+          console.log('🤖 Parse response status:', parseResponse.status);
+
+          if (parseResponse.ok) {
+            parsedData = await parseResponse.json();
+            console.log('📋 Parsed data:', parsedData);
+          } else {
+            const errorText = await parseResponse.text();
+            console.error('❌ PDF parsing failed:', errorText);
+            alert(`⚠️ PDF parsing mislukt: ${errorText.substring(0, 200)}. De TravelBRO wordt wel aangemaakt, maar zonder PDF data.`);
+          }
+        } catch (fetchError) {
+          console.error('❌ Fetch error:', fetchError);
+          alert(`⚠️ Kon PDF niet verwerken: ${fetchError.message}. De TravelBRO wordt wel aangemaakt, maar zonder PDF data.`);
         }
       }
 
@@ -394,6 +405,20 @@ export function TravelBroSetup() {
       const intakeTemplate = travelers.some(t => t.name || t.age)
         ? { travelers }
         : null;
+
+      console.log('💾 Inserting into database...');
+      console.log('💾 Data:', {
+        brand_id: user?.brand_id,
+        name: newTripName,
+        pdf_url: pdfUrl,
+        parsed_data: parsedData || {},
+        source_urls: filteredUrls,
+        intake_template: intakeTemplate,
+        custom_context: customContext,
+        gpt_model: gptModel,
+        gpt_temperature: gptTemperature,
+        created_by: user?.id,
+      });
 
       const { data, error } = await db.supabase
         .from('travel_trips')
@@ -412,8 +437,11 @@ export function TravelBroSetup() {
         .select()
         .single();
 
+      console.log('💾 Database response:', { data, error });
+
       if (error) throw error;
 
+      console.log('✅ TravelBRO created successfully!');
       alert('✅ TravelBRO aangemaakt!');
       setNewTripName('');
       setPdfFile(null);
