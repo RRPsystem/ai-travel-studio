@@ -307,7 +307,8 @@ Deno.serve(async (req: Request) => {
         }
 
         if (apiSettings) {
-          const clientLink = `https://${matchingTrip.travelbro_domain || 'travelbro.iwillio.com'}/${matchingTrip.share_token}`;
+          const session = await getOrCreateSession(supabase, matchingTrip.id, matchingTrip.brand_id, from);
+          const clientLink = `https://${matchingTrip.travelbro_domain || 'travelbro.iwillio.com'}/${session.session_token}`;
 
           const welcomeMessage = matchingTrip.skip_intake
             ? `✅ Welkom bij TravelBRO! Je bent nu verbonden met je persoonlijke reisassistent voor: *${matchingTrip.name}*\n\nJe kunt me direct al je vragen stellen over de reis! ✈️ Ik ben 24/7 beschikbaar. 🌴`
@@ -320,8 +321,6 @@ Deno.serve(async (req: Request) => {
             apiSettings.twilio_auth_token,
             apiSettings.twilio_whatsapp_number || to
           );
-
-          await getOrCreateSession(supabase, matchingTrip.id, matchingTrip.brand_id, from);
         }
 
         return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
@@ -441,30 +440,7 @@ Deno.serve(async (req: Request) => {
       ? JSON.stringify(trip.parsed_data, null, 2)
       : "Geen gedetailleerde reis informatie beschikbaar uit het reisdocument. Je kunt wel algemene tips geven over de bestemming en helpen met vragen.";
 
-    const systemPrompt = `Je bent TravelBRO, een vriendelijke en behulpzame Nederlandse reisassistent voor de reis "${trip.name}".
-
-Reis informatie:
-${tripDataText}
-
-Extra bron URL's: ${trip.source_urls.join(', ') || 'Geen'}
-
-${intake?.intake_data ? `Reiziger informatie:
-${JSON.stringify(intake.intake_data, null, 2)}` : ''}
-
-Je taken:
-1. Beantwoord vragen over de reis (accommodatie, activiteiten, restaurants, tijden, etc.)
-2. Geef praktische tips en aanbevelingen
-3. Wees enthousiast maar realistisch
-4. Als je iets niet zeker weet, geef dat eerlijk toe
-5. Houd antwoorden kort en conversationeel (max 3-4 zinnen)
-
-SPECIAAL: Als iemand vraagt om een foto/afbeelding, antwoord dan met [IMAGE:url] waar url een werkende afbeelding URL is.
-Voorbeeld: "Hier is het zwembad! [IMAGE:https://example.com/pool.jpg]"
-
-SPECIAAL: Als iemand vraagt waar iets is (hotel, restaurant, attractie), geef dan de locatie met [LOCATION:lat,lng,naam].
-Voorbeeld: "Het hotel vind je hier: [LOCATION:52.3676,4.9041,Hotel Amsterdam]"
-
-Wees creatief maar realistisch met locaties en foto's. Gebruik alleen echte URLs die werken.`;
+    const systemPrompt = `Je bent TravelBRO, een vriendelijke en behulpzame Nederlandse reisassistent voor de reis "${trip.name}".\n\nReis informatie:\n${tripDataText}\n\nExtra bron URL's: ${trip.source_urls.join(', ') || 'Geen'}\n\n${intake?.intake_data ? `Reiziger informatie:\n${JSON.stringify(intake.intake_data, null, 2)}` : ''}\n\nJe taken:\n1. Beantwoord vragen over de reis (accommodatie, activiteiten, restaurants, tijden, etc.)\n2. Geef praktische tips en aanbevelingen\n3. Wees enthousiast maar realistisch\n4. Als je iets niet zeker weet, geef dat eerlijk toe\n5. Houd antwoorden kort en conversationeel (max 3-4 zinnen)\n\nSPECIAAL: Als iemand vraagt om een foto/afbeelding, antwoord dan met [IMAGE:url] waar url een werkende afbeelding URL is.\nVoorbeeld: \"Hier is het zwembad! [IMAGE:https://example.com/pool.jpg]\"\n\nSPECIAAL: Als iemand vraagt waar iets is (hotel, restaurant, attractie), geef dan de locatie met [LOCATION:lat,lng,naam].\nVoorbeeld: \"Het hotel vind je hier: [LOCATION:52.3676,4.9041,Hotel Amsterdam]\"\n\nWees creatief maar realistisch met locaties en foto's. Gebruik alleen echte URLs die werken.`;
 
     const messages: any[] = [
       { role: "system", content: systemPrompt },
