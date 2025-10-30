@@ -312,7 +312,10 @@ Deno.serve(async (req: Request) => {
         }
       }
 
-      const builderUrl = `https://lovable.dev/projects/${Deno.env.get("LOVABLE_PROJECT_ID")}/editor?page_id=${page_id}`;
+      const lovableProjectId = Deno.env.get("LOVABLE_PROJECT_ID");
+      const builderUrl = lovableProjectId
+        ? `https://lovable.dev/projects/${lovableProjectId}/editor?page_id=${page_id}`
+        : null;
 
       return new Response(
         JSON.stringify({
