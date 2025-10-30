@@ -412,7 +412,48 @@ Deno.serve(async (req: Request) => {
       const { brand_id } = claims;
       const isTemplateMode = url.searchParams.get('is_template') === 'true';
 
-      console.log("[DEBUG] Fetching pages for:", { brand_id, isTemplateMode });
+      const pageIdFromPath = pathParts[pathParts.length - 1];
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pageIdFromPath);
+
+      if (isUUID && pageIdFromPath) {
+        console.log("[DEBUG] Fetching single page:", pageIdFromPath);
+
+        const { data: page, error } = await supabase
+          .from("pages")
+          .select("*")
+          .eq("id", pageIdFromPath)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (!page) {
+          return new Response(
+            JSON.stringify({ error: "Page not found" }),
+            { status: 404, headers: corsHeaders() }
+          );
+        }
+
+        const responseData: any = {
+          id: page.id,
+          title: page.title,
+          slug: page.slug,
+          html: page.content_json || {},
+          brand_id: page.brand_id,
+          content_type: page.content_type,
+          is_template: page.is_template,
+          template_category: page.template_category,
+          version: page.version,
+          created_at: page.created_at,
+          updated_at: page.updated_at
+        };
+
+        return new Response(
+          JSON.stringify(responseData),
+          { status: 200, headers: corsHeaders() }
+        );
+      }
+
+      console.log("[DEBUG] Fetching pages list for:", { brand_id, isTemplateMode });
 
       let query = supabase
         .from("pages")
