@@ -81,6 +81,16 @@ Deno.serve(async (req: Request) => {
 
     const openaiApiKey = settings.api_key;
 
+    const { data: gptModel } = await supabase
+      .from('gpt_models')
+      .select('*')
+      .eq('content_type', contentType)
+      .eq('is_active', true)
+      .maybeSingle();
+
+    console.log('[GPT] Looking for GPT model with content_type:', contentType);
+    console.log('[GPT] Found GPT model:', gptModel?.name);
+
     function decodePolyline(encoded: string): Array<{ lat: number; lng: number }> {
       const coordinates: Array<{ lat: number; lng: number }> = [];
       let index = 0;
@@ -523,7 +533,30 @@ STIJL:
       }
     }
 
-    const systemPrompt = options.systemPrompt || getSystemPrompt(contentType);
+    let systemPrompt = options.systemPrompt || getSystemPrompt(contentType);
+    let modelToUse = options.model || 'gpt-4o';
+    let temperatureToUse = options.temperature ?? 0.7;
+    let maxTokensToUse = options.maxTokens || 2000;
+
+    if (gptModel && gptModel.system_prompt) {
+      console.log('[GPT] Using operator GPT instructions from database');
+      systemPrompt = gptModel.system_prompt
+        .replace('{WRITING_STYLE}', writingStyle)
+        .replace('{VACATION_TYPE}', options.vacationType || 'algemene')
+        .replace('{DESTINATION}', options.destination || '')
+        .replace('{ROUTE_TYPE_INSTRUCTION}', getRouteInstruction(options.routeType || ''))
+        .replace('{TIME_BUDGET}', options.days || '');
+
+      if (gptModel.model) modelToUse = gptModel.model;
+      if (gptModel.temperature) temperatureToUse = gptModel.temperature;
+      if (gptModel.max_tokens) maxTokensToUse = gptModel.max_tokens;
+
+      console.log('[GPT] Model:', modelToUse);
+      console.log('[GPT] Temperature:', temperatureToUse);
+      console.log('[GPT] Max tokens:', maxTokensToUse);
+    } else {
+      console.log('[GPT] No operator instructions found, using fallback prompt');
+    }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -532,13 +565,13 @@ STIJL:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: options.model || 'gpt-4o',
+        model: modelToUse,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
         ],
-        temperature: options.temperature ?? 0.7,
-        max_tokens: options.maxTokens || 2000,
+        temperature: temperatureToUse,
+        max_tokens: maxTokensToUse,
       }),
     });
 
