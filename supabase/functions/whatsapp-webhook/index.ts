@@ -83,7 +83,46 @@ async function transcribeAudio(audioUrl: string, openaiApiKey: string, twilioAcc
   return result.text;
 }
 
+async function getOrCreateParticipant(supabase: any, tripId: string, brandId: string, phoneNumber: string) {
+  const { data: existingParticipant } = await supabase
+    .from('trip_participants')
+    .select('*')
+    .eq('trip_id', tripId)
+    .eq('phone_number', phoneNumber)
+    .maybeSingle();
+
+  if (existingParticipant) {
+    await supabase
+      .from('trip_participants')
+      .update({
+        last_message_at: new Date().toISOString(),
+      })
+      .eq('id', existingParticipant.id);
+
+    return existingParticipant;
+  }
+
+  const conversationId = `conv_${crypto.randomUUID()}`;
+
+  const { data: newParticipant } = await supabase
+    .from('trip_participants')
+    .insert({
+      trip_id: tripId,
+      brand_id: brandId,
+      phone_number: phoneNumber,
+      whatsapp_conversation_id: conversationId,
+      conversation_state: 'active',
+      is_primary_contact: false,
+    })
+    .select()
+    .single();
+
+  return newParticipant;
+}
+
 async function getOrCreateSession(supabase: any, tripId: string, brandId: string, phoneNumber: string) {
+  await getOrCreateParticipant(supabase, tripId, brandId, phoneNumber);
+
   const { data: existingSession } = await supabase
     .from('travel_whatsapp_sessions')
     .select('*')
