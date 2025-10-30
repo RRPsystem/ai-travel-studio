@@ -332,17 +332,24 @@ export function TravelBroSetup() {
       let parsedData = null;
 
       if (pdfFile) {
+        console.log('📄 Preparing file upload:', pdfFile.name);
         const fileName = `${Date.now()}_${pdfFile.name}`;
+        console.log('📄 fileName:', fileName);
+
+        console.log('🔄 Calling supabase.storage.upload...');
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('travel-documents')
           .upload(fileName, pdfFile);
 
+        console.log('✅ Upload response:', { uploadData, uploadError });
         if (uploadError) throw uploadError;
 
+        console.log('🔗 Getting public URL...');
         const { data: { publicUrl } } = supabase.storage
           .from('travel-documents')
           .getPublicUrl(fileName);
 
+        console.log('🔗 Public URL:', publicUrl);
         pdfUrl = publicUrl;
 
         const parseResponse = await fetch(
