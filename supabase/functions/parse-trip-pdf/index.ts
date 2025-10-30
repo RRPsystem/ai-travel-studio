@@ -93,7 +93,7 @@ async function createAssistant(openaiApiKey: string) {
                   country: { type: "string" },
                   region: { type: ["string", "null"] }
                 },
-                required: ["city", "country"],
+                required: ["city", "country", "region"],
                 additionalProperties: false
               },
               segments: {
@@ -104,7 +104,7 @@ async function createAssistant(openaiApiKey: string) {
                     kind: { type: "string", enum: ["flight", "hotel", "transfer", "activity"] },
                     segment_ref: { type: "string" },
                     start_datetime: { type: "string" },
-                    end_datetime: { type: "string" },
+                    end_datetime: { type: ["string", "null"] },
                     location: {
                       type: "object",
                       properties: {
@@ -113,12 +113,12 @@ async function createAssistant(openaiApiKey: string) {
                         city: { type: ["string", "null"] },
                         country: { type: ["string", "null"] }
                       },
-                      required: ["name", "address"],
+                      required: ["name", "address", "city", "country"],
                       additionalProperties: false
                     },
                     details: { type: "object", additionalProperties: true }
                   },
-                  required: ["kind", "segment_ref", "start_datetime", "location"],
+                  required: ["kind", "segment_ref", "start_datetime", "end_datetime", "location", "details"],
                   additionalProperties: false
                 }
               },
@@ -149,7 +149,7 @@ async function createAssistant(openaiApiKey: string) {
               important_notes: { type: "array", items: { type: "string" } },
               included_services: { type: "array", items: { type: "string" } }
             },
-            required: ["trip_name", "reservation_id", "departure_date", "arrival_date", "destination", "segments", "booking_refs", "emergency_contacts"],
+            required: ["trip_name", "reservation_id", "departure_date", "arrival_date", "destination", "segments", "booking_refs", "emergency_contacts", "important_notes", "included_services"],
             additionalProperties: false
           }
         }
