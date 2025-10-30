@@ -66,7 +66,7 @@ Deno.serve(async (req: Request) => {
       console.log("[trips-api] Fetching trips for brand:", brand_id);
 
       const page_id = url.searchParams.get("page_id");
-      const published_only = url.searchParams.get("published_only") === "true";
+      const for_builder = url.searchParams.get("for_builder") === "true";
 
       if (page_id) {
         console.log("[trips-api] Fetching trip for page_id:", page_id);
@@ -210,7 +210,7 @@ Deno.serve(async (req: Request) => {
 
       const allTrips = [...assignedTrips, ...filteredBrandTrips];
 
-      const filteredTrips = published_only
+      const filteredTrips = for_builder
         ? allTrips.filter(t => t.is_published || t.status === 'published')
         : allTrips;
 
