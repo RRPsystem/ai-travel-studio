@@ -148,8 +148,7 @@ export function PreviewPage() {
       .replace(/\sdata-component-id="[^"]*"/g, '')
       .replace(/\sdata-wb-[^=]*="[^"]*"/g, '')
       .replace(/<button[^>]*class="[^"]*toolbar-btn[^"]*"[^>]*>[\s\S]*?<\/button>/g, '')
-      .replace(/<button[^>]*data-tag-del[^>]*>[\s\S]*?<\/button>/g, '')
-      .replace(/\sstyle="[^"]*position:\s*absolute[^"]*"/g, '');
+      .replace(/<button[^>]*data-tag-del[^>]*>[\s\S]*?<\/button>/g, '');
 
     return (
       <iframe
@@ -216,15 +215,11 @@ export function PreviewPage() {
                   clear: both;
                 }
 
-                /* Ensure components stack vertically */
-                body > * {
-                  position: relative !important;
+                /* Ensure components stack vertically - but not hero children */
+                body > *:not(.wb-hero-page) {
+                  position: relative;
                   display: block;
                   width: 100%;
-                }
-
-                body > .wb-hero-page {
-                  position: relative !important;
                 }
 
                 /* Hero Page Styles */
@@ -234,7 +229,13 @@ export function PreviewPage() {
                   align-items: center;
                   justify-content: center;
                   overflow: hidden;
-                  min-height: 400px;
+                  min-height: 500px;
+                  width: 100%;
+                }
+
+                /* Allow absolute positioning inside hero */
+                .wb-hero-page > * {
+                  position: absolute;
                 }
 
                 .hp-bg {
@@ -264,7 +265,7 @@ export function PreviewPage() {
 
                 .hp-content,
                 .hp-word {
-                  position: relative;
+                  position: absolute;
                   z-index: 3;
                   font-weight: 900;
                   text-transform: uppercase;
@@ -273,6 +274,22 @@ export function PreviewPage() {
                   letter-spacing: -0.02em;
                   color: white;
                   text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                }
+
+                /* Hero forms and interactive elements */
+                .wb-hero-page form,
+                .wb-hero-page .hp-form,
+                .wb-hero-page [class*="form"],
+                .wb-hero-page [class*="search"] {
+                  position: absolute;
+                  z-index: 10;
+                  pointer-events: auto;
+                }
+
+                .wb-hero-page input,
+                .wb-hero-page button,
+                .wb-hero-page select {
+                  pointer-events: auto;
                 }
 
                 /* Media Row Styles */
