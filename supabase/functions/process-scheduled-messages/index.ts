@@ -88,14 +88,35 @@ Deno.serve(async (req: Request) => {
           continue;
         }
 
+        const { data: recentSession } = await supabase
+          .from('travel_whatsapp_sessions')
+          .select('last_message_at')
+          .eq('trip_id', msg.trip_id)
+          .eq('phone_number', phoneNumber)
+          .order('last_message_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const twentyFourHoursAgo = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+        const hasRecentInteraction = recentSession?.last_message_at &&
+          new Date(recentSession.last_message_at) > twentyFourHoursAgo;
+
         let templateSid = null;
         let templateVariables = null;
+        let shouldUseTemplate = false;
 
-        if (msg.template_name) {
+        if (!hasRecentInteraction) {
+          console.log(`Message ${msg.id}: No recent interaction, must use template`);
+          shouldUseTemplate = true;
+        }
+
+        if (shouldUseTemplate || msg.template_name) {
+          const templateName = msg.template_name || 'travelbro';
+
           const { data: template } = await supabase
             .from('whatsapp_templates')
             .select('template_sid, variables')
-            .eq('name', msg.template_name)
+            .eq('name', templateName)
             .eq('is_active', true)
             .or(`brand_id.eq.${msg.brand_id},brand_id.is.null`)
             .maybeSingle();
@@ -103,8 +124,19 @@ Deno.serve(async (req: Request) => {
           if (template) {
             templateSid = template.template_sid;
             templateVariables = msg.template_variables || {};
+            console.log(`Using template "${templateName}" for message ${msg.id}`);
           } else {
-            console.warn(`Template "${msg.template_name}" not found for message ${msg.id}`);
+            console.warn(`Template "${templateName}" not found for message ${msg.id}`);
+
+            if (!hasRecentInteraction) {
+              failCount++;
+              results.push({
+                id: msg.id,
+                success: false,
+                error: 'Template vereist maar niet gevonden (geen 24u window)'
+              });
+              continue;
+            }
           }
         }
 
