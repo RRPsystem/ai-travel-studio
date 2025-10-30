@@ -346,6 +346,10 @@ export function TravelBroSetup() {
 
         if (parseResponse.ok) {
           parsedData = await parseResponse.json();
+        } else {
+          const errorText = await parseResponse.text();
+          console.error('PDF parsing failed:', errorText);
+          alert(`⚠️ PDF parsing mislukt: ${errorText.substring(0, 200)}. De TravelBRO wordt wel aangemaakt, maar zonder PDF data.`);
         }
       }
 
