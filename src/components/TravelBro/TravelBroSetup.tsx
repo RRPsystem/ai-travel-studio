@@ -20,7 +20,7 @@ export function TravelBroSetup() {
   const [newTripName, setNewTripName] = useState('');
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [sourceUrls, setSourceUrls] = useState<string[]>(['']);
-  const [travelers, setTravelers] = useState([{ name: '', age: '', relation: 'adult' }]);
+  const [travelers, setTravelers] = useState([{ name: '', age: '', relation: 'adult', phone: '' }]);
   const [customContext, setCustomContext] = useState('');
   const [gptModel, setGptModel] = useState('gpt-4o');
   const [gptTemperature, setGptTemperature] = useState(0.7);
@@ -443,29 +443,30 @@ export function TravelBroSetup() {
 
       const createdTrip = data;
 
-      if (intakeTemplate) {
-        console.log('📋 TravelBRO heeft intake formulier - klant moet eerst formulier invullen');
-        alert('✅ TravelBRO aangemaakt! Deel de client link met je klant zodat ze het intake formulier kunnen invullen.');
-      } else {
-        const phoneNumber = prompt('📱 Voer het telefoonnummer van de klant in (formaat: +31612345678):');
+      const travelersWithPhone = travelers.filter(t => t.phone && t.phone.trim());
 
-        if (phoneNumber && phoneNumber.trim()) {
+      if (travelersWithPhone.length > 0) {
+        console.log(`📤 Scheduling welkomstberichten voor ${travelersWithPhone.length} reizigers...`);
+
+        let successCount = 0;
+        let failCount = 0;
+
+        for (const traveler of travelersWithPhone) {
           try {
-            console.log('📤 Scheduling welkomstbericht...');
-
             const { error: participantError } = await db.supabase
               .from('trip_participants')
               .insert({
                 trip_id: createdTrip.id,
                 brand_id: user?.brand_id,
-                phone_number: phoneNumber.trim(),
-                participant_name: 'Klant',
-                is_primary_contact: true,
+                phone_number: traveler.phone.trim(),
+                participant_name: traveler.name || 'Reiziger',
+                is_primary_contact: successCount === 0,
               });
 
             if (participantError) {
-              console.error('❌ Error adding participant:', participantError);
-              throw participantError;
+              console.error(`❌ Error adding participant ${traveler.name}:`, participantError);
+              failCount++;
+              continue;
             }
 
             const now = new Date();
@@ -477,7 +478,7 @@ export function TravelBroSetup() {
               .insert({
                 trip_id: createdTrip.id,
                 brand_id: user?.brand_id,
-                recipient_phone: phoneNumber.trim(),
+                recipient_phone: traveler.phone.trim(),
                 template_name: 'travelbro',
                 message_content: '',
                 scheduled_date: scheduleDate,
@@ -487,26 +488,34 @@ export function TravelBroSetup() {
               });
 
             if (scheduleError) {
-              console.error('❌ Error scheduling message:', scheduleError);
-              throw scheduleError;
+              console.error(`❌ Error scheduling message for ${traveler.name}:`, scheduleError);
+              failCount++;
+            } else {
+              successCount++;
             }
-
-            console.log('✅ Welkomstbericht gepland!');
-            alert('✅ TravelBRO aangemaakt en welkomstbericht gepland!');
-          } catch (msgError) {
-            console.error('❌ Error met WhatsApp:', msgError);
-            alert('⚠️ TravelBRO aangemaakt, maar WhatsApp bericht kon niet worden gepland. Check de logs.');
+          } catch (error) {
+            console.error(`❌ Error processing traveler ${traveler.name}:`, error);
+            failCount++;
           }
-        } else {
-          alert('✅ TravelBRO aangemaakt! (Geen WhatsApp bericht verzonden)');
         }
+
+        if (successCount > 0) {
+          alert(`✅ TravelBRO aangemaakt en ${successCount} welkomstbericht(en) gepland!\n\n${failCount > 0 ? `⚠️ ${failCount} bericht(en) mislukt.` : ''}\n\nDruk op "Verwerk Geplande Berichten Nu" om de berichten direct te versturen.`);
+        } else {
+          alert('⚠️ TravelBRO aangemaakt, maar geen WhatsApp berichten konden worden gepland. Check de logs.');
+        }
+      } else if (intakeTemplate) {
+        console.log('📋 TravelBRO heeft intake formulier - klant moet eerst formulier invullen');
+        alert('✅ TravelBRO aangemaakt! Deel de client link met je klant zodat ze het intake formulier kunnen invullen.');
+      } else {
+        alert('✅ TravelBRO aangemaakt! (Geen telefoonnummers opgegeven)');
       }
 
       console.log('✅ TravelBRO created successfully!');
       setNewTripName('');
       setPdfFile(null);
       setSourceUrls(['']);
-      setTravelers([{ name: '', age: '', relation: 'adult' }]);
+      setTravelers([{ name: '', age: '', relation: 'adult', phone: '' }]);
       setCustomContext('');
       setGptModel('gpt-4o');
       setGptTemperature(0.7);
@@ -1005,7 +1014,7 @@ export function TravelBroSetup() {
                 </p>
                 {travelers.map((traveler, index) => (
                   <div key={index} className="bg-gray-50 rounded-lg p-4 mb-3">
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 gap-3 mb-2">
                       <input
                         type="text"
                         value={traveler.name}
@@ -1017,6 +1026,19 @@ export function TravelBroSetup() {
                         placeholder="Naam"
                         className="px-3 py-2 border border-gray-300 rounded-lg"
                       />
+                      <input
+                        type="tel"
+                        value={traveler.phone || ''}
+                        onChange={(e) => {
+                          const updated = [...travelers];
+                          updated[index].phone = e.target.value;
+                          setTravelers(updated);
+                        }}
+                        placeholder="Telefoon (+31612345678)"
+                        className="px-3 py-2 border border-gray-300 rounded-lg"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
                       <input
                         type="number"
                         value={traveler.age}
@@ -1053,7 +1075,7 @@ export function TravelBroSetup() {
                   </div>
                 ))}
                 <button
-                  onClick={() => setTravelers([...travelers, { name: '', age: '', relation: 'adult' }])}
+                  onClick={() => setTravelers([...travelers, { name: '', age: '', relation: 'adult', phone: '' }])}
                   className="text-sm text-orange-600 hover:text-orange-700 flex items-center space-x-1"
                 >
                   <Plus size={16} />
