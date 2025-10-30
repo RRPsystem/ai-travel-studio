@@ -86,7 +86,7 @@ export function TripApproval() {
 
       const { data: brandTripsData, error: brandTripsError } = await supabase
         .from('trips')
-        .select('id, title, slug, description, featured_image, price, duration_days, created_at, published_at, status')
+        .select('id, title, slug, description, featured_image, price, duration_days, created_at, published_at, status, page_id')
         .eq('brand_id', user.brand_id)
         .order('created_at', { ascending: false });
 
@@ -97,7 +97,7 @@ export function TripApproval() {
       const formattedBrandTrips = filteredBrandTrips.map(item => ({
         id: `brand-trip-${item.id}`,
         trip_id: item.id,
-        page_id: item.id,
+        page_id: item.page_id,
         status: 'brand' as const,
         is_published: item.status === 'published',
         assigned_at: item.created_at,
