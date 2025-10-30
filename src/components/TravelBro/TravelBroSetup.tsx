@@ -308,21 +308,25 @@ export function TravelBroSetup() {
   };
 
   const handleCreateTravelBro = async () => {
-    console.log('DEBUG: newTripName=', newTripName, 'pdfFile=', pdfFile, 'sourceUrls=', sourceUrls);
+    console.log('🟡 Step 1: Starting handleCreateTravelBro');
+    console.log('🟡 Step 2: newTripName=', newTripName);
+    console.log('🟡 Step 3: pdfFile=', pdfFile);
+    console.log('🟡 Step 4: sourceUrls=', sourceUrls);
 
-    const hasName = !!newTripName.trim();
-    const hasPdf = !!pdfFile;
-    const hasUrls = sourceUrls.filter(u => u.trim()).length > 0;
-    console.log('Validation:', { hasName, hasPdf, hasUrls });
-
-    if (!hasName || (!hasPdf && !hasUrls)) {
-      alert('Vul minimaal een naam en upload een PDF of voeg URLs toe');
-      return;
-    }
-
-    console.log('✅ Validation passed, starting creation...');
-    setCreating(true);
     try {
+      console.log('🟡 Step 5: Checking validation...');
+      const hasName = !!newTripName.trim();
+      const hasPdf = !!pdfFile;
+      const hasUrls = sourceUrls.filter(u => u.trim()).length > 0;
+      console.log('Validation:', { hasName, hasPdf, hasUrls });
+
+      if (!hasName || (!hasPdf && !hasUrls)) {
+        alert('Vul minimaal een naam en upload een PDF of voeg URLs toe');
+        return;
+      }
+
+      console.log('✅ Validation passed, starting creation...');
+      setCreating(true);
       console.log('📤 Uploading PDF...');
       let pdfUrl = null;
       let parsedData = null;
@@ -397,7 +401,7 @@ export function TravelBroSetup() {
       setActiveTab('active');
       loadData();
     } catch (error) {
-      console.error('Error creating TravelBRO:', error);
+      console.error('❌ Error in handleCreateTravelBro:', error);
       alert('❌ Fout bij aanmaken: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
     } finally {
       setCreating(false);
