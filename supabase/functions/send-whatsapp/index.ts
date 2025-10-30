@@ -86,7 +86,10 @@ Deno.serve(async (req: Request) => {
     console.log('Sending WhatsApp message:', {
       to: toNumber,
       from: fromWhatsApp,
-      messageLength: message?.length || 0
+      messageLength: message?.length || 0,
+      useTemplate,
+      templateSid,
+      templateVariables
     });
 
     const formData = new URLSearchParams();
@@ -94,17 +97,20 @@ Deno.serve(async (req: Request) => {
     formData.append('From', fromWhatsApp);
 
     if (useTemplate && templateSid) {
+      console.log('Using template:', templateSid);
       formData.append('ContentSid', templateSid);
       if (templateVariables && typeof templateVariables === 'object' && Object.keys(templateVariables).length > 0) {
         const varsString = JSON.stringify(templateVariables);
         console.log('Template variables being sent:', varsString);
         formData.append('ContentVariables', varsString);
       } else {
-        console.log('No template variables - sending template without variables');
+        console.log('No template variables - sending template without ContentVariables parameter');
       }
     } else if (message) {
       formData.append('Body', message);
     }
+
+    console.log('FormData being sent to Twilio:', formData.toString());
 
     const twilioResponse = await fetch(twilioUrl, {
       method: 'POST',
