@@ -7,70 +7,71 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, {
-      status: 200,
-      headers: corsHeaders,
-    });
+async function uploadFileToOpenAI(pdfBuffer: ArrayBuffer, openaiApiKey: string, filename: string) {
+  const formData = new FormData();
+  const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
+  formData.append('file', blob, filename);
+  formData.append('purpose', 'assistants');
+
+  const response = await fetch('https://api.openai.com/v1/files', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`File upload failed: ${error}`);
   }
 
-  try {
-    const { pdfUrl } = await req.json();
+  return await response.json();
+}
 
-    if (!pdfUrl) {
-      return new Response(
-        JSON.stringify({ error: "PDF URL is required" }),
+async function createThread(openaiApiKey: string, fileId: string, instructions: string) {
+  const response = await fetch('https://api.openai.com/v1/threads', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+      'Content-Type': 'application/json',
+      'OpenAI-Beta': 'assistants=v2',
+    },
+    body: JSON.stringify({
+      messages: [
         {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          role: 'user',
+          content: instructions,
+          attachments: [
+            {
+              file_id: fileId,
+              tools: [{ type: 'file_search' }]
+            }
+          ]
         }
-      );
-    }
+      ]
+    }),
+  });
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Thread creation failed: ${error}`);
+  }
 
-    const { data: apiSettings, error: apiError } = await supabase
-      .from("api_settings")
-      .select("api_key")
-      .eq("provider", "OpenAI")
-      .eq("is_active", true)
-      .maybeSingle();
+  return await response.json();
+}
 
-    if (apiError || !apiSettings?.api_key) {
-      return new Response(
-        JSON.stringify({ error: "OpenAI API key not configured in database" }),
-        {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const openaiApiKey = apiSettings.api_key;
-
-    const pdfResponse = await fetch(pdfUrl);
-    if (!pdfResponse.ok) {
-      throw new Error("Failed to download PDF");
-    }
-
-    const pdfBuffer = await pdfResponse.arrayBuffer();
-    const pdfBase64 = btoa(String.fromCharCode(...new Uint8Array(pdfBuffer)));
-
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${openaiApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "system",
-            content: `Je bent een expert reisdocument parser. Extraheer en structureer ALLE reis informatie uit het PDF document.
+async function createAssistant(openaiApiKey: string) {
+  const response = await fetch('https://api.openai.com/v1/assistants', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+      'Content-Type': 'application/json',
+      'OpenAI-Beta': 'assistants=v2',
+    },
+    body: JSON.stringify({
+      name: 'Travel Document Parser',
+      instructions: `Je bent een expert reisdocument parser. Extraheer en structureer ALLE reis informatie uit het PDF document.
 
 VERPLICHTE VELDEN (STRICT):
 - trip_name: Naam van de reis
@@ -95,112 +96,229 @@ BELANGRIJK:
 - Alle datums MOETEN ISO 8601 format zijn (YYYY-MM-DD of YYYY-MM-DDTHH:MM:SS)
 - Alle adressen compleet en gestructureerd
 - ALLE noodnummers en contactgegevens
-- Als info ontbreekt: gebruik null (niet weglaten)`
-          },
-          {
-            role: "user",
-            content: [
-              {
-                type: "text",
-                text: "Analyseer dit reisdocument PDF en extraheer ALLE informatie volgens het schema. Wees zeer grondig met reserveringsnummers, datums en contactgegevens."
+- Als info ontbreekt: gebruik null (niet weglaten)
+
+Return ONLY valid JSON matching the schema.`,
+      model: 'gpt-4o',
+      tools: [{ type: 'file_search' }],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "travel_document_schema",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              trip_name: { type: "string" },
+              reservation_id: { type: "string" },
+              departure_date: { type: "string" },
+              arrival_date: { type: "string" },
+              destination: {
+                type: "object",
+                properties: {
+                  city: { type: "string" },
+                  country: { type: "string" },
+                  region: { type: ["string", "null"] }
+                },
+                required: ["city", "country"],
+                additionalProperties: false
               },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:application/pdf;base64,${pdfBase64}`
-                }
-              }
-            ]
-          }
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "travel_document_schema",
-            strict: true,
-            schema: {
-              type: "object",
-              properties: {
-                trip_name: { type: "string" },
-                reservation_id: { type: "string" },
-                departure_date: { type: "string" },
-                arrival_date: { type: "string" },
-                destination: {
+              segments: {
+                type: "array",
+                items: {
                   type: "object",
                   properties: {
-                    city: { type: "string" },
-                    country: { type: "string" },
-                    region: { type: ["string", "null"] }
-                  },
-                  required: ["city", "country"],
-                  additionalProperties: false
-                },
-                segments: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      kind: { type: "string", enum: ["flight", "hotel", "transfer", "activity"] },
-                      segment_ref: { type: "string" },
-                      start_datetime: { type: "string" },
-                      end_datetime: { type: "string" },
-                      location: {
-                        type: "object",
-                        properties: {
-                          name: { type: "string" },
-                          address: { type: "string" },
-                          city: { type: ["string", "null"] },
-                          country: { type: ["string", "null"] }
-                        },
-                        required: ["name", "address"],
-                        additionalProperties: false
+                    kind: { type: "string", enum: ["flight", "hotel", "transfer", "activity"] },
+                    segment_ref: { type: "string" },
+                    start_datetime: { type: "string" },
+                    end_datetime: { type: "string" },
+                    location: {
+                      type: "object",
+                      properties: {
+                        name: { type: "string" },
+                        address: { type: "string" },
+                        city: { type: ["string", "null"] },
+                        country: { type: ["string", "null"] }
                       },
-                      details: { type: "object", additionalProperties: true }
+                      required: ["name", "address"],
+                      additionalProperties: false
                     },
-                    required: ["kind", "segment_ref", "start_datetime", "location"],
-                    additionalProperties: false
-                  }
+                    details: { type: "object", additionalProperties: true }
+                  },
+                  required: ["kind", "segment_ref", "start_datetime", "location"],
+                  additionalProperties: false
+                }
+              },
+              booking_refs: {
+                type: "object",
+                properties: {
+                  flight: { type: ["string", "null"] },
+                  hotel: { type: ["string", "null"] },
+                  transfer: { type: ["string", "null"] },
+                  other: { type: "array", items: { type: "string" } }
                 },
-                booking_refs: {
+                additionalProperties: false
+              },
+              emergency_contacts: {
+                type: "array",
+                items: {
                   type: "object",
                   properties: {
-                    flight: { type: ["string", "null"] },
-                    hotel: { type: ["string", "null"] },
-                    transfer: { type: ["string", "null"] },
-                    other: { type: "array", items: { type: "string" } }
+                    name: { type: "string" },
+                    phone: { type: "string" },
+                    type: { type: "string" }
                   },
+                  required: ["name", "phone", "type"],
                   additionalProperties: false
-                },
-                emergency_contacts: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      name: { type: "string" },
-                      phone: { type: "string" },
-                      type: { type: "string" }
-                    },
-                    required: ["name", "phone", "type"],
-                    additionalProperties: false
-                  }
-                },
-                important_notes: { type: "array", items: { type: "string" } },
-                included_services: { type: "array", items: { type: "string" } }
+                }
               },
-              required: ["trip_name", "reservation_id", "departure_date", "arrival_date", "destination", "segments", "booking_refs", "emergency_contacts"],
-              additionalProperties: false
-            }
+              important_notes: { type: "array", items: { type: "string" } },
+              included_services: { type: "array", items: { type: "string" } }
+            },
+            required: ["trip_name", "reservation_id", "departure_date", "arrival_date", "destination", "segments", "booking_refs", "emergency_contacts"],
+            additionalProperties: false
           }
-        },
-        max_tokens: 8000,
-      }),
+        }
+      }
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Assistant creation failed: ${error}`);
+  }
+
+  return await response.json();
+}
+
+async function runAssistant(openaiApiKey: string, assistantId: string, threadId: string) {
+  const response = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+      'Content-Type': 'application/json',
+      'OpenAI-Beta': 'assistants=v2',
+    },
+    body: JSON.stringify({
+      assistant_id: assistantId,
+    }),
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Run creation failed: ${error}`);
+  }
+
+  return await response.json();
+}
+
+async function waitForCompletion(openaiApiKey: string, threadId: string, runId: string, maxAttempts = 30) {
+  for (let i = 0; i < maxAttempts; i++) {
+    const response = await fetch(`https://api.openai.com/v1/threads/${threadId}/runs/${runId}`, {
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'OpenAI-Beta': 'assistants=v2',
+      },
     });
 
     if (!response.ok) {
-      const error = await response.text();
-      console.error("OpenAI API error:", error);
+      throw new Error('Failed to check run status');
+    }
+
+    const run = await response.json();
+
+    if (run.status === 'completed') {
+      return run;
+    } else if (run.status === 'failed' || run.status === 'cancelled' || run.status === 'expired') {
+      throw new Error(`Run ${run.status}: ${run.last_error?.message || 'Unknown error'}`);
+    }
+
+    await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+
+  throw new Error('Timeout waiting for completion');
+}
+
+async function getMessages(openaiApiKey: string, threadId: string) {
+  const response = await fetch(`https://api.openai.com/v1/threads/${threadId}/messages`, {
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+      'OpenAI-Beta': 'assistants=v2',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to get messages');
+  }
+
+  return await response.json();
+}
+
+async function deleteFile(openaiApiKey: string, fileId: string) {
+  try {
+    await fetch(`https://api.openai.com/v1/files/${fileId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+      },
+    });
+  } catch (error) {
+    console.warn('Failed to delete file:', error);
+  }
+}
+
+async function deleteAssistant(openaiApiKey: string, assistantId: string) {
+  try {
+    await fetch(`https://api.openai.com/v1/assistants/${assistantId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'OpenAI-Beta': 'assistants=v2',
+      },
+    });
+  } catch (error) {
+    console.warn('Failed to delete assistant:', error);
+  }
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, {
+      status: 200,
+      headers: corsHeaders,
+    });
+  }
+
+  let fileId: string | null = null;
+  let assistantId: string | null = null;
+
+  try {
+    const { pdfUrl } = await req.json();
+
+    if (!pdfUrl) {
       return new Response(
-        JSON.stringify({ error: "Failed to parse PDF with OpenAI", details: error }),
+        JSON.stringify({ error: "PDF URL is required" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
+
+    const { data: apiSettings, error: apiError } = await supabase
+      .from("api_settings")
+      .select("api_key")
+      .eq("provider", "openai")
+      .eq("service_name", "OpenAI API")
+      .maybeSingle();
+
+    if (apiError || !apiSettings?.api_key) {
+      return new Response(
+        JSON.stringify({ error: "OpenAI API key not configured in database" }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -208,8 +326,60 @@ BELANGRIJK:
       );
     }
 
-    const data = await response.json();
-    const parsedData = JSON.parse(data.choices[0].message.content);
+    const openaiApiKey = apiSettings.api_key;
+
+    console.log('Downloading PDF from:', pdfUrl);
+    const pdfResponse = await fetch(pdfUrl);
+    if (!pdfResponse.ok) {
+      throw new Error("Failed to download PDF");
+    }
+
+    const pdfBuffer = await pdfResponse.arrayBuffer();
+    const filename = pdfUrl.split('/').pop() || 'document.pdf';
+
+    console.log('Uploading file to OpenAI...');
+    const fileUpload = await uploadFileToOpenAI(pdfBuffer, openaiApiKey, filename);
+    fileId = fileUpload.id;
+    console.log('File uploaded:', fileId);
+
+    console.log('Creating assistant...');
+    const assistant = await createAssistant(openaiApiKey);
+    assistantId = assistant.id;
+    console.log('Assistant created:', assistantId);
+
+    console.log('Creating thread with file...');
+    const thread = await createThread(
+      openaiApiKey,
+      fileId,
+      'Analyseer dit reisdocument PDF en extraheer ALLE informatie volgens het schema. Wees zeer grondig met reserveringsnummers, datums en contactgegevens. Return ONLY the JSON object, no additional text.'
+    );
+    console.log('Thread created:', thread.id);
+
+    console.log('Running assistant...');
+    const run = await runAssistant(openaiApiKey, assistantId, thread.id);
+    console.log('Run started:', run.id);
+
+    console.log('Waiting for completion...');
+    await waitForCompletion(openaiApiKey, thread.id, run.id);
+    console.log('Run completed');
+
+    console.log('Getting messages...');
+    const messages = await getMessages(openaiApiKey, thread.id);
+
+    const assistantMessage = messages.data.find((msg: any) => msg.role === 'assistant');
+    if (!assistantMessage || !assistantMessage.content || assistantMessage.content.length === 0) {
+      throw new Error('No response from assistant');
+    }
+
+    const content = assistantMessage.content[0];
+    const jsonText = content.type === 'text' ? content.text.value : '';
+
+    console.log('Parsing JSON response...');
+    const parsedData = JSON.parse(jsonText);
+
+    console.log('Cleaning up resources...');
+    if (fileId) await deleteFile(openaiApiKey, fileId);
+    if (assistantId) await deleteAssistant(openaiApiKey, assistantId);
 
     return new Response(
       JSON.stringify(parsedData),
@@ -219,6 +389,28 @@ BELANGRIJK:
     );
   } catch (error) {
     console.error("Error parsing PDF:", error);
+
+    if (fileId) {
+      try {
+        const { data: apiSettings } = await createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+        )
+          .from("api_settings")
+          .select("api_key")
+          .eq("provider", "openai")
+          .eq("service_name", "OpenAI API")
+          .maybeSingle();
+
+        if (apiSettings?.api_key) {
+          await deleteFile(apiSettings.api_key, fileId);
+          if (assistantId) await deleteAssistant(apiSettings.api_key, assistantId);
+        }
+      } catch (cleanupError) {
+        console.warn('Cleanup failed:', cleanupError);
+      }
+    }
+
     return new Response(
       JSON.stringify({ error: error.message, stack: error.stack }),
       {
