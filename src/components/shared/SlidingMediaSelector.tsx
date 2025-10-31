@@ -160,27 +160,46 @@ export function SlidingMediaSelector({
   useEffect(() => {
     const loadAPIKeys = async () => {
       try {
-        const { data: settings } = await supabase
+        console.log('🔍 Loading API keys from database...');
+        const { data: settings, error } = await supabase
           .from('api_settings')
           .select('provider, api_key')
           .in('provider', ['Unsplash', 'YouTube'])
           .eq('is_active', true);
 
+        if (error) {
+          console.error('❌ Error loading API keys:', error);
+          return;
+        }
+
+        console.log('📊 Database settings found:', settings?.length || 0);
+
         if (settings) {
           const unsplash = settings.find(s => s.provider === 'Unsplash');
           const youtube = settings.find(s => s.provider === 'YouTube');
 
-          if (unsplash?.api_key) setUnsplashKey(unsplash.api_key);
-          if (youtube?.api_key) setYoutubeKey(youtube.api_key);
+          if (unsplash?.api_key) {
+            setUnsplashKey(unsplash.api_key);
+            console.log('✅ Unsplash API key geladen vanuit database');
+          } else {
+            console.log('⚠️ Geen Unsplash API key in database');
+          }
+
+          if (youtube?.api_key) {
+            setYoutubeKey(youtube.api_key);
+            console.log('✅ YouTube API key geladen vanuit database');
+          } else {
+            console.log('⚠️ Geen YouTube API key in database');
+          }
         }
       } catch (error) {
-        console.error('Error loading API keys from database:', error);
+        console.error('❌ Error loading API keys from database:', error);
       }
     };
 
     loadAPIKeys();
 
-    console.log('🔑 API Keys Status:');
+    console.log('🔑 API Keys Status (Environment):');
     console.log('  Unsplash (env):', import.meta.env.VITE_UNSPLASH_ACCESS_KEY ? '✅ Configured' : '❌ Missing');
     console.log('  YouTube (env):', import.meta.env.VITE_YOUTUBE_API_KEY ? '✅ Configured' : '❌ Missing');
   }, []);
