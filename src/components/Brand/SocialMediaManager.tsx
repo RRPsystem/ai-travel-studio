@@ -188,6 +188,7 @@ export function SocialMediaManager() {
     try {
       const postData = {
         brand_id: user?.brand_id,
+        created_by: user?.id,
         content: formData.content,
         platforms: formData.platforms,
         media_urls: formData.media_urls,
@@ -225,6 +226,7 @@ export function SocialMediaManager() {
     try {
       const postData = {
         brand_id: user?.brand_id,
+        created_by: user?.id,
         content: formData.content,
         platforms: formData.platforms,
         media_urls: formData.media_urls,
