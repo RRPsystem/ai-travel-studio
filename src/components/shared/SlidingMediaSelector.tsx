@@ -172,16 +172,20 @@ export function SlidingMediaSelector({
 
     try {
       setIsSearching(true);
-      const response = await fetch(
-        `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=30&client_id=${apiKey}`
-      );
+      const url = `https://api.unsplash.com/search/photos?query=${encodeURIComponent(query)}&per_page=30&client_id=${apiKey}`;
+      console.log('🌐 API URL:', url.replace(apiKey, 'API_KEY_HIDDEN'));
+
+      const response = await fetch(url);
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ API Response:', response.status, errorText);
         throw new Error(`Unsplash API error: ${response.status}`);
       }
 
       const data = await response.json();
       console.log('✅ Unsplash results:', data.results.length, 'photos found');
+      console.log('📸 First 3 results:', data.results.slice(0, 3).map((p: any) => p.alt_description || p.description));
       return data.results.map((photo: any) => photo.urls.regular);
     } catch (error) {
       console.error('❌ Unsplash search error:', error);
@@ -238,12 +242,16 @@ export function SlidingMediaSelector({
   const handleSearch = async () => {
     const term = searchTerm.toLowerCase().trim();
 
+    console.log('🔍 Starting search with term:', term);
+
     const unsplashResults = await searchUnsplash(term);
 
     if (unsplashResults && unsplashResults.length > 0) {
+      console.log('✅ Using Unsplash results, count:', unsplashResults.length);
       setDisplayedImages(unsplashResults);
       setUseRealAPI(true);
     } else {
+      console.log('⚠️ No Unsplash results, using fallback');
       if (imageCollections[term]) {
         setDisplayedImages(imageCollections[term]);
       } else {
@@ -261,9 +269,9 @@ export function SlidingMediaSelector({
   };
 
   useEffect(() => {
-    if (activeTab === 'unsplash') {
+    if (activeTab === 'unsplash' && displayedImages.length === 0) {
       handleSearch();
-    } else if (activeTab === 'youtube') {
+    } else if (activeTab === 'youtube' && youtubeVideos.length === 0) {
       handleYouTubeSearch();
     }
   }, [activeTab]);
