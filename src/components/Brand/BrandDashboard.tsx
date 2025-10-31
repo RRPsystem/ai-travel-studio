@@ -524,7 +524,7 @@ export function BrandDashboard() {
                   {activeSection === 'ai-video' && 'Create engaging travel videos with AI'}
                   {activeSection === 'social-media' && 'Maak en beheer social media posts'}
                   {activeSection === 'settings' && 'Beheer je brand en domein instellingen'}
-                  {activeSection === 'testing' && 'Test features and provide feedback'}
+                  {activeSection === 'testing' && 'Test features en geef feedback'}
                   {activeSection === 'roadmap' && 'Vote on features and track development progress'}
                 </p>
               </div>
