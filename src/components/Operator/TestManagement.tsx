@@ -89,7 +89,7 @@ export default function TestManagement() {
         .from('test_feedback')
         .select(`
           *,
-          user:users!test_feedback_user_id_fkey(email)
+          user:users(email)
         `)
         .eq('round_id', activeRoundData.id);
 
