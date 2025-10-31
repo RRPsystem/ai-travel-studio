@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { edgeAIService } from '../../lib/apiServices';
+import { edgeAIService, aiTravelService } from '../../lib/apiServices';
 import { supabase } from '../../lib/supabase';
 import { APIStatusChecker } from './APIStatusChecker';
 import { GooglePlacesAutocomplete } from '../shared/GooglePlacesAutocomplete';
