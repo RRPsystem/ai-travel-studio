@@ -393,6 +393,11 @@ export class OpenAIService {
     }
 
     try {
+      const cleanPrompt = prompt.slice(0, 1000);
+      const fullPrompt = `Travel photography: ${cleanPrompt}. High quality, professional travel photo style.`;
+
+      console.log('Generating image with prompt:', fullPrompt);
+
       const response = await fetch(`${this.baseUrl}/images/generations`, {
         method: 'POST',
         headers: {
@@ -401,7 +406,7 @@ export class OpenAIService {
         },
         body: JSON.stringify({
           model: 'dall-e-3',
-          prompt: `Travel photography: ${prompt}. High quality, professional travel photo style.`,
+          prompt: fullPrompt,
           size: '1024x1024',
           quality: 'standard',
           n: 1,
@@ -409,10 +414,13 @@ export class OpenAIService {
       });
 
       if (!response.ok) {
-        throw new Error(`OpenAI Images API error: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        console.error('OpenAI API error response:', errorData);
+        throw new Error(`OpenAI Images API error: ${response.status} - ${JSON.stringify(errorData)}`);
       }
 
       const data = await response.json();
+      console.log('Image generated successfully:', data.data[0]?.url);
       return data.data[0]?.url || '';
     } catch (error) {
       console.error('OpenAI Images API Error:', error);
