@@ -473,6 +473,8 @@ export function TravelBroSetup() {
             const scheduleDate = now.toISOString().split('T')[0];
             const scheduleTime = now.toTimeString().split(' ')[0];
 
+            const shareLink = getShareUrl(createdTrip.share_token);
+
             const { error: scheduleError } = await db.supabase
               .from('scheduled_whatsapp_messages')
               .insert({
@@ -485,6 +487,7 @@ export function TravelBroSetup() {
                 scheduled_time: scheduleTime,
                 timezone: 'Europe/Amsterdam',
                 message_type: 'welcome',
+                template_variables: { '1': shareLink },
               });
 
             if (scheduleError) {

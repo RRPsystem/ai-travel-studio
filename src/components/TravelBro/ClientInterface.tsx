@@ -48,13 +48,26 @@ export function ClientInterface({ shareToken }: { shareToken: string }) {
 
       if (sessionError) throw sessionError;
 
-      if (!sessionData || !sessionData.travel_trips) {
-        alert('Deze sessie is niet beschikbaar');
-        return;
-      }
+      if (sessionData && sessionData.travel_trips) {
+        setTrip(sessionData.travel_trips);
+        setSessionToken(shareToken);
+      } else {
+        const { data: tripData, error: tripError } = await supabase
+          .from('travel_trips')
+          .select('*')
+          .eq('share_token', shareToken)
+          .maybeSingle();
 
-      setTrip(sessionData.travel_trips);
-      setSessionToken(shareToken);
+        if (tripError) throw tripError;
+
+        if (!tripData) {
+          alert('Deze reis is niet beschikbaar');
+          return;
+        }
+
+        setTrip(tripData);
+        setSessionToken(shareToken);
+      }
 
       const { data: intakeData } = await supabase
         .from('travel_intakes')
