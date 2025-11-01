@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { edgeAIService, aiTravelService } from '../../lib/apiServices';
 import { supabase } from '../../lib/supabase';
 import { APIStatusChecker } from './APIStatusChecker';
@@ -84,6 +84,96 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showAPIStatus, setShowAPIStatus] = useState(false);
+
+  // Load chat history on mount
+  useEffect(() => {
+    loadChatHistory();
+  }, []);
+
+  const loadChatHistory = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('content_generator_chats')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+
+      if (data) {
+        const loadedChats: ChatSession[] = data.map((chat: any) => ({
+          id: chat.id,
+          title: chat.title,
+          messages: chat.messages || [],
+          contentType: chat.content_type,
+          lastActivity: new Date(chat.updated_at),
+          writingStyle: chat.metadata?.writingStyle,
+          vacationType: chat.metadata?.vacationType,
+          routeType: chat.metadata?.routeType,
+          days: chat.metadata?.days
+        }));
+        setChatSessions(loadedChats);
+      }
+    } catch (error) {
+      console.error('Error loading chat history:', error);
+    }
+  };
+
+  const saveChat = async (chat: ChatSession) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: userData } = await supabase
+        .from('users')
+        .select('brand_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!userData?.brand_id) return;
+
+      const { error } = await supabase
+        .from('content_generator_chats')
+        .upsert({
+          id: chat.id,
+          brand_id: userData.brand_id,
+          user_id: user.id,
+          title: chat.title,
+          content_type: chat.contentType,
+          messages: chat.messages,
+          metadata: {
+            writingStyle: chat.writingStyle,
+            vacationType: chat.vacationType,
+            routeType: chat.routeType,
+            days: chat.days
+          }
+        });
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Error saving chat:', error);
+    }
+  };
+
+  const deleteChat = async (chatId: string) => {
+    try {
+      await supabase
+        .from('content_generator_chats')
+        .delete()
+        .eq('id', chatId);
+
+      setChatSessions(prev => prev.filter(c => c.id !== chatId));
+      if (activeChatId === chatId) {
+        setActiveChatId(null);
+      }
+    } catch (error) {
+      console.error('Error deleting chat:', error);
+    }
+  };
 
   const contentTypes = [
     { id: 'destination', label: 'Bestemmings tekst', icon: MapPin, color: 'border-orange-500 bg-orange-50' },
@@ -204,7 +294,10 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
     setChatSessions([newChat, ...chatSessions]);
     setActiveChatId(newChatId);
     setShowSlidingPanel(false);
-    
+
+    // Save chat to database
+    saveChat(newChat);
+
     // Generate initial AI response
     setIsGenerating(true);
     setTimeout(async () => {
@@ -315,11 +408,17 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
           routeData
         };
 
-        setChatSessions(prev => prev.map(chat =>
-          chat.id === newChatId
-            ? { ...chat, messages: [...chat.messages, aiResponse] }
-            : chat
-        ));
+        setChatSessions(prev => {
+          const updated = prev.map(chat =>
+            chat.id === newChatId
+              ? { ...chat, messages: [...chat.messages, aiResponse] }
+              : chat
+          );
+          // Save updated chat
+          const updatedChat = updated.find(c => c.id === newChatId);
+          if (updatedChat) saveChat(updatedChat);
+          return updated;
+        });
         setIsGenerating(false);
       } catch (error) {
         const errorResponse: ChatMessage = {
@@ -406,11 +505,17 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
           timestamp: new Date()
         };
 
-        setChatSessions(prev => prev.map(chat =>
-          chat.id === activeChatId
-            ? { ...chat, messages: [...chat.messages, aiResponse] }
-            : chat
-        ));
+        setChatSessions(prev => {
+          const updated = prev.map(chat =>
+            chat.id === activeChatId
+              ? { ...chat, messages: [...chat.messages, aiResponse] }
+              : chat
+          );
+          // Save updated chat
+          const updatedChat = updated.find(c => c.id === activeChatId);
+          if (updatedChat) saveChat(updatedChat);
+          return updated;
+        });
         setIsGenerating(false);
       } catch (error) {
         const errorResponse: ChatMessage = {
@@ -467,18 +572,20 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
           <div className="p-4">
             <div className="space-y-2">
               {chatSessions.map((chat) => (
-                <div 
+                <div
                   key={chat.id}
-                  onClick={() => setActiveChatId(chat.id)}
-                  className={`p-3 rounded-lg cursor-pointer transition-colors border-l-2 ${
-                    activeChatId === chat.id 
-                      ? 'bg-blue-50 border-blue-500' 
+                  className={`p-3 rounded-lg transition-colors border-l-2 ${
+                    activeChatId === chat.id
+                      ? 'bg-blue-50 border-blue-500'
                       : 'hover:bg-gray-50 border-transparent'
                   }`}
                 >
                   <div className="flex items-start space-x-2">
                     <MapPin size={14} className="text-gray-400 mt-1 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
+                    <div
+                      onClick={() => setActiveChatId(chat.id)}
+                      className="flex-1 min-w-0 cursor-pointer"
+                    >
                       <div className="text-sm font-medium text-gray-900 truncate">
                         {chat.title}
                       </div>
@@ -491,6 +598,18 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
                         </span>
                       </div>
                     </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (confirm('Chat verwijderen?')) {
+                          deleteChat(chat.id);
+                        }
+                      }}
+                      className="p-1 hover:bg-red-100 rounded transition-colors"
+                      title="Verwijder chat"
+                    >
+                      <X size={14} className="text-gray-400 hover:text-red-600" />
+                    </button>
                   </div>
                 </div>
               ))}
@@ -763,19 +882,19 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
                 Kies een content type om professionele reiscontent te genereren met automatische GPT selectie en actuele informatie
               </p>
 
-              <div className="grid grid-cols-5 gap-6 max-w-5xl mx-auto">
+              <div className="grid grid-cols-3 gap-6 max-w-4xl mx-auto">
                 {contentTypes.map((type) => {
                   const Icon = type.icon;
                   return (
                     <div
                       key={type.id}
                       onClick={() => handleContentTypeSelect(type.id)}
-                      className="bg-white border-2 border-gray-200 rounded-xl p-6 hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer group"
+                      className="bg-white border-2 border-gray-200 rounded-2xl p-8 hover:border-blue-400 hover:shadow-lg transition-all cursor-pointer group"
                     >
-                      <div className="w-16 h-16 mx-auto mb-4 bg-blue-50 rounded-xl flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-                        <Icon className="w-8 h-8 text-blue-600" />
+                      <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl flex items-center justify-center group-hover:from-blue-100 group-hover:to-blue-200 transition-all">
+                        <Icon className="w-10 h-10 text-blue-600" />
                       </div>
-                      <h3 className="font-semibold text-gray-900 text-center">
+                      <h3 className="font-semibold text-gray-900 text-center text-base leading-snug">
                         {type.label}
                       </h3>
                     </div>
