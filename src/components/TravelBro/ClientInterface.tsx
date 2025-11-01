@@ -51,6 +51,17 @@ export function ClientInterface({ shareToken }: { shareToken: string }) {
       if (sessionData && sessionData.travel_trips) {
         setTrip(sessionData.travel_trips);
         setSessionToken(shareToken);
+
+        const { data: intakeData } = await supabase
+          .from('travel_intakes')
+          .select('*')
+          .eq('session_token', shareToken)
+          .maybeSingle();
+
+        if (intakeData?.completed_at) {
+          setShowIntake(false);
+          loadConversations(shareToken);
+        }
       } else {
         const { data: tripData, error: tripError } = await supabase
           .from('travel_trips')
@@ -65,19 +76,23 @@ export function ClientInterface({ shareToken }: { shareToken: string }) {
           return;
         }
 
+        const newSessionToken = crypto.randomUUID().replace(/-/g, '');
+
+        const { error: sessionInsertError } = await supabase
+          .from('travel_whatsapp_sessions')
+          .insert({
+            session_token: newSessionToken,
+            trip_id: tripData.id,
+            brand_id: tripData.brand_id,
+            phone_number: 'web_' + Date.now()
+          });
+
+        if (sessionInsertError) {
+          console.error('Error creating session:', sessionInsertError);
+        }
+
         setTrip(tripData);
-        setSessionToken(shareToken);
-      }
-
-      const { data: intakeData } = await supabase
-        .from('travel_intakes')
-        .select('*')
-        .eq('session_token', shareToken)
-        .maybeSingle();
-
-      if (intakeData?.completed_at) {
-        setShowIntake(false);
-        loadConversations(shareToken);
+        setSessionToken(newSessionToken);
       }
     } catch (error) {
       console.error('Error loading trip:', error);
