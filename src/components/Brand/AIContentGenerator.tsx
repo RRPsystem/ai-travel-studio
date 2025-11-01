@@ -1288,33 +1288,33 @@ export function AIContentGenerator({ onClose }: AIContentGeneratorProps) {
                     </div>
                   </div>
                 )}
+
+                {/* Image Gallery - only show for Afbeelding Maker */}
+                {selectedContentType === 'image' && selectedImageStyle && generatedImages.length > 0 && (
+                  <div className="mt-4">
+                    <div className="text-xs font-semibold text-gray-500 uppercase mb-3">Laatste Afbeeldingen</div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {generatedImages.slice(0, 4).map((imageUrl, index) => (
+                        <div
+                          key={index}
+                          className="aspect-video rounded-lg overflow-hidden bg-gray-100 border-2 border-gray-200 hover:border-orange-400 transition-all cursor-pointer group shadow-sm hover:shadow-md"
+                          onClick={() => {
+                            setCurrentInput(`Maak een soortgelijke afbeelding als deze`);
+                          }}
+                        >
+                          <img
+                            src={imageUrl}
+                            alt={`Generated ${index + 1}`}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
-
-          {/* Image Gallery - only show for Afbeelding Maker */}
-          {selectedContentType === 'image' && generatedImages.length > 0 && (
-            <div className="px-6 pb-4">
-              <div className="text-xs font-semibold text-gray-500 uppercase mb-3">Laatste Afbeeldingen</div>
-              <div className="grid grid-cols-2 gap-3">
-                {generatedImages.slice(0, 4).map((imageUrl, index) => (
-                  <div
-                    key={index}
-                    className="aspect-video rounded-lg overflow-hidden bg-gray-100 border-2 border-gray-200 hover:border-orange-400 transition-all cursor-pointer group shadow-sm hover:shadow-md"
-                    onClick={() => {
-                      setCurrentInput(`Maak een soortgelijke afbeelding als deze`);
-                    }}
-                  >
-                    <img
-                      src={imageUrl}
-                      alt={`Generated ${index + 1}`}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Panel Footer */}
           <div className="p-6 border-t border-gray-200">
