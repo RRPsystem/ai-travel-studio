@@ -5,30 +5,6 @@
       "destination": "/index.html"
     }
   ],
-  "redirects": [
-    {
-      "source": "/:path*",
-      "destination": "https://ai-travelstudio.vercel.app/:path*",
-      "permanent": false,
-      "has": [
-        {
-          "type": "host",
-          "value": "travelbro.nl"
-        }
-      ]
-    },
-    {
-      "source": "/:path*",
-      "destination": "https://ai-travelstudio.vercel.app/:path*",
-      "permanent": false,
-      "has": [
-        {
-          "type": "host",
-          "value": "www.travelbro.nl"
-        }
-      ]
-    }
-  ],
   "crons": [
     {
       "path": "/api/cron/process-scheduled-messages",
