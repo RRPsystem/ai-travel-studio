@@ -40,42 +40,42 @@ export function ClientInterface({ shareToken }: { shareToken: string }) {
 
   const loadTripFromSession = async () => {
     try {
-      const { data: sessionData, error: sessionError } = await supabase
-        .from('travel_whatsapp_sessions')
-        .select('*, travel_trips(*)')
-        .eq('session_token', shareToken)
+      const { data: tripData, error: tripError } = await supabase
+        .from('travel_trips')
+        .select('*')
+        .eq('share_token', shareToken)
         .maybeSingle();
 
-      if (sessionError) throw sessionError;
+      if (tripError) throw tripError;
 
-      if (sessionData && sessionData.travel_trips) {
-        setTrip(sessionData.travel_trips);
-        setSessionToken(shareToken);
+      if (!tripData) {
+        console.error('Trip not found for share_token:', shareToken);
+        alert('Deze reis is niet beschikbaar');
+        return;
+      }
 
+      const { data: existingSession } = await supabase
+        .from('travel_whatsapp_sessions')
+        .select('session_token')
+        .eq('trip_id', tripData.id)
+        .eq('phone_number', 'web_' + shareToken)
+        .maybeSingle();
+
+      if (existingSession) {
         const { data: intakeData } = await supabase
           .from('travel_intakes')
           .select('*')
-          .eq('session_token', shareToken)
+          .eq('session_token', existingSession.session_token)
           .maybeSingle();
+
+        setTrip(tripData);
+        setSessionToken(existingSession.session_token);
 
         if (intakeData?.completed_at) {
           setShowIntake(false);
-          loadConversations(shareToken);
+          loadConversations(existingSession.session_token);
         }
       } else {
-        const { data: tripData, error: tripError } = await supabase
-          .from('travel_trips')
-          .select('*')
-          .eq('share_token', shareToken)
-          .maybeSingle();
-
-        if (tripError) throw tripError;
-
-        if (!tripData) {
-          alert('Deze reis is niet beschikbaar');
-          return;
-        }
-
         const newSessionToken = crypto.randomUUID().replace(/-/g, '');
 
         const { error: intakeInsertError } = await supabase
@@ -105,7 +105,7 @@ export function ClientInterface({ shareToken }: { shareToken: string }) {
           .insert({
             session_token: newSessionToken,
             trip_id: tripData.id,
-            phone_number: 'web_' + Date.now()
+            phone_number: 'web_' + shareToken
           });
 
         if (sessionInsertError) {
