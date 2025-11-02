@@ -437,8 +437,9 @@ function IntakeForm({ trip, sessionToken, onComplete }: { trip: Trip; sessionTok
         for (const participant of participants) {
           if (participant.phone_number) {
             const now = new Date();
-            const scheduleDate = now.toISOString().split('T')[0];
-            const scheduleTime = now.toTimeString().split(' ')[0];
+            const isoString = now.toISOString();
+            const scheduleDate = isoString.split('T')[0];
+            const scheduleTime = isoString.split('T')[1].split('.')[0];
             const shareLink = `https://${brandInfo?.travelbro_domain || 'travelbro.nl'}/${trip.share_token}`;
 
             await supabase
