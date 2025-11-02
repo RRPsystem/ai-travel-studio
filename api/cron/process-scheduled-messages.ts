@@ -5,9 +5,9 @@ export const config = {
 export default async function handler(req: Request) {
   try {
     const supabaseUrl = process.env.VITE_SUPABASE_URL;
-    const supabaseKey = process.env.VITE_SUPABASE_ANON_KEY;
+    const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !supabaseServiceKey) {
       return new Response(
         JSON.stringify({ error: 'Missing Supabase configuration' }),
         { status: 500, headers: { 'Content-Type': 'application/json' } }
@@ -17,7 +17,7 @@ export default async function handler(req: Request) {
     const response = await fetch(`${supabaseUrl}/functions/v1/process-scheduled-messages`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${supabaseKey}`,
+        'Authorization': `Bearer ${supabaseServiceKey}`,
         'Content-Type': 'application/json',
       },
     });
