@@ -164,7 +164,6 @@ Deno.serve(async (req: Request) => {
           trip_id: tripId,
           session_token: sessionToken,
           phone_number: cleanPhoneNumber,
-          intake_skipped: skipIntake || false,
           last_message_at: new Date().toISOString()
         }, {
           onConflict: 'trip_id,phone_number'
