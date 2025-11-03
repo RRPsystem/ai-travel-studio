@@ -34,15 +34,16 @@ Deno.serve(async (req: Request) => {
 
     const { data: apiSettings } = await supabase
       .from('api_settings')
-      .select('provider, service_name, api_key, metadata')
-      .in('provider', ['OpenAI', 'Google'])
+      .select('provider, service_name, api_key, metadata, google_search_api_key, google_search_engine_id, google_places_api_key')
+      .in('provider', ['OpenAI', 'Google', 'system'])
       .eq('is_active', true);
 
     const openaiApiKey = apiSettings?.find(s => s.provider === 'OpenAI')?.api_key;
     const googleMapsApiKey = apiSettings?.find(s => s.provider === 'Google' && s.service_name === 'Google Maps API')?.api_key;
-    const googleSearchSetting = apiSettings?.find(s => s.provider === 'Google' && s.service_name === 'Google Custom Search');
-    const googleSearchApiKey = googleSearchSetting?.api_key;
-    const googleCseId = googleSearchSetting?.metadata?.search_engine_id;
+
+    const systemSettings = apiSettings?.find(s => s.provider === 'system' && s.service_name === 'Twilio WhatsApp');
+    const googleSearchApiKey = systemSettings?.google_search_api_key;
+    const googleCseId = systemSettings?.google_search_engine_id;
 
     console.log('🔍 API Settings Check:', {
       hasOpenAI: !!openaiApiKey,
