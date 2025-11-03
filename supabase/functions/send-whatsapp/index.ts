@@ -16,7 +16,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { to, message, brandId, useTemplate, templateSid, templateVariables } = await req.json();
+    const { to, message, brandId, useTemplate, templateSid, templateVariables, tripId, sessionToken, skipIntake } = await req.json();
 
     if (!to || (!message && !useTemplate)) {
       return new Response(
@@ -152,6 +152,30 @@ Deno.serve(async (req: Request) => {
     }
 
     console.log('WhatsApp message sent successfully:', responseData.sid);
+
+    if (tripId && sessionToken) {
+      console.log('Creating WhatsApp session for trip:', tripId);
+
+      const cleanPhoneNumber = to.replace('whatsapp:', '');
+
+      const { error: sessionError } = await supabase
+        .from('travel_whatsapp_sessions')
+        .upsert({
+          trip_id: tripId,
+          session_token: sessionToken,
+          phone_number: cleanPhoneNumber,
+          intake_skipped: skipIntake || false,
+          last_message_at: new Date().toISOString()
+        }, {
+          onConflict: 'trip_id,phone_number'
+        });
+
+      if (sessionError) {
+        console.error('Error creating WhatsApp session:', sessionError);
+      } else {
+        console.log('✅ WhatsApp session created/updated');
+      }
+    }
 
     return new Response(
       JSON.stringify({

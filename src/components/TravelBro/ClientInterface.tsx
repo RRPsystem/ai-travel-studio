@@ -460,6 +460,18 @@ function IntakeForm({ trip, sessionToken, onComplete }: { trip: Trip; sessionTok
             const shareLink = `https://${brandInfo?.travelbro_domain || 'travelbro.nl'}/${trip.share_token}`;
 
             await supabase
+              .from('travel_whatsapp_sessions')
+              .upsert({
+                trip_id: trip.id,
+                session_token: sessionToken,
+                phone_number: participant.phone_number,
+                intake_skipped: false,
+                last_message_at: new Date().toISOString()
+              }, {
+                onConflict: 'trip_id,phone_number'
+              });
+
+            await supabase
               .from('scheduled_whatsapp_messages')
               .insert({
                 trip_id: trip.id,

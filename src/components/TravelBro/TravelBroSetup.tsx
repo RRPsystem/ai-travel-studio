@@ -687,6 +687,7 @@ export function TravelBroSetup() {
 
     setSendingInvite(true);
     try {
+      const sessionToken = crypto.randomUUID();
       const clientNameText = inviteClientName.trim() ? inviteClientName.trim() : 'Reiziger';
 
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`, {
@@ -699,7 +700,10 @@ export function TravelBroSetup() {
           to: invitePhone,
           brandId: user?.brand_id,
           useTemplate: true,
-          templateSid: 'HX01a2453a98f1070954288e9c01d7bfa3'
+          templateSid: 'HX01a2453a98f1070954288e9c01d7bfa3',
+          tripId: selectedTrip.id,
+          sessionToken: sessionToken,
+          skipIntake: skipIntake
         }),
       });
 
