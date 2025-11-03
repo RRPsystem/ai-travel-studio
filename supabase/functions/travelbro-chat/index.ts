@@ -85,9 +85,15 @@ Deno.serve(async (req: Request) => {
     if (googleSearchApiKey && googleCseId) {
       try {
         const searchQuery = `${message} ${trip.name}`;
-        console.log('🔍 Google Search - Searching:', searchQuery);
+        console.log('🔍 Google Search - Config:', {
+          query: searchQuery,
+          apiKeyPrefix: googleSearchApiKey.substring(0, 10) + '...',
+          cseId: googleCseId,
+          cseIdLength: googleCseId.length
+        });
 
         const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${googleSearchApiKey}&cx=${googleCseId}&q=${encodeURIComponent(searchQuery)}&num=3`;
+        console.log('🔍 Google Search - URL:', searchUrl.replace(googleSearchApiKey, 'API_KEY_HIDDEN'));
 
         const searchResponse = await fetch(searchUrl);
         console.log('🔍 Google Search - Response status:', searchResponse.status);
@@ -104,7 +110,13 @@ Deno.serve(async (req: Request) => {
           }
         } else {
           const errorText = await searchResponse.text();
-          console.error('🔍 Google Search - Error:', errorText);
+          console.error('🔍 Google Search - Error response:', errorText);
+          const errorData = JSON.parse(errorText);
+          console.error('🔍 Google Search - Error details:', {
+            code: errorData.error?.code,
+            message: errorData.error?.message,
+            status: errorData.error?.status
+          });
         }
       } catch (error) {
         console.error("🔍 Google Search - Exception:", error);
