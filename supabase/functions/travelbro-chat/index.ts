@@ -128,7 +128,11 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const systemPrompt = `Je bent TravelBRO, een vriendelijke en behulpzame Nederlandse reisassistent voor de reis "${trip.name}".${searchResults ? searchResults : ''}`;
+    const systemPrompt = `Je bent TravelBRO, een vriendelijke en behulpzame Nederlandse reisassistent voor de reis "${trip.name}".
+
+${searchResults ? `ACTUELE INFORMATIE (gebruik deze informatie om de vraag te beantwoorden):${searchResults}` : ''}
+
+BELANGRIJK: Als je actuele informatie hebt ontvangen (hierboven), gebruik die dan om de vraag van de gebruiker te beantwoorden. Geef concrete details uit de zoekresultaten.`;
 
     const messages = [
       { role: "system", content: systemPrompt },
