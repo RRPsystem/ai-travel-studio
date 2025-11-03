@@ -34,19 +34,21 @@ Deno.serve(async (req: Request) => {
 
     const { data: apiSettings } = await supabase
       .from('api_settings')
-      .select('provider, service_name, api_key')
+      .select('provider, service_name, api_key, metadata')
       .in('provider', ['OpenAI', 'Google'])
       .eq('is_active', true);
 
     const openaiApiKey = apiSettings?.find(s => s.provider === 'OpenAI')?.api_key;
-    const googleApiKey = apiSettings?.find(s => s.provider === 'Google' && s.service_name === 'Google Maps API')?.api_key;
-    const googleCseId = apiSettings?.find(s => s.provider === 'Google' && s.service_name === 'Google Custom Search')?.api_key;
-    const googleMapsApiKey = googleApiKey;
+    const googleMapsApiKey = apiSettings?.find(s => s.provider === 'Google' && s.service_name === 'Google Maps API')?.api_key;
+    const googleSearchSetting = apiSettings?.find(s => s.provider === 'Google' && s.service_name === 'Google Custom Search');
+    const googleSearchApiKey = googleSearchSetting?.api_key;
+    const googleCseId = googleSearchSetting?.metadata?.search_engine_id;
 
     console.log('🔍 API Settings Check:', {
       hasOpenAI: !!openaiApiKey,
-      hasGoogleMaps: !!googleApiKey,
-      hasGoogleSearch: !!googleCseId,
+      hasGoogleMaps: !!googleMapsApiKey,
+      hasGoogleSearchApiKey: !!googleSearchApiKey,
+      hasGoogleCseId: !!googleCseId,
       settingsCount: apiSettings?.length || 0
     });
 
@@ -80,12 +82,12 @@ Deno.serve(async (req: Request) => {
       .limit(10);
 
     let searchResults = "";
-    if (googleApiKey && googleCseId) {
+    if (googleSearchApiKey && googleCseId) {
       try {
         const searchQuery = `${message} ${trip.name}`;
         console.log('🔍 Google Search - Searching:', searchQuery);
 
-        const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${googleApiKey}&cx=${googleCseId}&q=${encodeURIComponent(searchQuery)}&num=3`;
+        const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${googleSearchApiKey}&cx=${googleCseId}&q=${encodeURIComponent(searchQuery)}&num=3`;
 
         const searchResponse = await fetch(searchUrl);
         console.log('🔍 Google Search - Response status:', searchResponse.status);
@@ -109,7 +111,7 @@ Deno.serve(async (req: Request) => {
       }
     } else {
       console.log('🔍 Google Search - SKIPPED (missing keys):', {
-        hasApiKey: !!googleApiKey,
+        hasSearchApiKey: !!googleSearchApiKey,
         hasCseId: !!googleCseId
       });
     }
