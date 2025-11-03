@@ -703,8 +703,8 @@ Deno.serve(async (req: Request) => {
                 const projectedPosition = projectPointOnPolyline(poiLocation, decodedPolyline, polylineDistances);
 
                 if (distanceFromCorridorPoint <= routeConfig.searchRadiusKm &&
-                    distanceFromOrigin >= routeConfig.minKmFromOrigin &&
-                    projectedPosition.distanceKm >= routeConfig.minKmFromOrigin) {
+                    distanceFromOrigin >= (routeConfig.minKmFromOrigin * 1.5) &&
+                    projectedPosition.distanceKm >= (routeConfig.minKmFromOrigin * 1.5)) {
                   const detourMinutes = await calculateDetourMinutes(
                     poiLocation,
                     point,
@@ -827,7 +827,7 @@ Deno.serve(async (req: Request) => {
               const poiLocation = { lat: place.location?.latitude || 0, lng: place.location?.longitude || 0 };
               const distanceFromOrigin = haversineDistance(poiLocation, originPoint) / 1000;
 
-              if (distanceFromOrigin >= routeConfig.minKmFromOrigin) {
+              if (distanceFromOrigin >= (routeConfig.minKmFromOrigin * 1.5)) {
                 const detourMinutes = await calculateDetourMinutes(poiLocation, point, googleMapsApiKey);
 
                 if (detourMinutes <= MAX_DETOUR_MINUTES) {
