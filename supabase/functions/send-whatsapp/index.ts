@@ -104,10 +104,12 @@ Deno.serve(async (req: Request) => {
         const variables: Record<string, string> = {};
 
         for (const [key, value] of Object.entries(templateVariables)) {
-          if (key === '1' || key === '2' || key === '3') {
-            const templateVarName = key === '1' ? 'link' : `var${key}`;
-            variables[templateVarName] = String(value);
-            console.log(`Mapping template variable ${key} -> ${templateVarName} = ${value}`);
+          if (key === 'link' || key === 'url') {
+            variables['1'] = String(value);
+            console.log(`Mapping template variable ${key} -> 1 = ${value}`);
+          } else if (key === '1' || key === '2' || key === '3') {
+            variables[key] = String(value);
+            console.log(`Using numeric template variable ${key} = ${value}`);
           } else {
             variables[key] = String(value);
           }
