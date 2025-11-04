@@ -690,6 +690,14 @@ export function TravelBroSetup() {
       const sessionToken = crypto.randomUUID();
       const clientNameText = inviteClientName.trim() ? inviteClientName.trim() : 'Reiziger';
 
+      const { data: brandInfo } = await supabase
+        .from('brands')
+        .select('travelbro_domain')
+        .eq('id', user?.brand_id)
+        .maybeSingle();
+
+      const shareLink = `https://${brandInfo?.travelbro_domain || 'travelbro.nl'}/${selectedTrip.share_token}`;
+
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`, {
         method: 'POST',
         headers: {
@@ -701,6 +709,7 @@ export function TravelBroSetup() {
           brandId: user?.brand_id,
           useTemplate: true,
           templateSid: 'HX01a2453a98f1070954288e9c01d7bfa3',
+          templateVariables: { '1': shareLink },
           tripId: selectedTrip.id,
           sessionToken: sessionToken,
           skipIntake: skipIntake
