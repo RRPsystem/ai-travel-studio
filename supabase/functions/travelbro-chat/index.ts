@@ -129,11 +129,35 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const systemPrompt = `Je bent TravelBRO, een vriendelijke en behulpzame Nederlandse reisassistent voor de reis "${trip.name}".
+    let tripContext = `REISINFORMATIE:\n- Reis: ${trip.name}`;
 
-${searchResults ? `ACTUELE INFORMATIE (gebruik deze informatie om de vraag te beantwoorden):${searchResults}` : ''}
+    if (trip.raw_text) {
+      tripContext += `\n\nGEDETAILLEERDE REISINFORMATIE (uit PDF/document):\n${trip.raw_text.substring(0, 8000)}`;
+    } else if (trip.parsed_data && Object.keys(trip.parsed_data).length > 0) {
+      tripContext += `\n\nGESTRUCTUREERDE REISINFORMATIE:\n${JSON.stringify(trip.parsed_data, null, 2)}`;
+    }
 
-BELANGRIJK: Als je actuele informatie hebt ontvangen (hierboven), gebruik die dan om de vraag van de gebruiker te beantwoorden. Geef concrete details uit de zoekresultaten.`;
+    if (trip.gpt_instructions) {
+      tripContext += `\n\nSPECIALE INSTRUCTIES VOOR DEZE REIS:\n${trip.gpt_instructions}`;
+    }
+
+    let intakeContext = '';
+    if (intake?.intake_data) {
+      intakeContext = `\n\nCLIËNT VOORKEUREN (uit intake):\n${JSON.stringify(intake.intake_data, null, 2)}`;
+    }
+
+    console.log('📚 Context gebouwd:', {
+      tripName: trip.name,
+      hasRawText: !!trip.raw_text,
+      rawTextLength: trip.raw_text?.length || 0,
+      hasParsedData: !!(trip.parsed_data && Object.keys(trip.parsed_data).length > 0),
+      hasGptInstructions: !!trip.gpt_instructions,
+      hasIntakeData: !!intake?.intake_data,
+      hasSearchResults: !!searchResults,
+      totalContextLength: (tripContext + intakeContext + searchResults).length
+    });
+
+    const systemPrompt = `Je bent TravelBRO, een vriendelijke en behulpzame Nederlandse reisassistent.\n\n${tripContext}${intakeContext}\n\n${searchResults ? `\nACTUELE INFORMATIE (gebruik deze om actuele vragen te beantwoorden):${searchResults}` : ''}\n\nBELANGRIJK:\n- Gebruik ALTIJD de reisinformatie hierboven om vragen te beantwoorden\n- Als je actuele informatie hebt, gebruik die voor up-to-date details (bijv. openingstijden, prijzen)\n- Geef concrete, specifieke antwoorden op basis van de beschikbare informatie\n- Als informatie ontbreekt, zeg dat eerlijk en bied aan om te helpen zoeken`;
 
     const messages = [
       { role: "system", content: systemPrompt },
@@ -188,6 +212,21 @@ BELANGRIJK: Als je actuele informatie hebt ontvangen (hierboven), gebruik die da
 
     const openaiData = await openaiResponse.json();
     const aiResponse = openaiData.choices[0].message.content;
+
+    await supabase.from("travel_conversations").insert([
+      {
+        trip_id: tripId,
+        session_token: sessionToken,
+        message: message,
+        role: "user",
+      },
+      {
+        trip_id: tripId,
+        session_token: sessionToken,
+        message: aiResponse,
+        role: "assistant",
+      },
+    ]);
 
     return new Response(
       JSON.stringify({ response: aiResponse }),
