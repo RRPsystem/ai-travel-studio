@@ -488,8 +488,8 @@ export function TravelBroSetup() {
                 timezone: 'Europe/Amsterdam',
                 message_type: 'welcome',
                 template_variables: {
-                  '1': traveler.name || 'Reiziger',
-                  '2': createdTrip.name || 'jouw reis',
+                  '1': (traveler.name || 'Reiziger').substring(0, 100),
+                  '2': (createdTrip.name || 'jouw reis').substring(0, 100),
                   '3': shareLink
                 },
               });

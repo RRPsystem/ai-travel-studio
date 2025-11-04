@@ -483,8 +483,8 @@ function IntakeForm({ trip, sessionToken, onComplete }: { trip: Trip; sessionTok
                 timezone: 'Europe/Amsterdam',
                 message_type: 'intake_completed',
                 template_variables: {
-                  '1': participant.name || 'Reiziger',
-                  '2': trip.name || 'jouw reis',
+                  '1': (participant.name || 'Reiziger').substring(0, 100),
+                  '2': (trip.name || 'jouw reis').substring(0, 100),
                   '3': shareLink
                 },
               });
