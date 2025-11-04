@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { db, supabase } from '../../lib/supabase';
-import { Bot, Phone, MessageSquare, Users, Settings, CheckCircle, XCircle, ExternalLink, Copy, Send, Plus, FileText, Link as LinkIcon, Trash2, Share2, Upload, Loader, Edit, Clock, Calendar, ArrowRight, MapPin, Route, Navigation } from 'lucide-react';
+import { Bot, Phone, MessageSquare, Users, Settings, CheckCircle, XCircle, ExternalLink, Copy, Send, Plus, FileText, Link as LinkIcon, Trash2, Share2, Upload, Loader, CreditCard as Edit, Clock, Calendar, ArrowRight, MapPin, Route, Navigation } from 'lucide-react';
 import { GooglePlacesAutocomplete } from '../shared/GooglePlacesAutocomplete';
 import { edgeAIService } from '../../lib/apiServices';
 
