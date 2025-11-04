@@ -97,27 +97,24 @@ Deno.serve(async (req: Request) => {
     formData.append('From', fromWhatsApp);
 
     if (useTemplate && templateSid) {
-      console.log('Using template:', templateSid);
+      console.log('🔍 DEBUG: Using template:', templateSid);
+      console.log('🔍 DEBUG: Raw templateVariables received:', JSON.stringify(templateVariables));
       formData.append('ContentSid', templateSid);
 
       if (templateVariables && typeof templateVariables === 'object' && Object.keys(templateVariables).length > 0) {
-        const variables: Record<string, string> = {};
+        console.log('🔍 DEBUG: Processing template variables...');
+        console.log('🔍 DEBUG: Template variables type:', typeof templateVariables);
+        console.log('🔍 DEBUG: Template variables keys:', Object.keys(templateVariables));
+        console.log('🔍 DEBUG: Template variables entries:', Object.entries(templateVariables));
 
-        for (const [key, value] of Object.entries(templateVariables)) {
-          if (key === 'link' || key === 'url') {
-            variables['1'] = String(value);
-            console.log(`Mapping template variable ${key} -> 1 = ${value}`);
-          } else if (key === '1' || key === '2' || key === '3') {
-            variables[key] = String(value);
-            console.log(`Using numeric template variable ${key} = ${value}`);
-          } else {
-            variables[key] = String(value);
-          }
-        }
+        const contentVarsString = JSON.stringify(templateVariables);
+        console.log('🔍 DEBUG: ContentVariables JSON string:', contentVarsString);
+        console.log('🔍 DEBUG: ContentVariables string length:', contentVarsString.length);
+        console.log('🔍 DEBUG: ContentVariables contains newlines?', contentVarsString.includes('\\n'));
+        console.log('🔍 DEBUG: ContentVariables contains tabs?', contentVarsString.includes('\\t'));
 
-        console.log('Setting ContentVariables with values:', variables);
-        formData.append('ContentVariables', JSON.stringify(variables));
-        console.log(`✅ Added ContentVariables: ${JSON.stringify(variables)}`);
+        formData.append('ContentVariables', contentVarsString);
+        console.log(`✅ Added ContentVariables: ${contentVarsString}`);
       } else {
         console.log('✅ No ContentVariables - using template without variables');
       }
