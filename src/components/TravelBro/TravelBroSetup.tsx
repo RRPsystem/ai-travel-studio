@@ -716,7 +716,7 @@ export function TravelBroSetup() {
           templateVariables: {
             '1': clientNameText,
             '2': selectedTrip.destination || 'je reis',
-            'button_1_1': shareLink
+            '3': shareLink
           },
           tripId: selectedTrip.id,
           sessionToken: sessionToken,
