@@ -85,7 +85,7 @@ Deno.serve(async (req: Request) => {
         trip_data_keys: Object.keys(body),
       });
 
-      const { trip_id, title, description, destinations, duration_days, price_from,
+      const { trip_id, page_id, title, description, destinations, duration_days, price_from,
               images, tags, gpt_instructions, is_featured, featured_priority } = body;
 
       if (!trip_id) {
@@ -120,6 +120,7 @@ Deno.serve(async (req: Request) => {
         gpt_instructions: gpt_instructions || null,
         is_featured: is_featured || false,
         featured_priority: featured_priority || null,
+        page_id: page_id || null,
         updated_at: new Date().toISOString(),
       };
 
@@ -174,6 +175,7 @@ Deno.serve(async (req: Request) => {
           .from("trips")
           .insert({
             id: trip_id,
+            brand_id: payload.brand_id,
             ...tripData,
             created_at: new Date().toISOString(),
           })
