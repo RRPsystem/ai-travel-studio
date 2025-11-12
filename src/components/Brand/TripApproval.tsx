@@ -327,7 +327,7 @@ export function TripApproval() {
         }
       }
 
-      setAssignments(prev => prev.filter(a => a.id !== assignment.id));
+      await loadAssignments();
     } catch (error) {
       console.error('Error deleting:', error);
       alert(`Fout bij verwijderen: ${error instanceof Error ? error.message : 'Onbekende fout'}`);
