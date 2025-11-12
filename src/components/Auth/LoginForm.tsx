@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { LogIn, Eye, EyeOff, ChevronDown, ChevronUp } from 'lucide-react';
+import { LogIn, Eye, EyeOff } from 'lucide-react';
 
 export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [showDemoCredentials, setShowDemoCredentials] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
@@ -38,34 +37,6 @@ export function LoginForm() {
           <p className="mt-2 text-center text-sm text-gray-600">
             Sign in to your account
           </p>
-        </div>
-        
-        <div className="bg-blue-50 border border-blue-200 rounded-lg overflow-hidden">
-          <button
-            type="button"
-            onClick={() => setShowDemoCredentials(!showDemoCredentials)}
-            className="w-full px-4 py-3 flex items-center justify-between hover:bg-blue-100 transition-colors"
-          >
-            <span className="font-semibold text-blue-900">Demo Login Credentials</span>
-            {showDemoCredentials ? (
-              <ChevronUp className="w-5 h-5 text-blue-700" />
-            ) : (
-              <ChevronDown className="w-5 h-5 text-blue-700" />
-            )}
-          </button>
-          {showDemoCredentials && (
-            <div className="px-4 pb-4 space-y-2 text-sm">
-              <div>
-                <strong>Admin:</strong> admin@example.com / admin123
-              </div>
-              <div>
-                <strong>Brand:</strong> brand@travel.com / brand123
-              </div>
-              <div>
-                <strong>Operator:</strong> operator@travel.com / operator123
-              </div>
-            </div>
-          )}
         </div>
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
