@@ -120,7 +120,23 @@ Deno.serve(async (req: Request) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { data: sessionData } = await supabase
+    const { data: systemTwilioSettings } = await supabase
+      .from('api_settings')
+      .select('twilio_account_sid, twilio_auth_token, twilio_whatsapp_number')
+      .eq('provider', 'system')
+      .eq('service_name', 'Twilio WhatsApp')
+      .maybeSingle();
+
+    if (!systemTwilioSettings?.twilio_account_sid || !systemTwilioSettings?.twilio_auth_token) {
+      console.error('System Twilio credentials not found');
+      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+        headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
+      });
+    }
+
+    console.log('🔍 Looking for session with phone number:', from);
+
+    const { data: sessionData, error: sessionError } = await supabase
       .from('travel_whatsapp_sessions')
       .select(`
         *,
@@ -140,9 +156,38 @@ Deno.serve(async (req: Request) => {
       .limit(1)
       .maybeSingle();
 
+    if (sessionError) {
+      console.error('❌ ERROR querying sessions:', sessionError);
+    }
+
+    console.log('🔍 Session query result:', sessionData ? 'FOUND' : 'NOT FOUND');
+
     if (!sessionData) {
       console.error('❌ NO ACTIVE SESSION FOUND FOR:', from);
-      console.log('Available sessions check - querying phone_number:', from);
+
+      const { data: allSessions, error: allError } = await supabase
+        .from('travel_whatsapp_sessions')
+        .select('id, phone_number, trip_id, created_at')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      console.log('📋 Available sessions in database:');
+      if (allSessions && allSessions.length > 0) {
+        allSessions.forEach(s => {
+          console.log(`  - Phone: "${s.phone_number}" | Trip: ${s.trip_id} | Created: ${s.created_at}`);
+        });
+      } else {
+        console.log('  (No sessions found in database)');
+      }
+
+      await sendWhatsAppMessage(
+        from,
+        '❌ Ik kan geen actieve TravelBro sessie vinden voor dit nummer. Neem contact op met je reisagent om een nieuwe uitnodiging te ontvangen.',
+        systemTwilioSettings.twilio_account_sid,
+        systemTwilioSettings.twilio_auth_token,
+        systemTwilioSettings.twilio_whatsapp_number || '+14155238886'
+      );
+
       return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
         headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
       });
@@ -165,21 +210,16 @@ Deno.serve(async (req: Request) => {
     const { data: twilioSettings } = await supabase
       .from('api_settings')
       .select('twilio_account_sid, twilio_auth_token, twilio_whatsapp_number')
-      .or(`brand_id.eq.${brandId},provider.eq.system`)
-      .order('brand_id', { ascending: false })
-      .limit(1)
+      .eq('brand_id', brandId)
       .maybeSingle();
 
-    if (!twilioSettings?.twilio_account_sid || !twilioSettings?.twilio_auth_token) {
-      console.error('Twilio credentials not found');
-      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-        headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
-      });
-    }
+    const finalTwilioSettings = twilioSettings?.twilio_account_sid && twilioSettings?.twilio_auth_token
+      ? twilioSettings
+      : systemTwilioSettings;
 
-    const twilioAccountSid = twilioSettings.twilio_account_sid;
-    const twilioAuthToken = twilioSettings.twilio_auth_token;
-    const twilioWhatsAppNumber = twilioSettings.twilio_whatsapp_number || '+14155238886';
+    const twilioAccountSid = finalTwilioSettings.twilio_account_sid;
+    const twilioAuthToken = finalTwilioSettings.twilio_auth_token;
+    const twilioWhatsAppNumber = finalTwilioSettings.twilio_whatsapp_number || '+14155238886';
 
     let userMessage = body;
 
