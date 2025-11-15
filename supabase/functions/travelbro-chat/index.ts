@@ -83,11 +83,14 @@ Deno.serve(async (req: Request) => {
       .limit(10);
 
     let searchResults = "";
-    if (googleSearchApiKey && googleCseId) {
+    const needsSearch = /\b(openingstijd|weer|actueel|prijs|kosten|ticket|website|adres|hoe laat|wanneer|seizoen|nu|vandaag|morgen|huidige|laatste|recent)\b/i.test(message);
+
+    if (googleSearchApiKey && googleCseId && needsSearch) {
       try {
         const searchQuery = `${message} ${trip.name}`;
         console.log('🔍 Google Search - Config:', {
           query: searchQuery,
+          needsSearch: true,
           apiKeyPrefix: googleSearchApiKey.substring(0, 10) + '...',
           cseId: googleCseId,
           cseIdLength: googleCseId.length
@@ -123,9 +126,11 @@ Deno.serve(async (req: Request) => {
         console.error("🔍 Google Search - Exception:", error);
       }
     } else {
-      console.log('🔍 Google Search - SKIPPED (missing keys):', {
+      console.log('🔍 Google Search - SKIPPED:', {
         hasSearchApiKey: !!googleSearchApiKey,
-        hasCseId: !!googleCseId
+        hasCseId: !!googleCseId,
+        needsSearch: needsSearch,
+        message: message.substring(0, 50)
       });
     }
 
@@ -157,18 +162,21 @@ Deno.serve(async (req: Request) => {
       totalContextLength: (tripContext + intakeContext + searchResults).length
     });
 
+    const hasSearchCapability = !!(googleSearchApiKey && googleCseId);
+
     const systemPrompt = `Je bent TravelBRO, een vriendelijke en behulpzame Nederlandse reisassistent.
 
-${searchResults ? '🌐 JE HEBT TOEGANG TOT GOOGLE SEARCH en kunt actuele informatie opzoeken op internet!' : '⚠️ Je hebt momenteel geen toegang tot Google Search. Gebruik alleen de beschikbare reisinformatie.'}
+${hasSearchCapability ? '🌐 JE HEBT TOEGANG TOT GOOGLE SEARCH en kunt actuele informatie opzoeken op internet!\nAls je vragen krijgt over actuele info (openingstijden, prijzen, weer, etc.), vertel dan dat je dat voor ze kunt opzoeken.' : '⚠️ Je hebt momenteel geen toegang tot Google Search. Gebruik alleen de beschikbare reisinformatie.'}
 
 ${tripContext}${intakeContext}${searchResults ? `\n\nACTUELE INFORMATIE VAN INTERNET (via Google Search):${searchResults}` : ''}
 
 BELANGRIJKE INSTRUCTIES:
-${searchResults ? '- Je KUNT en MAG op internet zoeken via Google Search\n- De zoekresultaten hierboven komen van internet en zijn actueel\n- Als je meer actuele informatie nodig hebt, vertel de gebruiker dat je dat voor ze kunt opzoeken' : '- Je hebt momenteel geen toegang tot internet\n- Gebruik alleen de beschikbare reisinformatie'}
-- Gebruik ALTIJD de reisinformatie uit de documenten om vragen te beantwoorden
-- Geef concrete, specifieke antwoorden op basis van de beschikbare informatie
-- Als informatie ontbreekt in de documenten maar je hebt zoekresultaten, gebruik die dan
-- Wees eerlijk als je iets niet weet en bied hulp aan`;
+${hasSearchCapability ? '- Je HEBT toegang tot Google Search voor actuele informatie\n- Als iemand vraagt of je internet hebt, zeg JA\n- Voor actuele vragen (openingstijden, prijzen, weer) vertel je dat je dat kunt opzoeken' : '- Je hebt geen toegang tot internet\n- Gebruik alleen de beschikbare reisinformatie'}
+${searchResults ? '- De zoekresultaten hierboven komen van internet en zijn actueel - gebruik ze!' : ''}
+- Gebruik ALTIJD eerst de reisinformatie uit de documenten
+- Als informatie ontbreekt in documenten maar je kunt zoeken, vertel dat je het kunt opzoeken
+- Geef concrete, specifieke antwoorden op basis van beschikbare informatie
+- Wees eerlijk als je iets niet weet`;
 
 
     const messages = [
