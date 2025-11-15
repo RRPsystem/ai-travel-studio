@@ -185,11 +185,15 @@ Deno.serve(async (req: Request) => {
     console.log('WhatsApp message sent successfully:', responseData.sid);
 
     if (tripId && sessionToken) {
-      console.log('Creating WhatsApp session for trip:', tripId);
+      console.log('🔧 Creating WhatsApp session for trip:', tripId);
+      console.log('🔧 Session token:', sessionToken);
+      console.log('🔧 Phone number (raw):', to);
 
-      const cleanPhoneNumber = to.replace('whatsapp:', '');
+      const cleanPhoneNumber = to.replace('whatsapp:', '').replace('+', '');
 
-      const { error: sessionError } = await supabase
+      console.log('🔧 Phone number (cleaned):', cleanPhoneNumber);
+
+      const { data: sessionResult, error: sessionError } = await supabase
         .from('travel_whatsapp_sessions')
         .upsert({
           trip_id: tripId,
@@ -198,13 +202,19 @@ Deno.serve(async (req: Request) => {
           last_message_at: new Date().toISOString()
         }, {
           onConflict: 'trip_id,phone_number'
-        });
+        })
+        .select();
 
       if (sessionError) {
-        console.error('Error creating WhatsApp session:', sessionError);
+        console.error('❌ Error creating WhatsApp session:', sessionError);
+        console.error('❌ Session error details:', JSON.stringify(sessionError, null, 2));
       } else {
-        console.log('✅ WhatsApp session created/updated');
+        console.log('✅ WhatsApp session created/updated:', sessionResult);
       }
+    } else {
+      console.log('⚠️ Skipping session creation - missing tripId or sessionToken');
+      console.log('⚠️ tripId:', tripId);
+      console.log('⚠️ sessionToken:', sessionToken);
     }
 
     return new Response(

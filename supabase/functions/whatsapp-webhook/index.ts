@@ -103,13 +103,15 @@ Deno.serve(async (req: Request) => {
     console.log('Request URL:', req.url);
 
     const formData = await req.formData();
-    const from = formData.get('From')?.toString().replace('whatsapp:', '') || '';
+    const rawFrom = formData.get('From')?.toString() || '';
+    const from = rawFrom.replace('whatsapp:', '').replace('+', '');
     const body = formData.get('Body')?.toString() || '';
     const numMedia = parseInt(formData.get('NumMedia')?.toString() || '0');
     const mediaUrl = numMedia > 0 ? formData.get('MediaUrl0')?.toString() : undefined;
     const mediaContentType = numMedia > 0 ? formData.get('MediaContentType0')?.toString() : undefined;
 
     console.log('Received WhatsApp message:', {
+      rawFrom,
       from,
       body,
       numMedia,
