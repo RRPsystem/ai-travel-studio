@@ -184,7 +184,7 @@ Deno.serve(async (req: Request) => {
 
     console.log('WhatsApp message sent successfully:', responseData.sid);
 
-    if (tripId && sessionToken) {
+    if (tripId) {
       console.log('🔧 Creating WhatsApp session for trip:', tripId);
       console.log('🔧 Session token:', sessionToken);
       console.log('🔧 Phone number (raw):', to);
@@ -193,14 +193,32 @@ Deno.serve(async (req: Request) => {
 
       console.log('🔧 Phone number (cleaned):', cleanPhoneNumber);
 
+      const sessionData: any = {
+        trip_id: tripId,
+        phone_number: cleanPhoneNumber,
+        last_message_at: new Date().toISOString()
+      };
+
+      if (sessionToken && !skipIntake) {
+        const { data: intakeExists } = await supabase
+          .from('travel_intakes')
+          .select('session_token')
+          .eq('session_token', sessionToken)
+          .maybeSingle();
+
+        if (intakeExists) {
+          sessionData.session_token = sessionToken;
+          console.log('✅ Session token added - intake exists');
+        } else {
+          console.log('⚠️ Session token skipped - intake does not exist yet');
+        }
+      } else {
+        console.log('⚠️ No session token provided or intake skipped');
+      }
+
       const { data: sessionResult, error: sessionError } = await supabase
         .from('travel_whatsapp_sessions')
-        .upsert({
-          trip_id: tripId,
-          session_token: sessionToken,
-          phone_number: cleanPhoneNumber,
-          last_message_at: new Date().toISOString()
-        }, {
+        .upsert(sessionData, {
           onConflict: 'trip_id,phone_number'
         })
         .select();
@@ -212,9 +230,8 @@ Deno.serve(async (req: Request) => {
         console.log('✅ WhatsApp session created/updated:', sessionResult);
       }
     } else {
-      console.log('⚠️ Skipping session creation - missing tripId or sessionToken');
+      console.log('⚠️ Skipping session creation - missing tripId');
       console.log('⚠️ tripId:', tripId);
-      console.log('⚠️ sessionToken:', sessionToken);
     }
 
     return new Response(
