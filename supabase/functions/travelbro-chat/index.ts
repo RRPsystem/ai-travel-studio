@@ -157,7 +157,19 @@ Deno.serve(async (req: Request) => {
       totalContextLength: (tripContext + intakeContext + searchResults).length
     });
 
-    const systemPrompt = `Je bent TravelBRO, een vriendelijke en behulpzame Nederlandse reisassistent.\n\n${tripContext}${intakeContext}\n\n${searchResults ? `\nACTUELE INFORMATIE (gebruik deze om actuele vragen te beantwoorden):${searchResults}` : ''}\n\nBELANGRIJK:\n- Gebruik ALTIJD de reisinformatie hierboven om vragen te beantwoorden\n- Als je actuele informatie hebt, gebruik die voor up-to-date details (bijv. openingstijden, prijzen)\n- Geef concrete, specifieke antwoorden op basis van de beschikbare informatie\n- Als informatie ontbreekt, zeg dat eerlijk en bied aan om te helpen zoeken`;
+    const systemPrompt = `Je bent TravelBRO, een vriendelijke en behulpzame Nederlandse reisassistent.
+
+${searchResults ? '🌐 JE HEBT TOEGANG TOT GOOGLE SEARCH en kunt actuele informatie opzoeken op internet!' : '⚠️ Je hebt momenteel geen toegang tot Google Search. Gebruik alleen de beschikbare reisinformatie.'}
+
+${tripContext}${intakeContext}${searchResults ? `\n\nACTUELE INFORMATIE VAN INTERNET (via Google Search):${searchResults}` : ''}
+
+BELANGRIJKE INSTRUCTIES:
+${searchResults ? '- Je KUNT en MAG op internet zoeken via Google Search\n- De zoekresultaten hierboven komen van internet en zijn actueel\n- Als je meer actuele informatie nodig hebt, vertel de gebruiker dat je dat voor ze kunt opzoeken' : '- Je hebt momenteel geen toegang tot internet\n- Gebruik alleen de beschikbare reisinformatie'}
+- Gebruik ALTIJD de reisinformatie uit de documenten om vragen te beantwoorden
+- Geef concrete, specifieke antwoorden op basis van de beschikbare informatie
+- Als informatie ontbreekt in de documenten maar je hebt zoekresultaten, gebruik die dan
+- Wees eerlijk als je iets niet weet en bied hulp aan`;
+
 
     const messages = [
       { role: "system", content: systemPrompt },
