@@ -229,6 +229,49 @@ Deno.serve(async (req: Request) => {
       } else {
         console.log('✅ WhatsApp session created/updated:', sessionResult);
       }
+
+      if (useTemplate && sessionToken && !skipIntake) {
+        console.log('📧 Sending follow-up message with intake link...');
+
+        const { data: trip } = await supabase
+          .from('travel_trips')
+          .select('brand_id, share_token')
+          .eq('id', tripId)
+          .single();
+
+        if (trip) {
+          const { data: brandInfo } = await supabase
+            .from('brands')
+            .select('travelbro_domain')
+            .eq('id', trip.brand_id)
+            .single();
+
+          const intakeLink = `https://${brandInfo?.travelbro_domain || 'travelbro.nl'}/${trip.share_token}`;
+          const followUpMessage = `📋 Klik hier om je reisgegevens in te vullen:\n${intakeLink}\n\nDaarna kun je direct hier in WhatsApp al je vragen stellen! ✈️`;
+
+          const followUpFormData = new URLSearchParams();
+          followUpFormData.append('To', toNumber);
+          followUpFormData.append('From', fromWhatsApp);
+          followUpFormData.append('Body', followUpMessage);
+
+          console.log('Sending follow-up message with link:', intakeLink);
+
+          const followUpResponse = await fetch(twilioUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': authHeader,
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: followUpFormData.toString(),
+          });
+
+          if (followUpResponse.ok) {
+            console.log('✅ Follow-up message sent successfully');
+          } else {
+            console.error('❌ Failed to send follow-up message:', await followUpResponse.text());
+          }
+        }
+      }
     } else {
       console.log('⚠️ Skipping session creation - missing tripId');
       console.log('⚠️ tripId:', tripId);
