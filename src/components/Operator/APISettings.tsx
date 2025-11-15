@@ -442,7 +442,7 @@ export function APISettings() {
 
         const data = await response.json();
 
-        console.log('Google Maps API test response:', data);
+        console.log('🗺️ Google Maps API test response:', data);
 
         if (data.status === 'OK') {
           const { error: updateError } = await supabase
@@ -459,13 +459,18 @@ export function APISettings() {
             prev.map(s => s.id === setting.id ? { ...s, test_status: 'success', last_tested: new Date().toISOString() } : s)
           );
 
-          alert('Google Maps API key werkt correct!');
+          alert('✅ Google Maps API key werkt correct!\n\nHet Geocoding API antwoord is succesvol ontvangen.');
         } else if (data.status === 'REQUEST_DENIED') {
-          throw new Error(`Google Maps API Error: ${data.error_message || 'API key is mogelijk niet geactiveerd voor Geocoding API'}`);
+          const errorMsg = data.error_message || 'API key is mogelijk niet geactiveerd voor Geocoding API';
+          console.error('❌ REQUEST_DENIED:', errorMsg);
+
+          throw new Error(`Google Maps API - Toegang Geweigerd\n\n${errorMsg}\n\nControleer of deze APIs zijn geactiveerd in Google Cloud Console:\n- Geocoding API\n- Places API (New)\n- Routes API\n- Maps JavaScript API`);
         } else if (data.status === 'INVALID_REQUEST') {
-          throw new Error('Google Maps API Error: Ongeldige request parameters');
+          console.error('❌ INVALID_REQUEST:', data);
+          throw new Error('Google Maps API - Ongeldige Request\n\nDe test request is ongeldig. Neem contact op met support.');
         } else {
-          throw new Error(`Google Maps API Error: ${data.status} - ${data.error_message || 'Onbekende fout'}`);
+          console.error('❌ Google Maps API Error:', data);
+          throw new Error(`Google Maps API Error\n\nStatus: ${data.status}\nBericht: ${data.error_message || 'Onbekende fout'}\n\nControleer je API key en quota in Google Cloud Console.`);
         }
       } else if (setting.provider === 'Google' && setting.service_name === 'Google Custom Search') {
         const searchEngineId = setting.metadata?.search_engine_id;
