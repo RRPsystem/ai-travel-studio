@@ -14,7 +14,8 @@ import { AgentManagement } from './AgentManagement';
 import { SocialMediaConnector } from './SocialMediaConnector';
 import { SocialMediaManager } from './SocialMediaManager';
 import { TravelBroSetup } from '../TravelBro/TravelBroSetup';
-import { Users, Settings, Plus, Bot, Sparkles, Import as FileImport, ChevronDown, ChevronRight, LayoutGrid as Layout, FileText, Globe, Newspaper, MapPin, Plane, Share2, Map, ArrowRight, Menu, ClipboardCheck, Video, BookOpen } from 'lucide-react';
+import { QuickStartWebsite } from './QuickStartWebsite';
+import { Users, Settings, Plus, Bot, Sparkles, Import as FileImport, ChevronDown, ChevronRight, LayoutGrid as Layout, FileText, Globe, Newspaper, MapPin, Plane, Share2, Map, ArrowRight, Menu, ClipboardCheck, Video, BookOpen, Rocket } from 'lucide-react';
 import RoadmapBoard from './RoadmapBoard';
 import TestDashboard from '../Testing/TestDashboard';
 
@@ -173,6 +174,7 @@ export function BrandDashboard() {
   ];
 
   const websiteManagementItems = [
+    { id: 'quickstart', label: 'Quick Start Website', icon: Rocket },
     { id: 'new-page', label: 'Nieuwe Pagina', icon: Plus },
     { id: 'pages', label: 'Pagina Beheer', icon: FileText },
   ];
@@ -304,7 +306,7 @@ export function BrandDashboard() {
               <button
                 onClick={() => setShowWebsiteSubmenu(!showWebsiteSubmenu)}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
-                  ['pages'].includes(activeSection)
+                  ['quickstart', 'pages', 'new-page'].includes(activeSection)
                     ? 'bg-gray-700 text-white'
                     : 'text-gray-300 hover:text-white hover:bg-gray-700'
                 }`}
@@ -499,6 +501,8 @@ export function BrandDashboard() {
                   {activeSection === 'dashboard' && 'Brand Dashboard'}
                   {activeSection === 'websites' && 'My Websites'}
                   {activeSection === 'agents' && 'Agents'}
+                  {activeSection === 'quickstart' && 'Quick Start Website'}
+                  {activeSection === 'new-page' && 'Nieuwe Pagina'}
                   {activeSection === 'pages' && 'Pagina Beheer'}
                   {activeSection === 'content' && 'Nieuwsberichten'}
                   {activeSection === 'ai-content' && 'AI Content Generator'}
@@ -510,6 +514,8 @@ export function BrandDashboard() {
                 <p className="text-gray-600 mt-1">
                   {activeSection === 'dashboard' && 'Welkom terug bij je brand dashboard'}
                   {activeSection === 'websites' && 'Manage your travel websites'}
+                  {activeSection === 'quickstart' && 'Maak snel een complete website met templates'}
+                  {activeSection === 'new-page' && 'Voeg een nieuwe pagina toe aan je website'}
                   {activeSection === 'pages' && 'Beheer alle pagina\'s van je website'}
                   {activeSection === 'ai-content' && 'Generate travel content with AI'}
                   {activeSection === 'ai-travelbro' && 'Your AI travel assistant'}
@@ -610,6 +616,7 @@ export function BrandDashboard() {
             </div>
           )}
 
+          {activeSection === 'quickstart' && <QuickStartWebsite />}
           {activeSection === 'new-page' && <NewPage />}
           {activeSection === 'pages' && <PageManagement />}
           {activeSection === 'settings' && <BrandSettings />}
