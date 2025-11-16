@@ -88,15 +88,15 @@ export function QuickStartWebsite() {
     }
   }
 
-  function generateQuickStartDeeplink(): string {
-    if (!user?.brand_id) return '';
+  async function generateQuickStartDeeplink(): Promise<string> {
+    if (!user?.brand_id || !db.supabase) return '';
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
     const returnUrl = window.location.href;
 
-    const token = localStorage.getItem('supabase.auth.token');
-    const jwtToken = token ? JSON.parse(token).access_token : '';
+    const { data: { session } } = await db.supabase.auth.getSession();
+    const jwtToken = session?.access_token || '';
 
     const params = new URLSearchParams({
       brand_id: user.brand_id,
@@ -109,14 +109,14 @@ export function QuickStartWebsite() {
     return `https://www.ai-websitestudio.nl/template-selector.html?${params.toString()}`;
   }
 
-  function editWebsite(website: Website) {
-    if (!user?.brand_id || !website.id) return;
+  async function editWebsite(website: Website) {
+    if (!user?.brand_id || !website.id || !db.supabase) return;
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-    const token = localStorage.getItem('supabase.auth.token');
-    const jwtToken = token ? JSON.parse(token).access_token : '';
+    const { data: { session } } = await db.supabase.auth.getSession();
+    const jwtToken = session?.access_token || '';
 
     const params = new URLSearchParams({
       website_id: website.id,
@@ -174,8 +174,8 @@ export function QuickStartWebsite() {
               Kies een template, pas deze aan naar wens, en publiceer direct!
             </p>
             <button
-              onClick={() => {
-                const deeplink = generateQuickStartDeeplink();
+              onClick={async () => {
+                const deeplink = await generateQuickStartDeeplink();
                 if (deeplink) {
                   window.location.href = deeplink;
                 }
