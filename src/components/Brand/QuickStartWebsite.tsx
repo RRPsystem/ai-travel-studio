@@ -236,9 +236,9 @@ export function QuickStartWebsite() {
 
   function getStatusBadge(status: string, websiteId: string) {
     const statusConfig = {
-      live: { bg: 'bg-green-100', text: 'text-green-700', label: 'Live', icon: '🟢' },
-      preview: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Preview', icon: '🔵' },
-      draft: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Draft', icon: '⚪' }
+      live: { bg: '#dcfce7', text: '#15803d', label: 'Live', icon: '🟢' },
+      preview: { bg: '#fff3e6', text: '#ff7700', label: 'Preview', icon: '🟡' },
+      draft: { bg: '#f3f4f6', text: '#374151', label: 'Draft', icon: '⚪' }
     };
 
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft;
@@ -247,10 +247,11 @@ export function QuickStartWebsite() {
       <div className="relative group">
         <button
           onClick={(e) => e.stopPropagation()}
-          className={`inline-flex items-center gap-1 px-2 py-1 ${config.bg} ${config.text} text-xs font-medium rounded hover:opacity-80 transition-opacity`}
+          className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-semibold rounded-lg hover:opacity-80 transition-opacity"
+          style={{ backgroundColor: config.bg, color: config.text, border: `1px solid ${config.text}40` }}
         >
           {config.icon} {config.label}
-          <ChevronDown size={12} />
+          <ChevronDown size={14} />
         </button>
 
         <div className="hidden group-hover:block absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[120px]">
@@ -370,7 +371,7 @@ export function QuickStartWebsite() {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-4" style={{ borderColor: '#ff7700' }}></div>
           <p className="text-gray-600">Laden...</p>
         </div>
       </div>
@@ -379,11 +380,11 @@ export function QuickStartWebsite() {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
         <div className="flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-3 mb-3">
-              <Rocket className="w-8 h-8 text-blue-600" />
+              <Rocket className="w-8 h-8" style={{ color: '#ff7700' }} />
               <h2 className="text-2xl font-bold text-gray-900">Quick Start Website</h2>
             </div>
             <p className="text-gray-600 mb-4">
@@ -397,7 +398,10 @@ export function QuickStartWebsite() {
                   window.location.href = deeplink;
                 }
               }}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium"
+              className="text-white px-6 py-3 rounded-lg transition-colors flex items-center gap-2 font-medium"
+              style={{ backgroundColor: '#ff7700' }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e66900'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#ff7700'}
             >
               <Rocket size={20} />
               Nieuwe Website Maken
@@ -437,7 +441,8 @@ export function QuickStartWebsite() {
                               type="text"
                               value={editingName}
                               onChange={(e) => setEditingName(e.target.value)}
-                              className="px-3 py-1 border border-blue-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base font-semibold"
+                              className="px-3 py-1 border rounded-lg focus:outline-none focus:ring-2 text-base font-semibold"
+                              style={{ borderColor: '#ff7700' }}
                               autoFocus
                               onKeyDown={(e) => {
                                 if (e.key === 'Enter') saveWebsiteName(website.id);
@@ -446,7 +451,10 @@ export function QuickStartWebsite() {
                             />
                             <button
                               onClick={() => saveWebsiteName(website.id)}
-                              className="p-1.5 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                              className="p-1.5 text-white rounded transition-colors"
+                              style={{ backgroundColor: '#ff7700' }}
+                              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e66900'}
+                              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#ff7700'}
                               title="Opslaan"
                             >
                               <Check size={16} />
@@ -467,7 +475,15 @@ export function QuickStartWebsite() {
                                 e.stopPropagation();
                                 startEditingName(website);
                               }}
-                              className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              className="p-1 text-gray-400 rounded transition-colors"
+                              onMouseOver={(e) => {
+                                e.currentTarget.style.backgroundColor = '#ff7700';
+                                e.currentTarget.style.color = '#ffffff';
+                              }}
+                              onMouseOut={(e) => {
+                                e.currentTarget.style.backgroundColor = 'transparent';
+                                e.currentTarget.style.color = '#9ca3af';
+                              }}
                               title="Naam bewerken"
                             >
                               <Edit2 size={14} />
@@ -482,7 +498,8 @@ export function QuickStartWebsite() {
                             target="_blank"
                             rel="noopener noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="text-green-600 hover:text-green-700 flex items-center gap-1 transition-colors"
+                            className="hover:opacity-80 flex items-center gap-1 transition-colors"
+                            style={{ color: '#ff7700' }}
                             title="Open Live Site"
                           >
                             <ExternalLink size={16} />
@@ -541,9 +558,9 @@ export function QuickStartWebsite() {
                             <Globe size={16} className="text-green-600" />
                             <label className="font-semibold text-gray-900">Live Publicatie</label>
                           </div>
-                          {website.live_url ? (
+                          {website.live_url || brand?.domain ? (
                             <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
-                              <code className="flex-1 text-sm font-mono text-green-700 truncate">{website.live_url}</code>
+                              <code className="flex-1 text-sm font-mono text-green-700 truncate">{website.live_url || brand?.domain}</code>
                               <a
                                 href={`https://${website.live_url}`}
                                 target="_blank"
