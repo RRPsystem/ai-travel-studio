@@ -214,12 +214,12 @@ export function AgentManagement() {
                         {agent.is_published ? (
                           <>
                             <Eye className="w-3 h-3" />
-                            Gepubliceerd
+                            Actief
                           </>
                         ) : (
                           <>
                             <EyeOff className="w-3 h-3" />
-                            Verborgen
+                            Niet Actief
                           </>
                         )}
                       </button>
