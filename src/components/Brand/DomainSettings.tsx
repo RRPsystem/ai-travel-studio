@@ -521,10 +521,11 @@ export function DomainSettings() {
                     <button
                       onClick={() => handleVerifyDomain(domain.id)}
                       disabled={verifyingDomain === domain.id}
-                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                      className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition-colors disabled:opacity-50"
                       title="Verificatie controleren"
                     >
-                      <RefreshCw className={`w-5 h-5 ${verifyingDomain === domain.id ? 'animate-spin' : ''}`} />
+                      <RefreshCw className={`w-4 h-4 ${verifyingDomain === domain.id ? 'animate-spin' : ''}`} />
+                      <span>{verifyingDomain === domain.id ? 'Bezig...' : 'Verifieer'}</span>
                     </button>
                   )}
 
