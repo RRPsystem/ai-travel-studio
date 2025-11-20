@@ -123,12 +123,12 @@ export default function WordPressTemplateSelector({
               </div>
             )}
 
-            <div className="aspect-video bg-gray-100 relative">
+            <div className="aspect-[4/5] bg-gray-100 relative">
               {template.preview_image_url ? (
                 <img
                   src={template.preview_image_url}
                   alt={template.name}
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-cover object-top"
                 />
               ) : (
                 <div className="flex items-center justify-center h-full">
