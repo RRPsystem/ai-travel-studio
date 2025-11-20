@@ -62,7 +62,7 @@ export function QuickStartWebsite() {
     try {
       const { data, error } = await db.supabase
         .from('brands')
-        .select('id, name, slug, domain')
+        .select('id, name, slug')
         .eq('id', user.brand_id)
         .single();
 
