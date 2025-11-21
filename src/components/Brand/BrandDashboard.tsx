@@ -9,12 +9,11 @@ import { NewsApproval } from './NewsApproval';
 import { DestinationApproval } from './DestinationApproval';
 import { TripApproval } from './TripApproval';
 import { PageManagement } from './PageManagement';
-import { NewPage } from './NewPage';
+import { QuickStart } from './QuickStart';
 import { AgentManagement } from './AgentManagement';
 import { SocialMediaConnector } from './SocialMediaConnector';
 import { SocialMediaManager } from './SocialMediaManager';
 import { TravelBroSetup } from '../TravelBro/TravelBroSetup';
-import { QuickStartWebsite } from './QuickStartWebsite';
 import { Users, Settings, Plus, Bot, Sparkles, Import as FileImport, ChevronDown, ChevronRight, LayoutGrid as Layout, FileText, Globe, Newspaper, MapPin, Plane, Share2, Map, ArrowRight, Menu, ClipboardCheck, Video, BookOpen, Rocket } from 'lucide-react';
 import RoadmapBoard from './RoadmapBoard';
 import TestDashboard from '../Testing/TestDashboard';
@@ -178,8 +177,7 @@ export function BrandDashboard() {
   ];
 
   const websiteManagementItems = [
-    { id: 'quickstart', label: 'Quick Start Website', icon: Rocket },
-    { id: 'new-page', label: 'Nieuwe Pagina', icon: Plus },
+    { id: 'new-page', label: 'Quick Start', icon: Rocket },
     { id: 'pages', label: 'Pagina Beheer', icon: FileText },
   ];
 
@@ -234,9 +232,9 @@ export function BrandDashboard() {
 
   const quickActions = [
     {
-      title: 'Nieuwe Pagina',
-      description: 'Maak een nieuwe website pagina',
-      icon: Plus,
+      title: 'Quick Start',
+      description: 'Start snel met een nieuwe pagina of website',
+      icon: Rocket,
       color: 'from-blue-500 to-blue-600',
       action: () => setActiveSection('new-page')
     },
@@ -505,8 +503,7 @@ export function BrandDashboard() {
                   {activeSection === 'dashboard' && 'Brand Dashboard'}
                   {activeSection === 'websites' && 'My Websites'}
                   {activeSection === 'agents' && 'Agents'}
-                  {activeSection === 'quickstart' && 'Quick Start Website'}
-                  {activeSection === 'new-page' && 'Nieuwe Pagina'}
+                  {activeSection === 'new-page' && 'Quick Start'}
                   {activeSection === 'pages' && 'Pagina Beheer'}
                   {activeSection === 'content' && 'Nieuwsberichten'}
                   {activeSection === 'ai-content' && 'AI Content Generator'}
@@ -620,8 +617,7 @@ export function BrandDashboard() {
             </div>
           )}
 
-          {activeSection === 'quickstart' && <QuickStartWebsite />}
-          {activeSection === 'new-page' && <NewPage />}
+          {activeSection === 'new-page' && <QuickStart />}
           {activeSection === 'pages' && <PageManagement />}
           {activeSection === 'settings' && <BrandSettings />}
           {activeSection === 'social-connector' && <SocialMediaConnector />}
