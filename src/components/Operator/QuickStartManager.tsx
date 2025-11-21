@@ -242,13 +242,13 @@ export default function QuickStartManager() {
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow-md p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">QuickStart Templates</h2>
+          <h2 className="text-2xl font-bold text-gray-900">Windsurf Templates</h2>
           <button
             onClick={() => setShowForm(!showForm)}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" />
-            Create QuickStart
+            Create Windsurf Template
           </button>
         </div>
 
@@ -261,7 +261,7 @@ export default function QuickStartManager() {
         {showForm && (
           <form onSubmit={handleSubmit} className="mb-8 p-6 bg-gray-50 rounded-lg space-y-4">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              {editingId ? 'Edit QuickStart Template' : 'Create New QuickStart Template'}
+              {editingId ? 'Edit Windsurf Template' : 'Create New Windsurf Template'}
             </h3>
 
             <div>
@@ -381,7 +381,7 @@ export default function QuickStartManager() {
                 type="submit"
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                {editingId ? 'Update' : 'Create'} QuickStart
+                {editingId ? 'Update' : 'Create'} Template
               </button>
               <button
                 type="button"
@@ -396,7 +396,7 @@ export default function QuickStartManager() {
 
         <div className="space-y-4">
           {templates.length === 0 ? (
-            <p className="text-gray-500">No QuickStart templates created yet.</p>
+            <p className="text-gray-500">No Windsurf templates created yet.</p>
           ) : (
             templates.map((template) => (
               <div

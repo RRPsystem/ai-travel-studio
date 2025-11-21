@@ -35,8 +35,8 @@ export function OperatorDashboard() {
   const sidebarItems = [
     { id: 'test-management', label: 'Test Management', icon: ClipboardCheck },
     { id: 'external-builders', label: 'External Builders', icon: Puzzle },
-    { id: 'quickstart', label: 'QuickStart Templates', icon: Zap },
-    { id: 'templates', label: 'Website Templates', icon: Layout },
+    { id: 'quickstart', label: 'Windsurf Templates', icon: Zap },
+    { id: 'templates', label: 'WordPress Templates', icon: Layout },
     { id: 'roadmap', label: 'Roadmap Management', icon: Map },
     { id: 'monitoring', label: 'Monitoring & Alerts', icon: Bell },
     { id: 'system-health', label: 'System Health', icon: Activity },
@@ -115,8 +115,8 @@ export function OperatorDashboard() {
               <h1 className="text-2xl font-bold text-gray-900">
                 {activeSection === 'test-management' && 'Test Management'}
                 {activeSection === 'external-builders' && 'External Builders'}
-                {activeSection === 'quickstart' && 'QuickStart Templates'}
-                {activeSection === 'templates' && 'Website Templates'}
+                {activeSection === 'quickstart' && 'Windsurf Templates'}
+                {activeSection === 'templates' && 'WordPress Templates'}
                 {activeSection === 'roadmap' && 'Roadmap Management'}
                 {activeSection === 'monitoring' && 'Monitoring & Alerts'}
                 {activeSection === 'system-health' && 'System Health'}
@@ -128,9 +128,9 @@ export function OperatorDashboard() {
               </h1>
               <p className="text-gray-600 mt-1">
                 {activeSection === 'test-management' && 'Manage testing rounds and review feedback from testers'}
-                {activeSection === 'external-builders' && 'Register and manage external template builders'}
-                {activeSection === 'quickstart' && 'Configure QuickStart templates for brands'}
-                {activeSection === 'templates' && 'Manage WordPress and External Builder templates for brands'}
+                {activeSection === 'external-builders' && 'Register and manage external template builders (Windsurf, AI Website Studio)'}
+                {activeSection === 'quickstart' && 'Configure Windsurf template packages for brands'}
+                {activeSection === 'templates' && 'Manage WordPress templates for brands'}
                 {activeSection === 'roadmap' && 'Manage feature requests and development priorities'}
                 {activeSection === 'monitoring' && 'Real-time error tracking, alerts, and performance monitoring'}
                 {activeSection === 'system-health' && 'Real-time browser metrics and service status'}

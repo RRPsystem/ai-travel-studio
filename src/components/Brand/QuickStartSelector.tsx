@@ -73,7 +73,7 @@ export default function QuickStartSelector({ brandId, onSelect, onCancel }: Quic
       <div className="flex items-center justify-center h-64">
         <div className="text-center">
           <Loader className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Loading QuickStart templates...</p>
+          <p className="text-gray-600">Loading Windsurf templates...</p>
         </div>
       </div>
     );
@@ -91,9 +91,9 @@ export default function QuickStartSelector({ brandId, onSelect, onCancel }: Quic
     return (
       <div className="text-center py-12">
         <Zap className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No QuickStart Templates Available</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Windsurf Templates Available</h3>
         <p className="text-gray-600 mb-6">
-          There are currently no QuickStart templates configured. Contact your system administrator.
+          There are currently no Windsurf templates configured. Contact your system administrator.
         </p>
         <button
           onClick={onCancel}
@@ -111,10 +111,10 @@ export default function QuickStartSelector({ brandId, onSelect, onCancel }: Quic
         <div>
           <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
             <Zap className="w-6 h-6 text-blue-600" />
-            Choose a QuickStart Template
+            Choose a Windsurf Template
           </h3>
           <p className="text-gray-600 mt-1">
-            Get started quickly with a pre-configured template package
+            Get started quickly with a pre-configured Windsurf template package
           </p>
         </div>
       </div>
