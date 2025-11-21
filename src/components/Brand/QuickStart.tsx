@@ -274,6 +274,7 @@ export function QuickStart() {
                   }
 
                   try {
+                    console.log('Creating website from category:', category);
                     const websiteSlug = `${category.category.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
 
                     const { data: websiteData, error: insertError } = await supabase
@@ -290,37 +291,53 @@ export function QuickStart() {
                       .select()
                       .single();
 
-                    if (insertError) throw insertError;
+                    if (insertError) {
+                      console.error('Website insert error:', insertError);
+                      throw insertError;
+                    }
+                    console.log('Website created:', websiteData);
 
                     const pageIds = category.pages.map(p => p.id);
+                    console.log('Looking up template pages with IDs:', pageIds);
+
                     const { data: templatePages, error: templateError } = await supabase
                       .from('template_pages')
                       .select('*')
                       .in('id', pageIds)
                       .order('menu_order');
 
-                    if (templateError) throw templateError;
+                    if (templateError) {
+                      console.error('Template pages error:', templateError);
+                      throw templateError;
+                    }
+                    console.log('Found template pages:', templatePages);
 
-                    if (templatePages && templatePages.length > 0) {
-                      const newPages = templatePages.map((tp: any, index: number) => ({
-                        website_id: websiteData.id,
-                        brand_id: user.brand_id,
-                        created_by: user.id,
-                        title: tp.title,
-                        slug: index === 0 ? '/' : `/${tp.slug}`,
-                        status: 'draft',
-                        body_html: tp.content,
-                        content_json: {},
-                        show_in_menu: true,
-                        menu_order: tp.menu_order,
-                        menu_label: tp.title
-                      }));
+                    if (!templatePages || templatePages.length === 0) {
+                      throw new Error(`Geen template pages gevonden voor IDs: ${pageIds.join(', ')}`);
+                    }
 
-                      const { error: pagesError } = await supabase
-                        .from('pages')
-                        .insert(newPages);
+                    const newPages = templatePages.map((tp: any, index: number) => ({
+                      website_id: websiteData.id,
+                      brand_id: user.brand_id,
+                      created_by: user.id,
+                      title: tp.title,
+                      slug: index === 0 ? '/' : `/${tp.slug.replace(/^\//, '')}`,
+                      status: 'draft',
+                      body_html: tp.content,
+                      content_json: {},
+                      show_in_menu: true,
+                      menu_order: tp.menu_order,
+                      menu_label: tp.title
+                    }));
 
-                      if (pagesError) throw pagesError;
+                    console.log('Creating pages:', newPages);
+                    const { error: pagesError } = await supabase
+                      .from('pages')
+                      .insert(newPages);
+
+                    if (pagesError) {
+                      console.error('Pages insert error:', pagesError);
+                      throw pagesError;
                     }
 
                     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -334,12 +351,12 @@ export function QuickStart() {
                       })
                       .eq('id', websiteData.id);
 
-                    alert(`✅ Website "${category.category}" aangemaakt met ${templatePages?.length || 0} pagina's!\n\n📍 Preview URL: ${previewUrl}\n\nDe website is nu beschikbaar in Website Management.`);
+                    alert(`✅ Website "${category.category}" aangemaakt met ${templatePages.length} pagina's!\n\n📍 Preview URL: ${previewUrl}\n\nDe website is nu beschikbaar in Website Management.`);
 
                     window.location.href = '#/brand/website/manage';
                   } catch (error) {
                     console.error('Error creating website:', error);
-                    alert('❌ Fout bij aanmaken website: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
+                    alert('❌ Fout bij aanmaken website: ' + (error instanceof Error ? error.message : JSON.stringify(error)));
                   }
                 }}
               >
