@@ -410,7 +410,8 @@ export function WordPressEditor({ websiteId, onBack }: WordPressEditorProps) {
           {viewMode === 'preview' ? (
             <div className="h-full bg-white">
               <iframe
-                srcDoc={editingHtml}
+                key={`preview-${selectedPageIndex}`}
+                src={`${db.supabase.supabaseUrl}/functions/v1/wordpress-preview?website_id=${websiteId}&page=${selectedPageIndex}`}
                 className="w-full h-full border-0"
                 title="Preview"
                 sandbox="allow-scripts allow-same-origin"
