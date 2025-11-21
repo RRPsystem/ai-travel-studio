@@ -23,6 +23,7 @@ import {
 import RoadmapManagement from './RoadmapManagement';
 import TestManagement from './TestManagement';
 import WordPressTemplateManager from './WordPressTemplateManager';
+import { WebsiteTemplateManager } from './WebsiteTemplateManager';
 
 export function OperatorDashboard() {
   const { user, signOut } = useAuth();
@@ -30,7 +31,8 @@ export function OperatorDashboard() {
 
   const sidebarItems = [
     { id: 'test-management', label: 'Test Management', icon: ClipboardCheck },
-    { id: 'wordpress-templates', label: 'WordPress Templates', icon: Layout },
+    { id: 'website-templates', label: 'Website Templates', icon: Layout },
+    { id: 'wordpress-templates', label: 'WordPress Templates', icon: BookOpen },
     { id: 'roadmap', label: 'Roadmap Management', icon: Map },
     { id: 'monitoring', label: 'Monitoring & Alerts', icon: Bell },
     { id: 'system-health', label: 'System Health', icon: Activity },
@@ -108,6 +110,7 @@ export function OperatorDashboard() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
                 {activeSection === 'test-management' && 'Test Management'}
+                {activeSection === 'website-templates' && 'Website Templates'}
                 {activeSection === 'wordpress-templates' && 'WordPress Templates'}
                 {activeSection === 'roadmap' && 'Roadmap Management'}
                 {activeSection === 'monitoring' && 'Monitoring & Alerts'}
@@ -120,6 +123,7 @@ export function OperatorDashboard() {
               </h1>
               <p className="text-gray-600 mt-1">
                 {activeSection === 'test-management' && 'Manage testing rounds and review feedback from testers'}
+                {activeSection === 'website-templates' && 'Manage complete website templates for brands'}
                 {activeSection === 'wordpress-templates' && 'Manage WordPress templates available to brands'}
                 {activeSection === 'roadmap' && 'Manage feature requests and development priorities'}
                 {activeSection === 'monitoring' && 'Real-time error tracking, alerts, and performance monitoring'}
@@ -147,6 +151,7 @@ export function OperatorDashboard() {
         {/* Content */}
         <main className="flex-1 p-6 overflow-y-auto">
           {activeSection === 'test-management' && <TestManagement />}
+          {activeSection === 'website-templates' && <WebsiteTemplateManager />}
           {activeSection === 'wordpress-templates' && <WordPressTemplateManager />}
           {activeSection === 'roadmap' && <RoadmapManagement />}
           {activeSection === 'monitoring' && <MonitoringDashboard />}

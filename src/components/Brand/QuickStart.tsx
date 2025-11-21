@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Grid3x3, Wrench, Search, Globe, Rocket, Layout } from 'lucide-react';
+import { Grid3x3, Wrench, Search, Globe, Layout } from 'lucide-react';
 import { openBuilder } from '../../lib/jwtHelper';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { db } from '../../lib/supabase';
-import WordPressTemplateSelector from './WordPressTemplateSelector';
 
 interface Template {
   id: string;
@@ -13,6 +11,16 @@ interface Template {
   template_category: string;
   preview_image_url: string | null;
   theme_label: string | null;
+  sort_order: number;
+}
+
+interface WebsiteTemplate {
+  id: string;
+  title: string;
+  description: string;
+  template_type: 'wordpress' | 'external_builder';
+  category: string | null;
+  preview_image_url: string | null;
   sort_order: number;
 }
 
@@ -34,12 +42,11 @@ export function QuickStart() {
   const [loading, setLoading] = useState(true);
   const { user } = useAuth();
 
-  const [creatingWebsite, setCreatingWebsite] = useState(false);
-  const [selectedWPCategory, setSelectedWPCategory] = useState<string | null>(null);
-  const [selectedWPTemplates, setSelectedWPTemplates] = useState<any[]>([]);
+  const [websiteTemplates, setWebsiteTemplates] = useState<WebsiteTemplate[]>([]);
 
   useEffect(() => {
     loadTemplates();
+    loadWebsiteTemplates();
   }, []);
 
   const loadTemplates = async () => {
@@ -67,6 +74,21 @@ export function QuickStart() {
     }
   };
 
+  const loadWebsiteTemplates = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('website_templates')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      if (error) throw error;
+      setWebsiteTemplates(data || []);
+    } catch (error) {
+      console.error('Error loading website templates:', error);
+    }
+  };
+
   const filteredTemplates = templates.filter(template => {
     const matchesCategory = selectedCategory === 'all' || template.template_category === selectedCategory;
     const matchesTheme = selectedTheme === 'all' || template.theme_label === selectedTheme;
@@ -85,45 +107,6 @@ export function QuickStart() {
   };
 
   const categoryCounts = getCategoryCounts();
-
-  async function handleCreateWordPressWebsite() {
-    if (!user?.brand_id || !selectedWPCategory || selectedWPTemplates.length === 0) {
-      alert('Selecteer eerst een template');
-      return;
-    }
-
-    setCreatingWebsite(true);
-    try {
-      const websiteName = prompt('Naam voor je nieuwe website:', selectedWPCategory);
-      if (!websiteName) {
-        setCreatingWebsite(false);
-        return;
-      }
-
-      const { data: newWebsite, error } = await db.supabase
-        .from('websites')
-        .insert({
-          brand_id: user.brand_id,
-          name: websiteName,
-          template_name: selectedWPCategory,
-          source_type: 'wordpress_template',
-          status: 'draft'
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      alert('✅ Website aangemaakt! Je wordt doorgestuurd naar de editor...');
-
-      window.location.href = `/?view=wordpress-editor&website_id=${newWebsite.id}`;
-    } catch (error) {
-      console.error('Error creating website:', error);
-      alert('❌ Fout bij aanmaken website');
-    } finally {
-      setCreatingWebsite(false);
-    }
-  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -188,70 +171,79 @@ export function QuickStart() {
       </div>
 
       <div className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">Complete Website Starten</h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-6">Complete Website Templates</h2>
         <p className="text-gray-600 mb-6">
-          Start met een complete website template en pas deze aan in de editor
+          Kies een complete website template collectie met meerdere pagina's
         </p>
 
-        <div className="space-y-8">
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              <Globe className="inline mr-2" size={20} />
-              WordPress Template Websites
-            </h3>
-            <p className="text-gray-600 mb-4 text-sm">
-              Kies een professionele WordPress template collectie met meerdere pagina's
-            </p>
-
-            <WordPressTemplateSelector
-              onSelect={(category, pages) => {
-                setSelectedWPCategory(category);
-                setSelectedWPTemplates(pages);
-              }}
-              selectedCategory={selectedWPCategory}
-            />
-
-            {selectedWPCategory && selectedWPTemplates.length > 0 && (
-              <div className="mt-6 flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-4">
-                <div>
-                  <p className="text-green-900 font-medium">
-                    Template geselecteerd: {selectedWPCategory}
-                  </p>
-                  <p className="text-green-700 text-sm">
-                    {selectedWPTemplates.length} pagina's
-                  </p>
-                </div>
-                <button
-                  onClick={handleCreateWordPressWebsite}
-                  disabled={creatingWebsite}
-                  className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium disabled:opacity-50 flex items-center gap-2"
-                >
-                  <Rocket size={20} />
-                  {creatingWebsite ? 'Aanmaken...' : 'Website Aanmaken'}
-                </button>
-              </div>
-            )}
-          </div>
-
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              <Rocket className="inline mr-2" size={20} />
-              HTML Complete Websites
-            </h3>
-            <p className="text-gray-600 mb-4 text-sm">
-              Complete website templates gebouwd met de externe builder - Binnenkort beschikbaar
-            </p>
-            <div className="border-2 border-dashed border-gray-300 rounded-xl p-12 bg-gray-50">
-              <div className="text-center">
-                <Rocket size={48} className="mx-auto text-gray-400 mb-4" />
-                <p className="text-gray-500 font-medium mb-2">HTML Website Templates</p>
-                <p className="text-gray-400 text-sm">
-                  Complete website templates met de externe builder komen hier beschikbaar
-                </p>
-              </div>
+        {websiteTemplates.length === 0 ? (
+          <div className="border-2 border-dashed border-gray-300 rounded-xl p-12 bg-gray-50">
+            <div className="text-center">
+              <Globe size={48} className="mx-auto text-gray-400 mb-4" />
+              <p className="text-gray-500 font-medium mb-2">Geen templates beschikbaar</p>
+              <p className="text-gray-400 text-sm">
+                Website templates komen hier beschikbaar
+              </p>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {websiteTemplates.map(template => (
+              <div
+                key={template.id}
+                className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow bg-white"
+              >
+                {template.preview_image_url ? (
+                  <div className="aspect-video bg-gray-100 overflow-hidden">
+                    <img
+                      src={template.preview_image_url}
+                      alt={template.title}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="aspect-video bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                    <Globe className="text-white" size={48} />
+                  </div>
+                )}
+                <div className="p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    {template.template_type === 'wordpress' ? (
+                      <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded">
+                        WordPress
+                      </span>
+                    ) : (
+                      <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-medium rounded">
+                        Builder
+                      </span>
+                    )}
+                    {template.category && (
+                      <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                        {template.category}
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="font-semibold text-gray-900 mb-2">{template.title}</h3>
+                  {template.description && (
+                    <p className="text-sm text-gray-600 mb-4">{template.description}</p>
+                  )}
+                  <button
+                    onClick={() => {
+                      if (template.template_type === 'wordpress') {
+                        alert('WordPress template functionaliteit komt binnenkort');
+                      } else {
+                        alert('External Builder template functionaliteit komt binnenkort');
+                      }
+                    }}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  >
+                    Gebruik Template
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div id="page-gallery" className="mb-8">
