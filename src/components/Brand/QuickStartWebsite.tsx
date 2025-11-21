@@ -261,16 +261,17 @@ export function QuickStartWebsite() {
 
     setCreatingWebsite(true);
     try {
+      const websiteSlug = `${selectedEBCategory.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
+
       const { data: websiteData, error: insertError } = await db.supabase
         .from('websites')
         .insert({
           brand_id: user.brand_id,
           created_by: user.id,
           name: selectedEBCategory,
-          slug: `${selectedEBCategory.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,
+          slug: websiteSlug,
           template_name: selectedEBCategory,
           source_type: 'external_builder',
-          pages: [],
           status: 'draft'
         })
         .select()
@@ -278,10 +279,57 @@ export function QuickStartWebsite() {
 
       if (insertError) throw insertError;
 
+      const selectedTemplateIds = selectedEBTemplates.map(t => t.id);
+      const { data: templatePages, error: templateError } = await db.supabase
+        .from('template_pages')
+        .select('*')
+        .eq('template_category', selectedEBCategory)
+        .in('id', selectedTemplateIds)
+        .order('menu_order');
+
+      if (templateError) throw templateError;
+
+      if (templatePages && templatePages.length > 0) {
+        const newPages = templatePages.map((tp: any) => ({
+          website_id: websiteData.id,
+          brand_id: user.brand_id,
+          created_by: user.id,
+          title: tp.title,
+          slug: tp.slug,
+          status: 'draft',
+          body_html: tp.content,
+          content_json: {},
+          show_in_menu: true,
+          menu_order: tp.menu_order,
+          menu_label: tp.title
+        }));
+
+        const { error: pagesError } = await db.supabase
+          .from('pages')
+          .insert(newPages);
+
+        if (pagesError) throw pagesError;
+      }
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const previewUrl = `${supabaseUrl}/functions/v1/website-viewer?website_id=${websiteData.id}`;
+
+      await db.supabase
+        .from('websites')
+        .update({
+          preview_url: previewUrl,
+          live_url: previewUrl
+        })
+        .eq('id', websiteData.id);
+
       setShowNewWebsiteModal(false);
       setSelectedSourceType(null);
       setSelectedEBCategory(null);
       setSelectedEBTemplates([]);
+
+      await loadWebsites();
+
+      alert(`✅ Website "${selectedEBCategory}" aangemaakt met ${templatePages?.length || 0} pagina's!\n\n📍 Preview URL: ${previewUrl}\n\nJe gaat nu naar de editor om de website aan te passen.`);
 
       await editWebsite(websiteData);
     } catch (error) {

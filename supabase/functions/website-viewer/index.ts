@@ -21,15 +21,20 @@ Deno.serve(async (req: Request) => {
     const url = new URL(req.url);
     const host = req.headers.get("host") || url.host;
     const pathname = url.pathname;
-    
+
     console.log("[VIEWER] Request:", { host, pathname });
+
+    const websiteId = url.searchParams.get("website_id");
+    if (websiteId) {
+      return await renderWebsite(supabase, websiteId, pathname);
+    }
 
     let brandId: string | null = null;
     let isCustomDomain = false;
 
     if (!host.includes("supabase.co") && !host.includes("localhost")) {
       const domainParts = host.split(".");
-      
+
       if (host.includes("ai-travelstudio.nl")) {
         const subdomain = domainParts[0];
         if (subdomain.startsWith("brand-")) {
@@ -259,43 +264,50 @@ async function renderWebsite(supabase: any, websiteId: string, pathname: string)
       );
     }
 
-    let slug = pathname === "/" || pathname === "" ? "home" : pathname.substring(1);
-    if (slug.endsWith("/")) {
+    const { data: menuPages } = await supabase
+      .from("pages")
+      .select("id, title, slug, menu_label")
+      .eq("website_id", websiteId)
+      .eq("show_in_menu", true)
+      .order("menu_order", { ascending: true });
+
+    let slug = pathname === "/" || pathname === "" ? "/" : pathname;
+    if (slug !== "/" && slug.endsWith("/")) {
       slug = slug.substring(0, slug.length - 1);
     }
 
     const { data: page, error: pageError } = await supabase
-      .from("website_pages")
+      .from("pages")
       .select("*")
       .eq("website_id", websiteId)
       .eq("slug", slug)
       .maybeSingle();
 
-    if (!page && slug === "home") {
+    if (!page && (slug === "/" || slug === "/home")) {
       const { data: homepage } = await supabase
-        .from("website_pages")
+        .from("pages")
         .select("*")
         .eq("website_id", websiteId)
-        .eq("is_homepage", true)
+        .eq("slug", "/")
         .maybeSingle();
 
       if (homepage) {
-        return new Response(renderWebsitePage(homepage, website), {
+        return new Response(renderWebsitePage(homepage, website, menuPages || []), {
           status: 200,
           headers: { "Content-Type": "text/html" },
         });
       }
 
       const { data: firstPage } = await supabase
-        .from("website_pages")
+        .from("pages")
         .select("*")
         .eq("website_id", websiteId)
-        .order("sort_order", { ascending: true })
+        .order("menu_order", { ascending: true })
         .limit(1)
         .maybeSingle();
 
       if (firstPage) {
-        return new Response(renderWebsitePage(firstPage, website), {
+        return new Response(renderWebsitePage(firstPage, website, menuPages || []), {
           status: 200,
           headers: { "Content-Type": "text/html" },
         });
@@ -312,7 +324,7 @@ async function renderWebsite(supabase: any, websiteId: string, pathname: string)
       );
     }
 
-    return new Response(renderWebsitePage(page, website), {
+    return new Response(renderWebsitePage(page, website, menuPages || []), {
       status: 200,
       headers: { "Content-Type": "text/html" },
     });
@@ -325,13 +337,15 @@ async function renderWebsite(supabase: any, websiteId: string, pathname: string)
   }
 }
 
-function renderWebsitePage(page: any, website: any): string {
+function renderWebsitePage(page: any, website: any, menuPages: any[]): string {
   let html = "";
 
-  if (page.content?.html) {
+  if (page.body_html) {
+    html = page.body_html;
+  } else if (page.content?.html) {
     html = page.content.html;
-  } else if (page.content?.htmlSnapshot) {
-    html = page.content.htmlSnapshot;
+  } else if (page.content_json?.htmlSnapshot) {
+    html = page.content_json.htmlSnapshot;
   }
 
   if (!html) {
@@ -341,22 +355,38 @@ function renderWebsitePage(page: any, website: any): string {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const cssBaseUrl = `${supabaseUrl}/storage/v1/object/public/assets/styles`;
 
+  const menuHtml = menuPages.length > 0 ? `
+    <nav style="background: rgba(255,255,255,0.95); backdrop-filter: blur(10px); box-shadow: 0 2px 10px rgba(0,0,0,0.1); position: sticky; top: 0; z-index: 1000;">
+      <div style="max-width: 1200px; margin: 0 auto; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center;">
+        <div style="font-size: 1.5rem; font-weight: bold; color: #667eea;">${website.name || 'Website'}</div>
+        <ul style="list-style: none; display: flex; gap: 2rem; margin: 0; padding: 0;">
+          ${menuPages.map(p => `
+            <li><a href="${p.slug}" style="text-decoration: none; color: #333; font-weight: 500; transition: color 0.3s;" onmouseover="this.style.color='#667eea'" onmouseout="this.style.color='#333'">${p.menu_label || p.title}</a></li>
+          `).join('')}
+        </ul>
+      </div>
+    </nav>
+  ` : '';
+
   if (!html.includes("<html") && !html.includes("<!DOCTYPE")) {
     html = `<!DOCTYPE html>
 <html lang="nl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${page.meta_title || page.name || "Pagina"}</title>
-  ${page.meta_description ? `<meta name="description" content="${page.meta_description}">` : ''}
+  <title>${page.title || "Pagina"}</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="${cssBaseUrl}/main.css">
   <link rel="stylesheet" href="${cssBaseUrl}/components.css">
+  <style>
+    body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+  </style>
 </head>
 <body>
+${menuHtml}
 ${html}
 </body>
 </html>`;
@@ -372,6 +402,10 @@ ${html}
   <link rel="stylesheet" href="${cssBaseUrl}/components.css">
 </head>`
       );
+    }
+
+    if (menuHtml && !html.includes('<nav')) {
+      html = html.replace('<body>', `<body>\n${menuHtml}`);
     }
   }
 
