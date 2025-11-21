@@ -260,21 +260,52 @@ export function QuickStartWebsite() {
     try {
       console.log('Creating website with templates:', selectedWPTemplates);
 
-      const pages = selectedWPTemplates.map((template, index) => {
-        console.log(`Template ${template.template_name}:`, {
-          has_cached_html: !!template.cached_html,
-          html_length: template.cached_html?.length || 0,
-          html_preview: template.cached_html?.substring(0, 100)
-        });
+      // Fetch HTML for templates that don't have cached_html
+      const templatesWithHtml = await Promise.all(
+        selectedWPTemplates.map(async (template) => {
+          console.log(`Template ${template.template_name} - FULL OBJECT:`, template);
+          console.log(`Template ${template.template_name} - DETAILS:`, {
+            has_cached_html: !!template.cached_html,
+            html_length: template.cached_html?.length || 0,
+            cached_html_type: typeof template.cached_html,
+          });
 
-        return {
-          name: template.template_name,
-          path: index === 0 ? '/' : `/${template.template_name.toLowerCase().replace(/\s+/g, '-')}`,
-          html: template.cached_html || '',
-          modified: false,
-          order: index
-        };
-      });
+          // If no cached HTML, fetch it from WordPress
+          if (!template.cached_html || template.cached_html.length === 0) {
+            console.log(`Fetching HTML for ${template.template_name}...`);
+            try {
+              const response = await fetch(`${db.supabase.supabaseUrl}/functions/v1/wordpress-fetch-template`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${db.supabase.supabaseKey}`
+                },
+                body: JSON.stringify({ template_id: template.id })
+              });
+
+              if (response.ok) {
+                const result = await response.json();
+                console.log(`Fetched HTML for ${template.template_name}:`, result.template?.content?.substring(0, 100));
+                return { ...template, cached_html: result.template?.content || '' };
+              } else {
+                console.error(`Failed to fetch HTML for ${template.template_name}:`, response.status);
+              }
+            } catch (error) {
+              console.error(`Error fetching HTML for ${template.template_name}:`, error);
+            }
+          }
+
+          return template;
+        })
+      );
+
+      const pages = templatesWithHtml.map((template, index) => ({
+        name: template.template_name,
+        path: index === 0 ? '/' : `/${template.template_name.toLowerCase().replace(/\s+/g, '-')}`,
+        html: template.cached_html || '',
+        modified: false,
+        order: index
+      }));
 
       const { error: insertError } = await db.supabase
         .from('websites')
