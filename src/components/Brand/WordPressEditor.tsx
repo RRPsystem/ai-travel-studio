@@ -269,6 +269,10 @@ export function WordPressEditor({ websiteId, onBack }: WordPressEditorProps) {
   }
 
   const currentPage = pages[selectedPageIndex];
+  const previewUrl = `https://huaaogdxxdcakxryecnw.supabase.co/functions/v1/wordpress-preview?website_id=${websiteId}&page=${selectedPageIndex}`;
+
+  console.log('WordPress Editor - Website ID:', websiteId);
+  console.log('WordPress Editor - Preview URL:', previewUrl);
 
   if (!currentPage) {
     return (
@@ -408,11 +412,14 @@ export function WordPressEditor({ websiteId, onBack }: WordPressEditorProps) {
 
         <div className="flex-1 overflow-hidden">
           {viewMode === 'preview' ? (
-            <div className="h-full bg-white">
+            <div className="h-full bg-white flex flex-col">
+              <div className="bg-gray-100 px-4 py-2 text-xs text-gray-600 border-b">
+                Preview URL: {previewUrl}
+              </div>
               <iframe
                 key={`preview-${selectedPageIndex}`}
-                src={`https://huaaogdxxdcakxryecnw.supabase.co/functions/v1/wordpress-preview?website_id=${websiteId}&page=${selectedPageIndex}`}
-                className="w-full h-full border-0"
+                src={previewUrl}
+                className="flex-1 w-full border-0"
                 title="Preview"
               />
             </div>
