@@ -243,7 +243,33 @@ export function WordPressEditor({ websiteId, onBack }: WordPressEditorProps) {
     );
   }
 
+  if (!pages || pages.length === 0) {
+    return (
+      <div className="text-center py-16">
+        <p className="text-red-600">Geen paginas gevonden voor deze website</p>
+        <p className="text-gray-600 mt-2">Website ID: {websiteId}</p>
+        <p className="text-gray-600">Template: {website.template_name || 'Geen'}</p>
+        <button onClick={onBack} className="mt-4 text-blue-600 hover:underline">
+          Terug naar overzicht
+        </button>
+      </div>
+    );
+  }
+
   const currentPage = pages[selectedPageIndex];
+
+  if (!currentPage) {
+    return (
+      <div className="text-center py-16">
+        <p className="text-red-600">Pagina niet gevonden</p>
+        <p className="text-gray-600 mt-2">Selected index: {selectedPageIndex}</p>
+        <p className="text-gray-600">Total pages: {pages.length}</p>
+        <button onClick={onBack} className="mt-4 text-blue-600 hover:underline">
+          Terug naar overzicht
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -261,6 +287,9 @@ export function WordPressEditor({ websiteId, onBack }: WordPressEditorProps) {
               <h1 className="text-xl font-bold text-gray-900">{website.name}</h1>
               <p className="text-sm text-gray-500">
                 {currentPage?.name} - {website.template_name}
+              </p>
+              <p className="text-xs text-gray-400">
+                HTML: {editingHtml?.length || 0} chars | Pages: {pages.length}
               </p>
             </div>
           </div>
