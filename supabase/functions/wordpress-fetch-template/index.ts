@@ -56,10 +56,39 @@ Deno.serve(async (req: Request) => {
 
     const wpData = await wpResponse.json();
 
+    // Fetch the actual page to get stylesheets and scripts
+    const pageResponse = await fetch(wpData.link);
+    const pageHtml = await pageResponse.text();
+
+    // Extract stylesheets from the page
+    const styleRegex = /<link[^>]*rel=["']stylesheet["'][^>]*>/gi;
+    const stylesheets = pageHtml.match(styleRegex) || [];
+
+    // Extract inline styles
+    const inlineStyleRegex = /<style[^>]*>[\s\S]*?<\/style>/gi;
+    const inlineStyles = pageHtml.match(inlineStyleRegex) || [];
+
+    // Build a complete HTML document
+    const completeHtml = `
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base href="${wordpressUrl}/">
+  ${stylesheets.join('\n  ')}
+  ${inlineStyles.join('\n  ')}
+</head>
+<body>
+  ${wpData.content.rendered}
+</body>
+</html>
+    `.trim();
+
     const { error: updateError } = await supabaseClient
       .from('wordpress_templates')
       .update({
-        cached_html: wpData.content.rendered,
+        cached_html: completeHtml,
         cache_updated_at: new Date().toISOString(),
         preview_image_url: wpData.featured_media_url || template.preview_image_url
       })
@@ -73,7 +102,7 @@ Deno.serve(async (req: Request) => {
         template: {
           id: wpData.id,
           title: wpData.title.rendered,
-          content: wpData.content.rendered,
+          content: completeHtml,
           excerpt: wpData.excerpt?.rendered,
           featured_media_url: wpData.featured_media_url,
           link: wpData.link
