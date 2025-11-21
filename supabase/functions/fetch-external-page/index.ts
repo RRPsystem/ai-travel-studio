@@ -39,16 +39,6 @@ Deno.serve(async (req: Request) => {
     if (builderError) throw builderError;
     if (!builder) throw new Error("Builder not found");
 
-    let apiUrl: string;
-
-    if (action === "list") {
-      apiUrl = `${builder.api_endpoint}/${categorySlug}/list`;
-    } else if (pageSlug) {
-      apiUrl = `${builder.api_endpoint}/${categorySlug}/${pageSlug}`;
-    } else {
-      throw new Error("Either action=list or page parameter is required");
-    }
-
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
@@ -57,24 +47,55 @@ Deno.serve(async (req: Request) => {
       headers["Authorization"] = `Bearer ${builder.auth_token}`;
     }
 
-    const response = await fetch(apiUrl, { headers });
+    if (action === "list") {
+      const apiUrl = `${builder.api_endpoint}/list`;
+      const response = await fetch(apiUrl, { headers });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch from builder API: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    return new Response(
-      JSON.stringify(data),
-      {
-        status: 200,
-        headers: {
-          ...corsHeaders,
-          "Content-Type": "application/json",
-        },
+      if (!response.ok) {
+        throw new Error(`Failed to fetch from builder API: ${response.statusText}`);
       }
-    );
+
+      const data = await response.json();
+
+      const category = data.categories?.find((cat: any) => cat.category === categorySlug);
+
+      if (!category) {
+        throw new Error(`Category ${categorySlug} not found`);
+      }
+
+      return new Response(
+        JSON.stringify({ pages: category.pages || [] }),
+        {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    } else if (pageSlug) {
+      const apiUrl = `${builder.api_endpoint}/${categorySlug}/${pageSlug}`;
+      const response = await fetch(apiUrl, { headers });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch from builder API: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+
+      return new Response(
+        JSON.stringify(data),
+        {
+          status: 200,
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+    } else {
+      throw new Error("Either action=list or page parameter is required");
+    }
   } catch (error) {
     console.error("Error:", error);
     return new Response(
