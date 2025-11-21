@@ -77,13 +77,24 @@ export function QuickStart() {
   const loadWebsiteTemplates = async () => {
     try {
       const { data, error } = await supabase
-        .from('website_templates')
-        .select('*')
+        .from('website_page_templates')
+        .select('id, template_name, description, template_type, category, preview_image_url, order_index')
         .eq('is_active', true)
-        .order('sort_order', { ascending: true });
+        .order('order_index', { ascending: true });
 
       if (error) throw error;
-      setWebsiteTemplates(data || []);
+
+      const mappedData = data?.map(item => ({
+        id: item.id,
+        title: item.template_name,
+        description: item.description || '',
+        template_type: item.template_type as 'wordpress' | 'external_builder',
+        category: item.category,
+        preview_image_url: item.preview_image_url,
+        sort_order: item.order_index
+      })) || [];
+
+      setWebsiteTemplates(mappedData);
     } catch (error) {
       console.error('Error loading website templates:', error);
     }

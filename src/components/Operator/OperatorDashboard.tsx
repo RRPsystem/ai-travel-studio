@@ -22,8 +22,7 @@ import {
 } from 'lucide-react';
 import RoadmapManagement from './RoadmapManagement';
 import TestManagement from './TestManagement';
-import WordPressTemplateManager from './WordPressTemplateManager';
-import { WebsiteTemplateManager } from './WebsiteTemplateManager';
+import TemplateManager from './TemplateManager';
 
 export function OperatorDashboard() {
   const { user, signOut } = useAuth();
@@ -31,8 +30,7 @@ export function OperatorDashboard() {
 
   const sidebarItems = [
     { id: 'test-management', label: 'Test Management', icon: ClipboardCheck },
-    { id: 'website-templates', label: 'Website Templates', icon: Layout },
-    { id: 'wordpress-templates', label: 'WordPress Templates', icon: BookOpen },
+    { id: 'templates', label: 'Website Templates', icon: Layout },
     { id: 'roadmap', label: 'Roadmap Management', icon: Map },
     { id: 'monitoring', label: 'Monitoring & Alerts', icon: Bell },
     { id: 'system-health', label: 'System Health', icon: Activity },
@@ -110,8 +108,7 @@ export function OperatorDashboard() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
                 {activeSection === 'test-management' && 'Test Management'}
-                {activeSection === 'website-templates' && 'Website Templates'}
-                {activeSection === 'wordpress-templates' && 'WordPress Templates'}
+                {activeSection === 'templates' && 'Website Templates'}
                 {activeSection === 'roadmap' && 'Roadmap Management'}
                 {activeSection === 'monitoring' && 'Monitoring & Alerts'}
                 {activeSection === 'system-health' && 'System Health'}
@@ -123,8 +120,7 @@ export function OperatorDashboard() {
               </h1>
               <p className="text-gray-600 mt-1">
                 {activeSection === 'test-management' && 'Manage testing rounds and review feedback from testers'}
-                {activeSection === 'website-templates' && 'Manage complete website templates for brands'}
-                {activeSection === 'wordpress-templates' && 'Manage WordPress templates available to brands'}
+                {activeSection === 'templates' && 'Manage WordPress and External Builder templates for brands'}
                 {activeSection === 'roadmap' && 'Manage feature requests and development priorities'}
                 {activeSection === 'monitoring' && 'Real-time error tracking, alerts, and performance monitoring'}
                 {activeSection === 'system-health' && 'Real-time browser metrics and service status'}
@@ -151,8 +147,7 @@ export function OperatorDashboard() {
         {/* Content */}
         <main className="flex-1 p-6 overflow-y-auto">
           {activeSection === 'test-management' && <TestManagement />}
-          {activeSection === 'website-templates' && <WebsiteTemplateManager />}
-          {activeSection === 'wordpress-templates' && <WordPressTemplateManager />}
+          {activeSection === 'templates' && <TemplateManager />}
           {activeSection === 'roadmap' && <RoadmapManagement />}
           {activeSection === 'monitoring' && <MonitoringDashboard />}
           {activeSection === 'system-health' && <SystemHealth />}
