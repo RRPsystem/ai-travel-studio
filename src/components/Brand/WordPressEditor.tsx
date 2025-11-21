@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../lib/supabase';
-import { ArrowLeft, Eye, Save, Plus, Trash2, FileText, Edit2, ExternalLink, Globe } from 'lucide-react';
+import { ArrowLeft, FileText, ExternalLink, Globe } from 'lucide-react';
 
 interface WebsitePage {
   name: string;
@@ -33,37 +33,11 @@ export function WordPressEditor({ websiteId, onBack }: WordPressEditorProps) {
   const [website, setWebsite] = useState<Website | null>(null);
   const [pages, setPages] = useState<WebsitePage[]>([]);
   const [selectedPageIndex, setSelectedPageIndex] = useState(0);
-  const [editingHtml, setEditingHtml] = useState('');
-  const [viewMode, setViewMode] = useState<'edit' | 'preview'>('preview');
-  const [saving, setSaving] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadWebsite();
   }, [websiteId]);
-
-  useEffect(() => {
-    if (pages[selectedPageIndex]) {
-      let html = pages[selectedPageIndex].html;
-      console.log('Setting editing HTML for page:', pages[selectedPageIndex].name);
-      console.log('HTML length:', html?.length || 0);
-      console.log('HTML preview:', html?.substring(0, 200) || 'EMPTY');
-
-      // Remove any existing CSP meta tags that might block external resources
-      if (html) {
-        html = html.replace(/<meta[^>]*Content-Security-Policy[^>]*>/gi, '');
-
-        // Add permissive CSP to allow all external resources
-        html = html.replace(
-          '<head>',
-          `<head>\n  <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">`
-        );
-      }
-
-      setEditingHtml(html || '');
-    }
-  }, [selectedPageIndex, pages]);
 
   async function loadWebsite() {
     try {
@@ -125,85 +99,36 @@ export function WordPressEditor({ websiteId, onBack }: WordPressEditorProps) {
     }
   }
 
-  async function saveWebsite() {
-    if (!website) return;
 
-    setSaving(true);
+
+
+  async function openInExternalBuilder(pageIndex: number) {
+    const page = pages[pageIndex];
+    if (!page) return;
+
     try {
-      const updatedPages = [...pages];
-      updatedPages[selectedPageIndex] = {
-        ...updatedPages[selectedPageIndex],
-        html: editingHtml,
-        modified: true
-      };
+      const { data: { session } } = await db.supabase.auth.getSession();
+      if (!session?.access_token) {
+        alert('Geen sessie gevonden');
+        return;
+      }
 
-      const { error } = await db.supabase
-        .from('websites')
-        .update({
-          pages: updatedPages,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', websiteId);
+      const builderUrl = new URL('https://www.ai-websitestudio.nl/index.html');
+      builderUrl.searchParams.set('token', session.access_token);
+      builderUrl.searchParams.set('api', db.supabase.supabaseUrl);
+      builderUrl.searchParams.set('apikey', import.meta.env.VITE_SUPABASE_ANON_KEY);
+      builderUrl.searchParams.set('mode', 'edit-html');
+      builderUrl.searchParams.set('html', page.html);
+      builderUrl.searchParams.set('page_name', page.name);
+      builderUrl.searchParams.set('return_url', window.location.href);
+      builderUrl.searchParams.set('website_id', websiteId);
+      builderUrl.searchParams.set('page_index', pageIndex.toString());
 
-      if (error) throw error;
-
-      setPages(updatedPages);
-      setHasUnsavedChanges(false);
-      alert('✅ Wijzigingen opgeslagen!');
+      window.open(builderUrl.toString(), '_blank');
     } catch (error) {
-      console.error('Error saving website:', error);
-      alert('❌ Fout bij opslaan');
-    } finally {
-      setSaving(false);
+      console.error('Error opening builder:', error);
+      alert('Fout bij openen builder');
     }
-  }
-
-  function handleHtmlChange(value: string) {
-    setEditingHtml(value);
-    setHasUnsavedChanges(true);
-  }
-
-  async function addNewPage() {
-    const pageName = prompt('Naam voor de nieuwe pagina:');
-    if (!pageName) return;
-
-    const newPage: WebsitePage = {
-      name: pageName,
-      path: `/${pageName.toLowerCase().replace(/\s+/g, '-')}`,
-      html: `<!DOCTYPE html>
-<html lang="nl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${pageName}</title>
-</head>
-<body>
-    <h1>${pageName}</h1>
-    <p>Nieuwe pagina - voeg hier jouw content toe.</p>
-</body>
-</html>`,
-      modified: true,
-      order: pages.length
-    };
-
-    const updatedPages = [...pages, newPage];
-    setPages(updatedPages);
-    setSelectedPageIndex(updatedPages.length - 1);
-    setHasUnsavedChanges(true);
-  }
-
-  async function deletePage(index: number) {
-    if (pages.length <= 1) {
-      alert('Je moet minimaal 1 pagina behouden');
-      return;
-    }
-
-    if (!confirm(`Weet je zeker dat je "${pages[index].name}" wilt verwijderen?`)) return;
-
-    const updatedPages = pages.filter((_, i) => i !== index);
-    setPages(updatedPages);
-    setSelectedPageIndex(Math.max(0, index - 1));
-    setHasUnsavedChanges(true);
   }
 
   async function publishWebsite() {
@@ -311,42 +236,12 @@ export function WordPressEditor({ websiteId, onBack }: WordPressEditorProps) {
           </div>
 
           <div className="flex items-center gap-3">
-            {hasUnsavedChanges && (
-              <span className="text-sm text-orange-600 font-medium">Niet opgeslagen wijzigingen</span>
-            )}
-
-            <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-              <button
-                onClick={() => setViewMode('preview')}
-                className={`px-4 py-2 rounded-md transition-colors ${
-                  viewMode === 'preview'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <Eye size={18} className="inline mr-2" />
-                Preview
-              </button>
-              <button
-                onClick={() => setViewMode('edit')}
-                className={`px-4 py-2 rounded-md transition-colors ${
-                  viewMode === 'edit'
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                <Edit2 size={18} className="inline mr-2" />
-                HTML
-              </button>
-            </div>
-
             <button
-              onClick={saveWebsite}
-              disabled={saving || !hasUnsavedChanges}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              onClick={() => openInExternalBuilder(selectedPageIndex)}
+              className="px-6 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors flex items-center gap-2"
             >
-              <Save size={18} />
-              {saving ? 'Opslaan...' : 'Opslaan'}
+              <ExternalLink size={18} />
+              Bewerken in Editor
             </button>
 
             <button
@@ -365,16 +260,6 @@ export function WordPressEditor({ websiteId, onBack }: WordPressEditorProps) {
 
       <div className="flex-1 flex overflow-hidden">
         <div className="w-64 bg-white border-r border-gray-200 overflow-y-auto">
-          <div className="p-4 border-b border-gray-200">
-            <button
-              onClick={addNewPage}
-              className="w-full px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors flex items-center justify-center gap-2"
-            >
-              <Plus size={18} />
-              Nieuwe Pagina
-            </button>
-          </div>
-
           <div className="p-2">
             {pages.map((page, index) => (
               <div
@@ -393,46 +278,23 @@ export function WordPressEditor({ websiteId, onBack }: WordPressEditorProps) {
                     <p className="text-xs text-gray-500 truncate">{page.path}</p>
                   </div>
                 </div>
-                {pages.length > 1 && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deletePage(index);
-                    }}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-red-600 hover:bg-red-50 rounded transition-all"
-                    title="Verwijderen"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                )}
               </div>
             ))}
           </div>
         </div>
 
         <div className="flex-1 overflow-hidden">
-          {viewMode === 'preview' ? (
-            <div className="h-full bg-white flex flex-col">
-              <div className="bg-gray-100 px-4 py-2 text-xs text-gray-600 border-b">
-                Preview URL: {previewUrl}
-              </div>
-              <iframe
-                key={`preview-${selectedPageIndex}`}
-                src={previewUrl}
-                className="flex-1 w-full border-0"
-                title="Preview"
-              />
+          <div className="h-full bg-white flex flex-col">
+            <div className="bg-gray-100 px-4 py-2 text-xs text-gray-600 border-b">
+              Preview URL: {previewUrl}
             </div>
-          ) : (
-            <div className="h-full bg-gray-900 p-4">
-              <textarea
-                value={editingHtml}
-                onChange={(e) => handleHtmlChange(e.target.value)}
-                className="w-full h-full bg-gray-800 text-gray-100 font-mono text-sm p-4 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                spellCheck={false}
-              />
-            </div>
-          )}
+            <iframe
+              key={`preview-${selectedPageIndex}`}
+              src={previewUrl}
+              className="flex-1 w-full border-0"
+              title="Preview"
+            />
+          </div>
         </div>
       </div>
     </div>
