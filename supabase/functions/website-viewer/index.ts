@@ -283,21 +283,7 @@ async function renderWebsite(supabase: any, websiteId: string, pathname: string)
       .eq("slug", slug)
       .maybeSingle();
 
-    if (!page && (slug === "/" || slug === "/home")) {
-      const { data: homepage } = await supabase
-        .from("pages")
-        .select("*")
-        .eq("website_id", websiteId)
-        .eq("slug", "/")
-        .maybeSingle();
-
-      if (homepage) {
-        return new Response(renderWebsitePage(homepage, website, menuPages || []), {
-          status: 200,
-          headers: { "Content-Type": "text/html" },
-        });
-      }
-
+    if (!page) {
       const { data: firstPage } = await supabase
         .from("pages")
         .select("*")

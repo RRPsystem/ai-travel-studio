@@ -85,38 +85,78 @@ export function QuickStart() {
 
   const loadWebsiteTemplates = async () => {
     try {
-      const { data: templatePages, error } = await supabase
+      const { data: templatePages, error: tpError } = await supabase
         .from('template_pages')
         .select('*')
         .order('template_category, menu_order');
 
-      if (error) throw error;
+      if (tpError) console.error('Error loading template_pages:', tpError);
 
-      const grouped = (templatePages || []).reduce((acc, page) => {
-        const category = page.template_category;
-        if (!acc[category]) {
-          acc[category] = {
-            category: category,
+      const { data: wpTemplates, error: wpError } = await supabase
+        .from('website_page_templates')
+        .select('id, template_name, description, template_type, category, preview_image_url, category_preview_url, order_index')
+        .eq('is_active', true)
+        .order('category, order_index');
+
+      if (wpError) console.error('Error loading website_page_templates:', wpError);
+
+      const allTemplates: any[] = [];
+
+      if (templatePages && templatePages.length > 0) {
+        const tpGrouped = templatePages.reduce((acc, page) => {
+          const category = page.template_category;
+          if (!acc[category]) {
+            acc[category] = {
+              category: category,
+              template_type: 'external_builder' as const,
+              preview_url: page.preview_image_url,
+              page_count: 0,
+              pages: []
+            };
+          }
+          acc[category].pages.push({
+            id: page.id,
+            title: page.title,
+            description: `${page.title} pagina`,
             template_type: 'external_builder' as const,
-            preview_url: page.preview_image_url,
-            page_count: 0,
-            pages: []
-          };
-        }
-        acc[category].pages.push({
-          id: page.id,
-          title: page.title,
-          description: `${page.title} pagina`,
-          template_type: 'external_builder' as const,
-          category: category,
-          preview_image_url: page.preview_image_url,
-          sort_order: page.menu_order
-        });
-        acc[category].page_count = acc[category].pages.length;
-        return acc;
-      }, {} as Record<string, TemplateCategory>);
+            category: category,
+            preview_image_url: page.preview_image_url,
+            sort_order: page.menu_order
+          });
+          acc[category].page_count = acc[category].pages.length;
+          return acc;
+        }, {} as Record<string, TemplateCategory>);
+        allTemplates.push(...Object.values(tpGrouped));
+      }
 
-      setWebsiteCategories(Object.values(grouped));
+      if (wpTemplates && wpTemplates.length > 0) {
+        const wpGrouped = wpTemplates.reduce((acc, template) => {
+          const key = `${template.template_type}-${template.category}`;
+          if (!acc[key]) {
+            acc[key] = {
+              category: template.category || 'Unnamed',
+              template_type: template.template_type as 'wordpress' | 'external_builder',
+              preview_url: template.category_preview_url || template.preview_image_url,
+              page_count: 0,
+              pages: []
+            };
+          }
+          acc[key].pages.push({
+            id: template.id,
+            title: template.template_name,
+            description: template.description || '',
+            template_type: template.template_type as 'wordpress' | 'external_builder',
+            category: template.category,
+            preview_image_url: template.preview_image_url,
+            sort_order: template.order_index
+          });
+          acc[key].page_count = acc[key].pages.length;
+          return acc;
+        }, {} as Record<string, TemplateCategory>);
+        allTemplates.push(...Object.values(wpGrouped));
+      }
+
+      setWebsiteCategories(allTemplates);
     } catch (error) {
       console.error('Error loading website templates:', error);
     }
@@ -228,6 +268,11 @@ export function QuickStart() {
                 onClick={async () => {
                   if (!user?.brand_id) return;
 
+                  if (category.template_type === 'wordpress') {
+                    alert('WordPress template functionaliteit komt binnenkort');
+                    return;
+                  }
+
                   try {
                     const websiteSlug = `${category.category.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
 
@@ -257,12 +302,12 @@ export function QuickStart() {
                     if (templateError) throw templateError;
 
                     if (templatePages && templatePages.length > 0) {
-                      const newPages = templatePages.map((tp: any) => ({
+                      const newPages = templatePages.map((tp: any, index: number) => ({
                         website_id: websiteData.id,
                         brand_id: user.brand_id,
                         created_by: user.id,
                         title: tp.title,
-                        slug: tp.slug,
+                        slug: index === 0 ? '/' : `/${tp.slug}`,
                         status: 'draft',
                         body_html: tp.content,
                         content_json: {},
