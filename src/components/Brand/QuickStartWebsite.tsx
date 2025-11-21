@@ -570,7 +570,10 @@ export function QuickStartWebsite() {
                     <div className="flex items-center justify-end gap-2">
                       {website.live_url && (
                         <button
-                          onClick={() => window.open(`https://${website.live_url}`, '_blank')}
+                          onClick={() => {
+                            const url = website.live_url!.startsWith('http') ? website.live_url : `https://${website.live_url}`;
+                            window.open(url, '_blank');
+                          }}
                           className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Bekijk website"
                         >
