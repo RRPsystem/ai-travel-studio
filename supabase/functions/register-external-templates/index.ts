@@ -95,7 +95,8 @@ Deno.serve(async (req: Request) => {
             cached_html: page.html_content,
             cache_updated_at: new Date().toISOString(),
             order_index: page.order_index,
-            is_active: false
+            is_active: false,
+            wp_page_id: null
           };
 
           if (existingTemplate) {
