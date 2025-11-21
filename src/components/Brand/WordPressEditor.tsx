@@ -50,8 +50,11 @@ export function WordPressEditor({ websiteId, onBack }: WordPressEditorProps) {
       console.log('HTML length:', html?.length || 0);
       console.log('HTML preview:', html?.substring(0, 200) || 'EMPTY');
 
-      // Add permissive CSP meta tag if not present to allow external resources
-      if (html && !html.includes('Content-Security-Policy')) {
+      // Remove any existing CSP meta tags that might block external resources
+      if (html) {
+        html = html.replace(/<meta[^>]*Content-Security-Policy[^>]*>/gi, '');
+
+        // Add permissive CSP to allow all external resources
         html = html.replace(
           '<head>',
           `<head>\n  <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">`
