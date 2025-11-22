@@ -158,6 +158,36 @@ export function QuickStartWebsite() {
 
     if (website.source_type === 'wordpress_template') {
       setEditingWebsiteId(website.id);
+    } else if (website.source_type === 'external_builder') {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+      const { data: { session } } = await db.supabase.auth.getSession();
+      const jwtToken = session?.access_token || '';
+
+      try {
+        const response = await fetch(`${supabaseUrl}/functions/v1/generate-builder-jwt`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${jwtToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            website_id: website.id,
+            brand_id: user.brand_id
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.builder_url) {
+          window.open(result.builder_url, '_blank');
+        } else {
+          throw new Error(result.error || 'Could not generate builder URL');
+        }
+      } catch (error) {
+        console.error('Error opening builder:', error);
+        alert('❌ Fout bij openen van de builder. Probeer het opnieuw.');
+      }
     } else {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -580,18 +610,24 @@ export function QuickStartWebsite() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end gap-2">
-                      {website.live_url && (
-                        <button
-                          onClick={() => {
-                            const url = website.live_url!.startsWith('http') ? website.live_url : `https://${website.live_url}`;
+                      <button
+                        onClick={() => {
+                          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                          if (website.source_type === 'external_builder' && website.external_builder_id) {
+                            const previewUrl = `${supabaseUrl}/functions/v1/website-viewer?website_id=${website.id}`;
+                            window.open(previewUrl, '_blank');
+                          } else if (website.live_url) {
+                            const url = website.live_url.startsWith('http') ? website.live_url : `https://${website.live_url}`;
                             window.open(url, '_blank');
-                          }}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="Bekijk website"
-                        >
-                          <Eye size={18} />
-                        </button>
-                      )}
+                          } else {
+                            alert('Preview URL niet beschikbaar');
+                          }
+                        }}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Bekijk website"
+                      >
+                        <Eye size={18} />
+                      </button>
                       <button
                         onClick={() => editWebsite(website)}
                         className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
