@@ -280,10 +280,14 @@ export function QuickStartWebsite() {
       if (insertError) throw insertError;
 
       const selectedTemplateIds = selectedEBTemplates.map(t => t.id);
+
+      if (selectedTemplateIds.length === 0) {
+        throw new Error('Geen templates geselecteerd');
+      }
+
       const { data: templatePages, error: templateError } = await db.supabase
         .from('website_page_templates')
         .select('*')
-        .eq('category', selectedEBCategory)
         .in('id', selectedTemplateIds)
         .order('order_index');
 
@@ -291,6 +295,10 @@ export function QuickStartWebsite() {
 
       if (!templatePages || templatePages.length === 0) {
         throw new Error(`Geen template pages gevonden voor IDs: ${selectedTemplateIds.join(', ')}`);
+      }
+
+      if (templatePages.length !== selectedTemplateIds.length) {
+        console.warn(`Verwachtte ${selectedTemplateIds.length} templates, maar kreeg ${templatePages.length}`);
       }
 
       if (templatePages && templatePages.length > 0) {
