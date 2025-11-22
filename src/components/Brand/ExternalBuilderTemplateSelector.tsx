@@ -72,9 +72,10 @@ export function ExternalBuilderTemplateSelector({ onSelect, selectedCategory }: 
           .from('website_page_templates')
           .select('*')
           .eq('template_type', 'external_builder')
-          .eq('category', capitalizedCategoryName)
+          .ilike('category', capitalizedCategoryName)
           .in('template_name', capitalizedPageNames)
-          .eq('is_active', true);
+          .eq('is_active', true)
+          .not('cached_html', 'is', null);
 
         if (ptError) {
           console.error('Error loading page templates:', ptError);
