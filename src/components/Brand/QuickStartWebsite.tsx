@@ -185,6 +185,21 @@ export function QuickStartWebsite() {
           throw new Error(`Builder "${builder.name}" heeft geen editor_url geconfigureerd. Neem contact op met de operator.`);
         }
 
+        const { data: pages, error: pagesError } = await db.supabase
+          .from('pages')
+          .select('id, title, slug')
+          .eq('website_id', website.id)
+          .order('menu_order', { ascending: true })
+          .limit(1);
+
+        if (pagesError) throw pagesError;
+
+        if (!pages || pages.length === 0) {
+          throw new Error('Geen pagina gevonden voor deze website');
+        }
+
+        const firstPage = pages[0];
+
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -210,6 +225,7 @@ export function QuickStartWebsite() {
         }
 
         const params = new URLSearchParams({
+          page_id: firstPage.id,
           website_id: website.id,
           brand_id: user.brand_id,
           token: result.token,
@@ -222,6 +238,7 @@ export function QuickStartWebsite() {
         console.log('🔨 Opening editor:', {
           builder_editor_url: builder.editor_url,
           full_url: editorUrl,
+          page_id: firstPage.id,
           website_id: website.id
         });
         window.open(editorUrl, '_blank');
@@ -230,22 +247,44 @@ export function QuickStartWebsite() {
         alert(`❌ Fout bij openen van de builder: ${error.message}`);
       }
     } else {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      try {
+        const { data: pages, error: pagesError } = await db.supabase
+          .from('pages')
+          .select('id, title, slug')
+          .eq('website_id', website.id)
+          .order('menu_order', { ascending: true })
+          .limit(1);
 
-      const { data: { session } } = await db.supabase.auth.getSession();
-      const jwtToken = session?.access_token || '';
+        if (pagesError) throw pagesError;
 
-      const params = new URLSearchParams({
-        website_id: website.id,
-        brand_id: user.brand_id,
-        token: jwtToken,
-        apikey: supabaseKey,
-        api: `${supabaseUrl}/functions/v1`,
-        return_url: window.location.href
-      });
+        if (!pages || pages.length === 0) {
+          alert('❌ Geen pagina gevonden voor deze website');
+          return;
+        }
 
-      window.location.href = `https://www.ai-websitestudio.nl/template-editor.html?${params.toString()}`;
+        const firstPage = pages[0];
+
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+        const { data: { session } } = await db.supabase.auth.getSession();
+        const jwtToken = session?.access_token || '';
+
+        const params = new URLSearchParams({
+          page_id: firstPage.id,
+          website_id: website.id,
+          brand_id: user.brand_id,
+          token: jwtToken,
+          apikey: supabaseKey,
+          api: `${supabaseUrl}/functions/v1`,
+          return_url: window.location.href
+        });
+
+        window.location.href = `https://www.ai-websitestudio.nl/template-editor.html?${params.toString()}`;
+      } catch (error) {
+        console.error('Error opening editor:', error);
+        alert('❌ Fout bij openen van de editor: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
+      }
     }
   }
 
