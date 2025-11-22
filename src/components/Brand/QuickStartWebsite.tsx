@@ -159,12 +159,28 @@ export function QuickStartWebsite() {
     if (website.source_type === 'wordpress_template') {
       setEditingWebsiteId(website.id);
     } else if (website.source_type === 'external_builder') {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-
-      const { data: { session } } = await db.supabase.auth.getSession();
-      const jwtToken = session?.access_token || '';
+      if (!website.external_builder_id) {
+        alert('❌ Geen externe builder gekoppeld aan deze website');
+        return;
+      }
 
       try {
+        const { data: builder, error: builderError } = await db.supabase
+          .from('external_builders')
+          .select('editor_url')
+          .eq('id', website.external_builder_id)
+          .maybeSingle();
+
+        if (builderError || !builder?.editor_url) {
+          throw new Error('Builder URL niet gevonden');
+        }
+
+        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+        const { data: { session } } = await db.supabase.auth.getSession();
+        const jwtToken = session?.access_token || '';
+
         const response = await fetch(`${supabaseUrl}/functions/v1/generate-builder-jwt`, {
           method: 'POST',
           headers: {
@@ -172,21 +188,31 @@ export function QuickStartWebsite() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            website_id: website.id,
-            brand_id: user.brand_id
+            brand_id: user.brand_id,
+            return_url: window.location.href
           })
         });
 
         const result = await response.json();
 
-        if (result.builder_url) {
-          window.open(result.builder_url, '_blank');
-        } else {
-          throw new Error(result.error || 'Could not generate builder URL');
+        if (result.error) {
+          throw new Error(result.error);
         }
-      } catch (error) {
+
+        const params = new URLSearchParams({
+          website_id: website.id,
+          brand_id: user.brand_id,
+          token: result.token,
+          apikey: supabaseKey,
+          api: `${supabaseUrl}/functions/v1`,
+          return_url: window.location.href
+        });
+
+        const editorUrl = `${builder.editor_url}?${params.toString()}`;
+        window.open(editorUrl, '_blank');
+      } catch (error: any) {
         console.error('Error opening builder:', error);
-        alert('❌ Fout bij openen van de builder. Probeer het opnieuw.');
+        alert(`❌ Fout bij openen van de builder: ${error.message}`);
       }
     } else {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -611,16 +637,29 @@ export function QuickStartWebsite() {
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end gap-2">
                       <button
-                        onClick={() => {
-                          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                        onClick={async () => {
                           if (website.source_type === 'external_builder' && website.external_builder_id) {
-                            const previewUrl = `${supabaseUrl}/functions/v1/website-viewer?website_id=${website.id}`;
+                            if (!website.pages || website.pages.length === 0) {
+                              alert('❌ Geen pagina\'s gevonden om te bekijken');
+                              return;
+                            }
+
+                            const indexPage = website.pages.find((p: any) => p.slug === 'index' || p.is_homepage);
+                            const firstPage = indexPage || website.pages[0];
+
+                            if (!firstPage?.id) {
+                              alert('❌ Geen geldige pagina gevonden');
+                              return;
+                            }
+
+                            const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                            const previewUrl = `${supabaseUrl}/functions/v1/pages-preview?page_id=${firstPage.id}`;
                             window.open(previewUrl, '_blank');
                           } else if (website.live_url) {
                             const url = website.live_url.startsWith('http') ? website.live_url : `https://${website.live_url}`;
                             window.open(url, '_blank');
                           } else {
-                            alert('Preview URL niet beschikbaar');
+                            alert('❌ Preview URL niet beschikbaar');
                           }
                         }}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
