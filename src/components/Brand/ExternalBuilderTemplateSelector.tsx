@@ -72,8 +72,9 @@ export function ExternalBuilderTemplateSelector({ onSelect, selectedCategory }: 
           .from('website_page_templates')
           .select('*')
           .eq('template_type', 'external_builder')
-          .or(`category.eq.${capitalizedCategoryName},category.eq.${categoryDisplayName}`)
-          .in('template_name', capitalizedPageNames);
+          .eq('category', capitalizedCategoryName)
+          .in('template_name', capitalizedPageNames)
+          .eq('is_active', true);
 
         if (ptError) {
           console.error('Error loading page templates:', ptError);
@@ -89,7 +90,8 @@ export function ExternalBuilderTemplateSelector({ onSelect, selectedCategory }: 
         }
 
         if (pageTemplates && pageTemplates.length > 0) {
-          categoriesMap[categoryDisplayName].templates.push(...pageTemplates);
+          const validTemplates = pageTemplates.filter(t => t && t.id && typeof t === 'object');
+          categoriesMap[categoryDisplayName].templates.push(...validTemplates);
         }
       }
 
