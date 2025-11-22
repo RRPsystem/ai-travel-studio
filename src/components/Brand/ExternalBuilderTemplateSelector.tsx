@@ -33,28 +33,67 @@ export function ExternalBuilderTemplateSelector({ onSelect, selectedCategory }: 
   async function loadTemplates() {
     setLoading(true);
     try {
-      const { data, error } = await db.supabase
-        .from('website_page_templates')
-        .select('*')
-        .eq('template_type', 'external_builder')
+      const { data: quickstartTemplates, error: qsError } = await db.supabase
+        .from('quickstart_templates')
+        .select(`
+          id,
+          display_name,
+          description,
+          selected_pages,
+          category:builder_categories!category_id(
+            id,
+            category_slug,
+            display_name,
+            preview_url
+          )
+        `)
         .eq('is_active', true)
-        .order('order_index');
+        .order('display_order');
 
-      if (error) throw error;
+      if (qsError) throw qsError;
 
-      const grouped = data.reduce((acc: Record<string, TemplateCategory>, template: Template) => {
-        if (!acc[template.category]) {
-          acc[template.category] = {
-            category: template.category,
-            preview_url: template.category_preview_url || '',
+      const categoriesMap: Record<string, TemplateCategory> = {};
+
+      for (const qsTemplate of quickstartTemplates || []) {
+        const category = qsTemplate.category;
+        if (!category) continue;
+
+        const categorySlug = category.category_slug;
+        const categoryDisplayName = category.display_name || categorySlug;
+
+        const capitalizedCategoryName = categorySlug.charAt(0).toUpperCase() + categorySlug.slice(1);
+
+        const capitalizedPageNames = qsTemplate.selected_pages.map((slug: string) => {
+          if (slug === 'index') return 'Home';
+          return slug.charAt(0).toUpperCase() + slug.slice(1);
+        });
+
+        const { data: pageTemplates, error: ptError } = await db.supabase
+          .from('website_page_templates')
+          .select('*')
+          .eq('template_type', 'external_builder')
+          .or(`category.eq.${capitalizedCategoryName},category.eq.${categoryDisplayName}`)
+          .in('template_name', capitalizedPageNames);
+
+        if (ptError) {
+          console.error('Error loading page templates:', ptError);
+          continue;
+        }
+
+        if (!categoriesMap[categoryDisplayName]) {
+          categoriesMap[categoryDisplayName] = {
+            category: categoryDisplayName,
+            preview_url: category.preview_url || '',
             templates: []
           };
         }
-        acc[template.category].templates.push(template);
-        return acc;
-      }, {});
 
-      setCategories(Object.values(grouped));
+        if (pageTemplates && pageTemplates.length > 0) {
+          categoriesMap[categoryDisplayName].templates.push(...pageTemplates);
+        }
+      }
+
+      setCategories(Object.values(categoriesMap));
     } catch (error) {
       console.error('Error loading templates:', error);
     } finally {
