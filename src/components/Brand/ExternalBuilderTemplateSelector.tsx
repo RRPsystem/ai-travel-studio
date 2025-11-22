@@ -93,6 +93,7 @@ export function ExternalBuilderTemplateSelector({ onSelect, selectedCategory }: 
         }
       }
 
+      console.log('Loaded quickstart categories:', Object.values(categoriesMap));
       setCategories(Object.values(categoriesMap));
     } catch (error) {
       console.error('Error loading templates:', error);
@@ -103,6 +104,9 @@ export function ExternalBuilderTemplateSelector({ onSelect, selectedCategory }: 
 
   function handleCategorySelect(category: TemplateCategory) {
     const templateIds = category.templates.map(t => t.id);
+    console.log('Selected category:', category.category);
+    console.log('Template IDs:', templateIds);
+    console.log('Templates:', category.templates);
     setSelectedTemplates(templateIds);
     onSelect(category.category, category.templates);
   }
