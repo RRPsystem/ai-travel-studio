@@ -167,12 +167,22 @@ export function QuickStartWebsite() {
       try {
         const { data: builder, error: builderError } = await db.supabase
           .from('external_builders')
-          .select('editor_url')
+          .select('editor_url, name')
           .eq('id', website.external_builder_id)
           .maybeSingle();
 
-        if (builderError || !builder?.editor_url) {
-          throw new Error('Builder URL niet gevonden');
+        console.log('🔍 Builder data from DB:', { builder, error: builderError });
+
+        if (builderError) {
+          throw new Error(`Database error: ${builderError.message}`);
+        }
+
+        if (!builder) {
+          throw new Error('Builder niet gevonden in database');
+        }
+
+        if (!builder.editor_url) {
+          throw new Error(`Builder "${builder.name}" heeft geen editor_url geconfigureerd. Neem contact op met de operator.`);
         }
 
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
