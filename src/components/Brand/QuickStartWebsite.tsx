@@ -654,6 +654,8 @@ export function QuickStartWebsite() {
 
                             const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
                             const previewUrl = `${supabaseUrl}/functions/v1/pages-preview?page_id=${firstPage.id}`;
+                            console.log('📱 Opening preview URL:', previewUrl);
+                            console.log('📄 Page details:', { id: firstPage.id, slug: firstPage.slug, name: firstPage.name });
                             window.open(previewUrl, '_blank');
                           } else if (website.live_url) {
                             const url = website.live_url.startsWith('http') ? website.live_url : `https://${website.live_url}`;
