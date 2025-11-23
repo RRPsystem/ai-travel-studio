@@ -2,7 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { jwtVerify } from "npm:jose@5";
 import { SavePageSchema, PublishPageSchema } from "./schemas.ts";
-import { RateLimiter, getClientId, addRateLimitHeaders } from "../_shared/rate-limit.ts";
+import { RateLimiter, getClientId, addRateLimitHeaders } from "./rate-limit.ts";
 
 interface JWTPayload {
   brand_id: string;
@@ -106,7 +106,6 @@ function corsHeaders(): Headers {
   return headers;
 }
 
-// Rate limiter: 100 requests per minute per client
 const rateLimiter = new RateLimiter({ windowMs: 60000, maxRequests: 100 });
 
 Deno.serve(async (req: Request) => {
@@ -114,7 +113,6 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { status: 200, headers: corsHeaders() });
   }
 
-  // Apply rate limiting
   const clientId = getClientId(req);
   try {
     rateLimiter.check(clientId);
@@ -480,8 +478,10 @@ Deno.serve(async (req: Request) => {
           id: page.id,
           title: page.title,
           slug: page.slug,
+          content: page.body_html,
           html: page.content_json || {},
           content_json: page.content_json || {},
+          body_html: page.body_html,
           brand_id: page.brand_id,
           content_type: page.content_type,
           is_template: page.is_template,
