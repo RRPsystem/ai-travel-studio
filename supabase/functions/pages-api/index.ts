@@ -160,6 +160,7 @@ Deno.serve(async (req: Request) => {
         title: body.title,
         slug: body.slug,
         has_content: !!body.content_json,
+        has_html: !!(body.content || body.body_html),
         page_id: body.page_id,
         content_type: body.content_type,
         is_template: body.is_template,
@@ -181,11 +182,16 @@ Deno.serve(async (req: Request) => {
         title,
         slug,
         content_json,
+        content,
+        body_html,
         page_id,
         content_type,
         template_category,
         preview_image_url
       } = body;
+
+      const htmlContent = content || body_html;
+      const finalContentJson = content_json || (htmlContent ? { html: htmlContent } : {});
 
       let result: any;
 
@@ -211,10 +217,14 @@ Deno.serve(async (req: Request) => {
 
         const updateData: any = {
           title,
-          content_json,
+          content_json: finalContentJson,
           updated_at: new Date().toISOString(),
           version: newVersion
         };
+
+        if (htmlContent) {
+          updateData.body_html = htmlContent;
+        }
 
         if (isTemplateMode && template_category) {
           updateData.template_category = template_category;
@@ -270,7 +280,7 @@ Deno.serve(async (req: Request) => {
         const insertData: any = {
           title: finalTitle,
           slug: finalSlug,
-          content_json,
+          content_json: finalContentJson,
           status: "draft",
           version: 1,
           content_type: content_type || "page",
@@ -278,6 +288,10 @@ Deno.serve(async (req: Request) => {
           menu_order: 0,
           parent_slug: null,
         };
+
+        if (htmlContent) {
+          insertData.body_html = htmlContent;
+        }
 
         if (isTemplateMode) {
           insertData.is_template = true;
@@ -314,9 +328,9 @@ Deno.serve(async (req: Request) => {
           brand_id,
           title,
           slug,
-          content: content_json,
-          description: content_json.description || content_json.excerpt || '',
-          featured_image: content_json.featured_image || content_json.image || '',
+          content: finalContentJson,
+          description: finalContentJson.description || finalContentJson.excerpt || '',
+          featured_image: finalContentJson.featured_image || finalContentJson.image || '',
           status: 'draft',
           author_type: 'brand',
           author_id: userId,
@@ -368,9 +382,14 @@ Deno.serve(async (req: Request) => {
         page_id: result.id,
         title,
         slug: result.slug,
-        content_json,
+        content_json: finalContentJson,
         status: "draft"
       };
+
+      if (htmlContent) {
+        responseData.content = htmlContent;
+        responseData.body_html = htmlContent;
+      }
 
       if (isTemplateMode) {
         responseData.is_template = true;
