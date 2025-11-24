@@ -182,9 +182,13 @@ export function PreviewPage({ pageId: propPageId }: PreviewPageProps = {}) {
 
     if (isFullHtmlDocument) {
       console.log('[PreviewPage] Using full HTML document mode');
+
+      const blob = new Blob([cleanHtml], { type: 'text/html' });
+      const blobUrl = URL.createObjectURL(blob);
+
       return (
         <iframe
-          srcDoc={cleanHtml}
+          src={blobUrl}
           className="w-full"
           style={{
             height: '100vh',
@@ -193,7 +197,10 @@ export function PreviewPage({ pageId: propPageId }: PreviewPageProps = {}) {
           }}
           title="Page Preview"
           sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-          onLoad={() => console.log('[PreviewPage] iframe loaded')}
+          onLoad={() => {
+            console.log('[PreviewPage] iframe loaded');
+            URL.revokeObjectURL(blobUrl);
+          }}
           onError={(e) => console.error('[PreviewPage] iframe error:', e)}
         />
       );
