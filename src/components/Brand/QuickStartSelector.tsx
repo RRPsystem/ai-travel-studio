@@ -50,8 +50,13 @@ export default function QuickStartSelector({ brandId, onSelect, onCancel }: Quic
         .order('display_order');
 
       if (error) throw error;
+      console.log('[QuickStartSelector] Loaded templates:', data);
+      data?.forEach(t => {
+        console.log(`[QuickStartSelector] ${t.display_name}: preview_url = ${t.category?.preview_url}`);
+      });
       setTemplates(data || []);
     } catch (err: any) {
+      console.error('[QuickStartSelector] Error loading templates:', err);
       setError(err.message);
     } finally {
       setLoading(false);
@@ -136,8 +141,15 @@ export default function QuickStartSelector({ brandId, onSelect, onCancel }: Quic
                   src={template.category.preview_url}
                   alt={template.display_name}
                   className="w-full h-48 object-cover rounded-t-lg"
+                  onLoad={() => {
+                    console.log(`[QuickStartSelector] ✅ Image loaded: ${template.display_name} from ${template.category.preview_url}`);
+                  }}
                   onError={(e) => {
-                    e.currentTarget.style.display = 'none';
+                    console.error(`[QuickStartSelector] ❌ Image failed to load: ${template.display_name} from ${template.category.preview_url}`);
+                    const parent = e.currentTarget.parentElement;
+                    if (parent) {
+                      parent.innerHTML = `<div class="w-full h-48 bg-gradient-to-br from-red-100 to-red-200 rounded-t-lg flex items-center justify-center"><div class="text-red-600 text-center"><svg class="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg><p class="text-sm">Image failed</p></div></div>`;
+                    }
                   }}
                 />
               ) : (
