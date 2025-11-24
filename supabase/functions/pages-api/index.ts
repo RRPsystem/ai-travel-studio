@@ -4,6 +4,35 @@ import { jwtVerify } from "npm:jose@5";
 import { SavePageSchema, PublishPageSchema } from "./schemas.ts";
 import { RateLimiter, getClientId, addRateLimitHeaders } from "./rate-limit.ts";
 
+function enhanceHtmlWithBrandMeta(html: string, brandId: string): string {
+  if (!html || !brandId) return html;
+
+  let enhancedHtml = html;
+
+  if (!html.includes('meta name="brand-id"') && !html.includes('meta name=\'brand-id\'')) {
+    const brandMetaTag = `\n    <meta name="brand-id" content="${brandId}">`;
+
+    if (html.includes('<head>')) {
+      enhancedHtml = enhancedHtml.replace('<head>', `<head>${brandMetaTag}`);
+    } else if (html.includes('<HEAD>')) {
+      enhancedHtml = enhancedHtml.replace('<HEAD>', `<HEAD>${brandMetaTag}`);
+    }
+  }
+
+  if (!html.includes('dynamic-menu.js')) {
+    const menuScript = `\n    <!-- Dynamic Menu Widget -->
+    <script src="https://www.ai-websitestudio.nl/widgets/dynamic-menu.js"></script>\n`;
+
+    if (html.includes('</body>')) {
+      enhancedHtml = enhancedHtml.replace('</body>', `${menuScript}</body>`);
+    } else if (html.includes('</BODY>')) {
+      enhancedHtml = enhancedHtml.replace('</BODY>', `${menuScript}</BODY>`);
+    }
+  }
+
+  return enhancedHtml;
+}
+
 interface JWTPayload {
   brand_id: string;
   user_id?: string;
@@ -223,7 +252,7 @@ Deno.serve(async (req: Request) => {
         };
 
         if (htmlContent) {
-          updateData.body_html = htmlContent;
+          updateData.body_html = enhanceHtmlWithBrandMeta(htmlContent, brand_id);
         }
 
         if (isTemplateMode && template_category) {
@@ -290,7 +319,9 @@ Deno.serve(async (req: Request) => {
         };
 
         if (htmlContent) {
-          insertData.body_html = htmlContent;
+          insertData.body_html = !isTemplateMode && brand_id
+            ? enhanceHtmlWithBrandMeta(htmlContent, brand_id)
+            : htmlContent;
         }
 
         if (isTemplateMode) {

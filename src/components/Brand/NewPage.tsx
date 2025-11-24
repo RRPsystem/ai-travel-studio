@@ -117,10 +117,28 @@ export function NewPage() {
         ? (existingPages[0].menu_order || 0) + 1
         : 1;
 
+      const defaultHtml = `<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="brand-id" content="${user.brand_id}">
+    <title>Nieuwe Pagina</title>
+</head>
+<body>
+    <h1>Nieuwe Pagina</h1>
+    <p>Start met bouwen...</p>
+
+    <!-- Dynamic Menu Widget -->
+    <script src="https://www.ai-websitestudio.nl/widgets/dynamic-menu.js"></script>
+</body>
+</html>`;
+
       const newPage = {
         title: 'Nieuwe Pagina',
         slug: `page-${Date.now()}`,
         content_json: {},
+        body_html: defaultHtml,
         brand_id: user.brand_id,
         status: 'draft',
         version: 1,
@@ -201,10 +219,26 @@ export function NewPage() {
         console.warn('[NewPage] Warning: Template content_json may not have builder-compatible structure:', contentJson);
       }
 
+      let bodyHtml = template.body_html;
+      if (bodyHtml && !bodyHtml.includes('meta name="brand-id"')) {
+        const brandMetaTag = `\n    <meta name="brand-id" content="${user.brand_id}">`;
+        if (bodyHtml.includes('<head>')) {
+          bodyHtml = bodyHtml.replace('<head>', `<head>${brandMetaTag}`);
+        }
+      }
+      if (bodyHtml && !bodyHtml.includes('dynamic-menu.js')) {
+        const menuScript = `\n    <!-- Dynamic Menu Widget -->
+    <script src="https://www.ai-websitestudio.nl/widgets/dynamic-menu.js"></script>\n`;
+        if (bodyHtml.includes('</body>')) {
+          bodyHtml = bodyHtml.replace('</body>', `${menuScript}</body>`);
+        }
+      }
+
       const newPage = {
         title: template.title,
         slug: `${template.slug}-${Date.now()}`,
         content_json: contentJson,
+        body_html: bodyHtml,
         brand_id: user.brand_id,
         status: 'draft',
         version: 1,
