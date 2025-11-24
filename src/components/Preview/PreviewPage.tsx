@@ -154,13 +154,22 @@ export function PreviewPage({ pageId: propPageId }: PreviewPageProps = {}) {
       .replace(/<button[^>]*class="[^"]*toolbar-btn[^"]*"[^>]*>[\s\S]*?<\/button>/g, '')
       .replace(/<button[^>]*data-tag-del[^>]*>[\s\S]*?<\/button>/g, '');
 
-    if (!cleanHtml.includes('<html') && !cleanHtml.includes('<!DOCTYPE')) {
-      cleanHtml = cleanHtml;
-    } else {
-      const bodyMatch = cleanHtml.match(/<body[^>]*>([\s\S]*)<\/body>/);
-      if (bodyMatch) {
-        cleanHtml = bodyMatch[1];
-      }
+    const isFullHtmlDocument = cleanHtml.includes('<html') || cleanHtml.includes('<!DOCTYPE');
+
+    if (isFullHtmlDocument) {
+      return (
+        <iframe
+          srcDoc={cleanHtml}
+          className="w-full"
+          style={{
+            height: '100vh',
+            border: 'none',
+            display: 'block'
+          }}
+          title="Page Preview"
+          sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+        />
+      );
     }
 
     return (
