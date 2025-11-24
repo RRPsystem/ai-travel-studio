@@ -50,11 +50,22 @@ export default function QuickStartSelector({ brandId, onSelect, onCancel }: Quic
         .order('display_order');
 
       if (error) throw error;
-      console.log('[QuickStartSelector] Loaded templates:', data);
-      data?.forEach(t => {
+
+      const templatesWithHttps = data?.map(t => ({
+        ...t,
+        category: {
+          ...t.category,
+          preview_url: t.category?.preview_url
+            ? t.category.preview_url.replace(/^http:\/\//i, 'https://')
+            : undefined
+        }
+      })) || [];
+
+      console.log('[QuickStartSelector] Loaded templates with HTTPS:', templatesWithHttps);
+      templatesWithHttps.forEach(t => {
         console.log(`[QuickStartSelector] ${t.display_name}: preview_url = ${t.category?.preview_url}`);
       });
-      setTemplates(data || []);
+      setTemplates(templatesWithHttps);
     } catch (err: any) {
       console.error('[QuickStartSelector] Error loading templates:', err);
       setError(err.message);
