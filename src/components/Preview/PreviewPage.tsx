@@ -183,7 +183,24 @@ export function PreviewPage({ pageId: propPageId }: PreviewPageProps = {}) {
     if (isFullHtmlDocument) {
       console.log('[PreviewPage] Using full HTML document mode');
 
-      const blob = new Blob([cleanHtml], { type: 'text/html' });
+      let modifiedHtml = cleanHtml;
+
+      if (!cleanHtml.includes('Content-Security-Policy')) {
+        const cspMetaTag = '<meta http-equiv="Content-Security-Policy" content="default-src * \'unsafe-inline\' \'unsafe-eval\' data: blob:;">';
+
+        if (cleanHtml.includes('<head>')) {
+          modifiedHtml = cleanHtml.replace('<head>', '<head>' + cspMetaTag);
+        } else if (cleanHtml.includes('<head ')) {
+          modifiedHtml = cleanHtml.replace(/<head\s/, '<head>' + cspMetaTag + '<head ');
+        } else if (cleanHtml.includes('<html>')) {
+          modifiedHtml = cleanHtml.replace('<html>', '<html><head>' + cspMetaTag + '</head>');
+        } else if (cleanHtml.includes('<!DOCTYPE')) {
+          const doctypeEnd = cleanHtml.indexOf('>') + 1;
+          modifiedHtml = cleanHtml.slice(0, doctypeEnd) + '<html><head>' + cspMetaTag + '</head><body>' + cleanHtml.slice(doctypeEnd) + '</body></html>';
+        }
+      }
+
+      const blob = new Blob([modifiedHtml], { type: 'text/html' });
       const blobUrl = URL.createObjectURL(blob);
 
       return (
