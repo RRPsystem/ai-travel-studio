@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+</head>
+<body>
+    <script>
+        const SUPABASE_URL = 'https://huaaogdxxdcakxryecnw.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1YWFvZ2R4eGRjYWt4cnllY253Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjcyMzgyNTAsImV4cCI6MjA0MjgxNDI1MH0.YO-wX0v6xzIGvyj4M7QgRmF45jNaX8cLBOI_1cIgCmc';
+
+        (async function() {
+            try {
+                const hostname = window.location.hostname;
+                const subdomain = hostname.replace('.ai-travelstudio.nl', '');
+                const path = window.location.pathname;
+                const slug = path === '/' ? '/' : path;
+
+                const domainResponse = await fetch(
+                    `${SUPABASE_URL}/rest/v1/brand_domains?select=website_id&subdomain_prefix=eq.${encodeURIComponent(subdomain)}`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+
+                const domains = await domainResponse.json();
+                if (!domains || domains.length === 0) {
+                    document.write('<h1 style="text-align:center;margin-top:50px;">Website not found</h1>');
+                    return;
+                }
+
+                const websiteId = domains[0].website_id;
+
+                const pageResponse = await fetch(
+                    `${SUPABASE_URL}/rest/v1/pages?select=body_html,title&website_id=eq.${encodeURIComponent(websiteId)}&slug=eq.${encodeURIComponent(slug)}`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_ANON_KEY,
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                        }
+                    }
+                );
+
+                const pages = await pageResponse.json();
+                if (!pages || pages.length === 0) {
+                    document.write('<h1 style="text-align:center;margin-top:50px;">Page not found</h1>');
+                    return;
+                }
+
+                document.write(pages[0].body_html);
+            } catch (error) {
+                console.error('Error loading website:', error);
+                document.write('<h1 style="text-align:center;margin-top:50px;">Error loading website</h1>');
+            }
+        })();
+    </script>
+</body>
+</html>
