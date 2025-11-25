@@ -1,3 +1,5 @@
+const https = require('https');
+
 module.exports = async (req, res) => {
   try {
     const host = req.headers.host || '';
@@ -15,23 +17,26 @@ module.exports = async (req, res) => {
       return res.status(404).send('Not a valid subdomain website');
     }
 
-    const supabaseUrl = 'https://huaaogdxxdcakxryecnw.supabase.co';
-    const targetUrl = `${supabaseUrl}/functions/v1/website-viewer${pathname}`;
+    const targetUrl = `https://huaaogdxxdcakxryecnw.supabase.co/functions/v1/website-viewer${pathname}`;
 
     console.log('[PROXY] Fetching:', targetUrl);
 
-    const response = await fetch(targetUrl, {
-      method: req.method,
-      headers: {
-        'host': host,
-        'user-agent': req.headers['user-agent'] || '',
-        'x-forwarded-host': host,
-      },
+    // Use native https module for compatibility
+    const htmlResponse = await new Promise((resolve, reject) => {
+      https.get(targetUrl, {
+        headers: {
+          'host': host,
+          'user-agent': req.headers['user-agent'] || 'Mozilla/5.0',
+          'x-forwarded-host': host,
+        },
+      }, (response) => {
+        let data = '';
+        response.on('data', (chunk) => data += chunk);
+        response.on('end', () => resolve({ status: response.statusCode, html: data }));
+      }).on('error', reject);
     });
 
-    const html = await response.text();
-
-    console.log('[PROXY] Response status:', response.status);
+    console.log('[PROXY] Response status:', htmlResponse.status);
 
     // Set headers for HTML response
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
@@ -41,7 +46,7 @@ module.exports = async (req, res) => {
       "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline'; img-src * data: blob:; font-src * data:; connect-src *;"
     );
 
-    return res.status(response.status).send(html);
+    return res.status(htmlResponse.status).send(htmlResponse.html);
   } catch (error) {
     console.error('[PROXY] Error:', error);
     return res.status(500).send(`
