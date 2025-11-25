@@ -70,6 +70,7 @@
                 const html = await response.text();
                 console.log('[LOADER] HTML length:', html.length);
 
+                // Replace entire document with fetched HTML
                 document.open();
                 document.write(html);
                 document.close();
