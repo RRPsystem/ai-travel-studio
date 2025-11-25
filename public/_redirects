@@ -1,5 +1,5 @@
 # API redirects
-/api/* https://nquhuzvfqmnyghbxrurz.supabase.co/functions/v1/:splat 200
+/api/* https://huaaogdxxdcakxryecnw.supabase.co/functions/v1/:splat 200
 
 # Don't redirect assets
 /assets/* /assets/:splat 200
