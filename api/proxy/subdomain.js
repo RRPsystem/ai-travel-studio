@@ -26,23 +26,21 @@ export default async function handler(req, res) {
 
     console.log('[PROXY] Response status:', response.status);
 
-    // Send response with relaxed CSP
+    // Send response WITHOUT any CSP header (completely disable CSP)
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.setHeader('Cache-Control', 'public, max-age=60, s-maxage=300');
-    res.setHeader(
-      'Content-Security-Policy',
-      "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline'; img-src * data: blob:; font-src * data:; connect-src *;"
-    );
+
+    // Explicitly remove any CSP headers
+    res.removeHeader('Content-Security-Policy');
+    res.removeHeader('X-Content-Security-Policy');
+    res.removeHeader('X-WebKit-CSP');
 
     res.status(response.status).send(html);
   } catch (error) {
     console.error('[PROXY] Error:', error);
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    res.setHeader(
-      'Content-Security-Policy',
-      "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;"
-    );
+    res.removeHeader('Content-Security-Policy');
 
     res.status(500).send(`
       <!DOCTYPE html>
