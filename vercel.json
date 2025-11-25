@@ -2,6 +2,16 @@
   "rewrites": [
     {
       "source": "/(.*)",
+      "destination": "https://huaaogdxxdcakxryecnw.supabase.co/functions/v1/website-viewer$1",
+      "has": [
+        {
+          "type": "host",
+          "value": "(?!www\\.)(?!ai-travelstudio\\.nl$).*\\.ai-travelstudio\\.nl"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
