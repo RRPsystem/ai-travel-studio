@@ -1,3 +1,6 @@
+# Subdomain proxy - check hostname
+/:subdomain.ai-travelstudio.nl/* /api/proxy/subdomain?path=:splat 200
+
 # API redirects
 /api/* https://huaaogdxxdcakxryecnw.supabase.co/functions/v1/:splat 200
 

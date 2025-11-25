@@ -1,7 +1,13 @@
 {
   "rewrites": [
     {
-      "source": "/subdomain.html",
+      "source": "/(.*)",
+      "has": [
+        {
+          "type": "host",
+          "value": "(?<subdomain>.+)\\.ai-travelstudio\\.nl"
+        }
+      ],
       "destination": "/api/proxy/subdomain"
     },
     {

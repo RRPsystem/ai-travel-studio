@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+</head>
+<body>
+    <script>
+        // Immediately redirect to proxy API
+        const pathname = window.location.pathname;
+        window.location.replace('/api/proxy/subdomain' + pathname + window.location.search);
+    </script>
+    <noscript>
+        <meta http-equiv="refresh" content="0; url=/api/proxy/subdomain">
+    </noscript>
+</body>
+</html>
