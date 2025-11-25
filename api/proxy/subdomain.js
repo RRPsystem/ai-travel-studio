@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
   try {
     const host = req.headers.host || '';
     const pathname = (req.url || '/').replace('/api/proxy/subdomain', '/');
@@ -41,10 +41,10 @@ export default async function handler(req, res) {
       "default-src * 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'unsafe-inline' 'unsafe-eval'; style-src * 'unsafe-inline'; img-src * data: blob:; font-src * data:; connect-src *;"
     );
 
-    res.status(response.status).send(html);
+    return res.status(response.status).send(html);
   } catch (error) {
     console.error('[PROXY] Error:', error);
-    res.status(500).send(`
+    return res.status(500).send(`
       <!DOCTYPE html>
       <html>
         <head><title>Error</title></head>
@@ -56,4 +56,4 @@ export default async function handler(req, res) {
       </html>
     `);
   }
-}
+};
