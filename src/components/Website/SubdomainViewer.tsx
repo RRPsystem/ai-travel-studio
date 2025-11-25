@@ -6,7 +6,6 @@ interface SubdomainViewerProps {
 }
 
 export function SubdomainViewer({ subdomain }: SubdomainViewerProps) {
-  const [html, setHtml] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
 
@@ -47,12 +46,12 @@ export function SubdomainViewer({ subdomain }: SubdomainViewerProps) {
         return;
       }
 
-      document.title = pageData.title || 'Website';
-      setHtml(pageData.body_html || '');
+      document.open();
+      document.write(pageData.body_html || '');
+      document.close();
     } catch (err) {
       console.error('Error loading website:', err);
       setError('Failed to load website');
-    } finally {
       setLoading(false);
     }
   }
