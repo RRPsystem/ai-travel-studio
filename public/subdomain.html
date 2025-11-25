@@ -14,8 +14,10 @@
             try {
                 const hostname = window.location.hostname;
                 const subdomain = hostname.replace('.ai-travelstudio.nl', '');
-                const path = window.location.pathname;
+                const path = window.location.pathname === '/subdomain.html' ? '/' : window.location.pathname;
                 const slug = path === '/' ? '/' : path;
+
+                console.log('Loading subdomain:', subdomain, 'slug:', slug);
 
                 const domainResponse = await fetch(
                     `${SUPABASE_URL}/rest/v1/brand_domains?select=website_id&subdomain_prefix=eq.${encodeURIComponent(subdomain)}`,
@@ -27,13 +29,20 @@
                     }
                 );
 
+                if (!domainResponse.ok) {
+                    throw new Error('Domain lookup failed: ' + domainResponse.status);
+                }
+
                 const domains = await domainResponse.json();
+                console.log('Domains found:', domains);
+
                 if (!domains || domains.length === 0) {
                     document.write('<h1 style="text-align:center;margin-top:50px;">Website not found</h1>');
                     return;
                 }
 
                 const websiteId = domains[0].website_id;
+                console.log('Website ID:', websiteId);
 
                 const pageResponse = await fetch(
                     `${SUPABASE_URL}/rest/v1/pages?select=body_html,title&website_id=eq.${encodeURIComponent(websiteId)}&slug=eq.${encodeURIComponent(slug)}`,
@@ -45,16 +54,22 @@
                     }
                 );
 
+                if (!pageResponse.ok) {
+                    throw new Error('Page lookup failed: ' + pageResponse.status);
+                }
+
                 const pages = await pageResponse.json();
+                console.log('Pages found:', pages.length);
+
                 if (!pages || pages.length === 0) {
-                    document.write('<h1 style="text-align:center;margin-top:50px;">Page not found</h1>');
+                    document.write('<h1 style="text-align:center;margin-top:50px;">Page not found for slug: ' + slug + '</h1>');
                     return;
                 }
 
                 document.write(pages[0].body_html);
             } catch (error) {
                 console.error('Error loading website:', error);
-                document.write('<h1 style="text-align:center;margin-top:50px;">Error loading website</h1>');
+                document.write('<h1 style="text-align:center;margin-top:50px;">Error loading website: ' + error.message + '</h1>');
             }
         })();
     </script>
