@@ -4,15 +4,34 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Loading...</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        #website-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
-    <div id="loading" style="text-align:center;margin-top:50px;">
+    <div id="loading">
         <p>Loading website...</p>
     </div>
+    <iframe id="website-frame" style="display:none;"></iframe>
     <script>
-        console.log('Subdomain.html script started!');
-        document.getElementById('loading').innerHTML = '<p>Script is running...</p>';
-
         const SUPABASE_URL = 'https://huaaogdxxdcakxryecnw.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1YWFvZ2R4eGRjYWt4cnllY253Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM5MDY2OTAsImV4cCI6MjA3OTI2NjY5MH0.ygqwQNOpbJqe9NHtlxLCIlmVk2j5Mkcw4qvMpkGyeY0';
 
@@ -43,7 +62,7 @@
                 console.log('Domains found:', domains);
 
                 if (!domains || domains.length === 0) {
-                    document.write('<h1 style="text-align:center;margin-top:50px;">Website not found</h1>');
+                    document.getElementById('loading').innerHTML = '<h1>Website not found</h1>';
                     return;
                 }
 
@@ -68,16 +87,21 @@
                 console.log('Pages found:', pages.length);
 
                 if (!pages || pages.length === 0) {
-                    document.body.innerHTML = '<h1 style="text-align:center;margin-top:50px;">Page not found for slug: ' + slug + '</h1>';
+                    document.getElementById('loading').innerHTML = '<h1>Page not found for slug: ' + slug + '</h1>';
                     return;
                 }
 
-                document.open();
-                document.write(pages[0].body_html);
-                document.close();
+                const iframe = document.getElementById('website-frame');
+                iframe.srcdoc = pages[0].body_html;
+
+                iframe.onload = function() {
+                    document.getElementById('loading').style.display = 'none';
+                    iframe.style.display = 'block';
+                };
+
             } catch (error) {
                 console.error('Error loading website:', error);
-                document.body.innerHTML = '<h1 style="text-align:center;margin-top:50px;">Error loading website: ' + error.message + '</h1>';
+                document.getElementById('loading').innerHTML = '<h1>Error loading website: ' + error.message + '</h1>';
             }
         })();
     </script>
