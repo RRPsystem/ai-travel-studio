@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/subdomain.html",
+      "destination": "https://huaaogdxxdcakxryecnw.supabase.co/functions/v1/website-viewer/"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

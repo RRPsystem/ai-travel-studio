@@ -5,87 +5,54 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Loading...</title>
     <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            font-family: system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
         #loading {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
             text-align: center;
-            z-index: 9999;
+            color: white;
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid white;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
 <body>
     <div id="loading">
+        <div class="spinner"></div>
         <p>Loading website...</p>
     </div>
     <script>
         const SUPABASE_URL = 'https://huaaogdxxdcakxryecnw.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1YWFvZ2R4eGRjYWt4cnllY253Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM5MDY2OTAsImV4cCI6MjA3OTI2NjY5MH0.ygqwQNOpbJqe9NHtlxLCIlmVk2j5Mkcw4qvMpkGyeY0';
 
         (async function() {
             try {
                 const hostname = window.location.hostname;
-                const subdomain = hostname.replace('.ai-travelstudio.nl', '');
                 const path = window.location.pathname === '/subdomain.html' ? '/' : window.location.pathname;
-                const slug = path === '/' ? '/' : path;
 
-                console.log('Loading subdomain:', subdomain, 'slug:', slug);
-
-                const domainResponse = await fetch(
-                    `${SUPABASE_URL}/rest/v1/brand_domains?select=website_id&subdomain_prefix=eq.${encodeURIComponent(subdomain)}`,
-                    {
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                        }
-                    }
-                );
-
-                if (!domainResponse.ok) {
-                    throw new Error('Domain lookup failed: ' + domainResponse.status);
-                }
-
-                const domains = await domainResponse.json();
-                console.log('Domains found:', domains);
-
-                if (!domains || domains.length === 0) {
-                    document.getElementById('loading').innerHTML = '<h1>Website not found</h1>';
-                    return;
-                }
-
-                const websiteId = domains[0].website_id;
-                console.log('Website ID:', websiteId);
-
-                const pageResponse = await fetch(
-                    `${SUPABASE_URL}/rest/v1/pages?select=body_html,title&website_id=eq.${encodeURIComponent(websiteId)}&slug=eq.${encodeURIComponent(slug)}`,
-                    {
-                        headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-                        }
-                    }
-                );
-
-                if (!pageResponse.ok) {
-                    throw new Error('Page lookup failed: ' + pageResponse.status);
-                }
-
-                const pages = await pageResponse.json();
-                console.log('Pages found:', pages.length);
-
-                if (!pages || pages.length === 0) {
-                    document.getElementById('loading').innerHTML = '<h1>Page not found for slug: ' + slug + '</h1>';
-                    return;
-                }
-
-                document.open();
-                document.write(pages[0].body_html);
-                document.close();
+                const targetUrl = `https://${hostname}${path}`;
+                window.location.replace(targetUrl);
 
             } catch (error) {
-                console.error('Error loading website:', error);
-                document.getElementById('loading').innerHTML = '<h1>Error loading website: ' + error.message + '</h1>';
+                console.error('Error:', error);
+                document.getElementById('loading').innerHTML = '<p>Error: ' + error.message + '</p>';
             }
         })();
     </script>
