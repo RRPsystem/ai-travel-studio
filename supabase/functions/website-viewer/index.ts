@@ -4,7 +4,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, host, x-forwarded-host",
 };
 
 Deno.serve(async (req: Request) => {
@@ -19,10 +19,10 @@ Deno.serve(async (req: Request) => {
     );
 
     const url = new URL(req.url);
-    const host = req.headers.get("host") || url.host;
-    const pathname = url.pathname;
+    const pathname = url.pathname.replace(/^\/website-viewer/, '') || '/';
+    const subdomainParam = url.searchParams.get("subdomain");
 
-    console.log("[VIEWER] Request:", { host, pathname });
+    console.log("[VIEWER] Request:", { subdomain: subdomainParam, pathname, url: req.url });
 
     const websiteId = url.searchParams.get("website_id");
     if (websiteId) {
@@ -30,44 +30,24 @@ Deno.serve(async (req: Request) => {
     }
 
     let brandId: string | null = null;
-    let websiteId: string | null = null;
-    let isCustomDomain = false;
+    let websiteIdFromDomain: string | null = null;
 
-    if (!host.includes("supabase.co") && !host.includes("localhost")) {
-      const domainParts = host.split(".");
-
-      if (host.includes("ai-travelstudio.nl")) {
-        const subdomain = domainParts[0];
-
-        if (subdomain.startsWith("brand-")) {
-          brandId = subdomain.replace("brand-", "");
-        } else {
-          const { data: domainData } = await supabase
-            .from("brand_domains")
-            .select("brand_id, status, website_id, domain_type")
-            .eq("subdomain_prefix", subdomain)
-            .eq("domain_type", "subdomain")
-            .eq("status", "verified")
-            .maybeSingle();
-
-          if (domainData) {
-            brandId = domainData.brand_id;
-            websiteId = domainData.website_id;
-            console.log("[VIEWER] Found subdomain:", { subdomain, brandId, websiteId });
-          }
-        }
+    if (subdomainParam) {
+      if (subdomainParam.startsWith("brand-")) {
+        brandId = subdomainParam.replace("brand-", "");
       } else {
         const { data: domainData } = await supabase
           .from("brand_domains")
           .select("brand_id, status, website_id, domain_type")
-          .eq("domain", host)
+          .eq("subdomain_prefix", subdomainParam)
+          .eq("domain_type", "subdomain")
           .eq("status", "verified")
           .maybeSingle();
 
         if (domainData) {
           brandId = domainData.brand_id;
-          websiteId = domainData.website_id;
-          isCustomDomain = true;
+          websiteIdFromDomain = domainData.website_id;
+          console.log("[VIEWER] Found subdomain:", { subdomain: subdomainParam, brandId, websiteId: websiteIdFromDomain });
         }
       }
     }
@@ -78,15 +58,15 @@ Deno.serve(async (req: Request) => {
 
     if (!brandId) {
       return new Response(
-        renderErrorPage("Brand niet gevonden", "Deze URL is niet gekoppeld aan een brand."),
-        { status: 404, headers: { "Content-Type": "text/html" } }
+        renderErrorPage("Brand niet gevonden", `Deze URL is niet gekoppeld aan een brand. Subdomain: ${subdomainParam}`),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "text/html" } }
       );
     }
 
-    console.log("[VIEWER] Brand ID:", brandId, "Website ID:", websiteId, "Custom domain:", isCustomDomain);
+    console.log("[VIEWER] Brand ID:", brandId, "Website ID:", websiteIdFromDomain);
 
-    if (websiteId) {
-      return await renderWebsite(supabase, websiteId, pathname);
+    if (websiteIdFromDomain) {
+      return await renderWebsite(supabase, websiteIdFromDomain, pathname);
     }
 
     let slug = pathname === "/" || pathname === "" ? "home" : pathname.substring(1);
@@ -119,7 +99,7 @@ Deno.serve(async (req: Request) => {
       if (indexPage) {
         return new Response(renderPage(indexPage), {
           status: 200,
-          headers: { "Content-Type": "text/html" },
+          headers: { ...corsHeaders, "Content-Type": "text/html" },
         });
       }
 
@@ -136,7 +116,7 @@ Deno.serve(async (req: Request) => {
       if (firstPage) {
         return new Response(renderPage(firstPage), {
           status: 200,
-          headers: { "Content-Type": "text/html" },
+          headers: { ...corsHeaders, "Content-Type": "text/html" },
         });
       }
     }
@@ -148,19 +128,19 @@ Deno.serve(async (req: Request) => {
           "Pagina niet gevonden",
           `De pagina '${slug}' bestaat niet of is niet gepubliceerd.`
         ),
-        { status: 404, headers: { "Content-Type": "text/html" } }
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "text/html" } }
       );
     }
 
     return new Response(renderPage(page), {
       status: 200,
-      headers: { "Content-Type": "text/html" },
+      headers: { ...corsHeaders, "Content-Type": "text/html" },
     });
   } catch (error) {
     console.error("[VIEWER] Error:", error);
     return new Response(
       renderErrorPage("Server Fout", error?.message || "Er is een fout opgetreden."),
-      { status: 500, headers: { "Content-Type": "text/html" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "text/html" } }
     );
   }
 });

@@ -43,18 +43,17 @@
             try {
                 const host = window.location.host;
                 const pathname = window.location.pathname;
+                const subdomain = host.split('.')[0];
 
-                const targetUrl = `https://huaaogdxxdcakxryecnw.supabase.co/functions/v1/website-viewer${pathname}${window.location.search}`;
+                const params = new URLSearchParams(window.location.search);
+                params.set('subdomain', subdomain);
 
-                const response = await fetch(targetUrl, {
-                    headers: {
-                        'host': host,
-                        'x-forwarded-host': host
-                    }
-                });
+                const targetUrl = `https://huaaogdxxdcakxryecnw.supabase.co/functions/v1/website-viewer${pathname}?${params.toString()}`;
+
+                const response = await fetch(targetUrl);
 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
 
                 const html = await response.text();
