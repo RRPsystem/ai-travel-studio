@@ -9,9 +9,21 @@ import AgentProfile from './components/Agent/AgentProfile';
 import { PreviewPage } from './components/Preview/PreviewPage';
 import { NewsPreview } from './components/Preview/NewsPreview';
 import { ClientInterface } from './components/TravelBro/ClientInterface';
+import { SubdomainViewer } from './components/Website/SubdomainViewer';
 
 function AppContent() {
   console.log('🚀 AppContent component rendering');
+
+  const hostname = window.location.hostname;
+  const isSubdomain = hostname !== 'ai-travelstudio.nl' &&
+                     hostname !== 'www.ai-travelstudio.nl' &&
+                     hostname.endsWith('.ai-travelstudio.nl');
+
+  if (isSubdomain) {
+    const subdomain = hostname.replace('.ai-travelstudio.nl', '');
+    console.log('[App] Subdomain detected:', subdomain);
+    return <SubdomainViewer subdomain={subdomain} />;
+  }
 
   const path = window.location.pathname;
   console.log('[App] Current path:', path);
