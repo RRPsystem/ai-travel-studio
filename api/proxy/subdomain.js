@@ -5,12 +5,13 @@ export default async function handler(req, res) {
 
     console.log('[PROXY] Request:', { host, pathname });
 
-    // Extract subdomain
-    const subdomain = host.split('.')[0];
+    // Pass the full host (domain) to the Edge Function
+    // The Edge Function expects the full domain as stored in brand_domains table
+    const fullDomain = host;
 
     // Build Supabase Edge Function URL
     const supabaseUrl = `https://huaaogdxxdcakxryecnw.supabase.co/functions/v1/website-viewer${pathname}`;
-    const targetUrl = `${supabaseUrl}?subdomain=${encodeURIComponent(subdomain)}`;
+    const targetUrl = `${supabaseUrl}?subdomain=${encodeURIComponent(fullDomain)}`;
 
     console.log('[PROXY] Fetching:', targetUrl);
 
