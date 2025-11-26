@@ -395,7 +395,7 @@ function createMenuFixScript(menuPages: any[]): string {
             link.onclick = function(e) {
               e.preventDefault();
               e.stopPropagation();
-              window.location.href = url;
+              window.location.pathname = url;
               return false;
             };
 
