@@ -59,18 +59,32 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { data: domainData, error: domainError } = await supabase
+    let { data: domainData, error: domainError } = await supabase
       .from("brand_domains")
       .select("brand_id")
       .eq("domain", subdomain)
       .maybeSingle();
 
     if (domainError || !domainData) {
-      console.error("[VIEWER] Domain lookup failed:", domainError);
-      return new Response(
-        renderErrorPage("Domein niet gevonden", `Het domein '${subdomain}' is niet geregistreerd.`),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "text/html" } }
-      );
+      console.log("[VIEWER] First lookup failed, trying with full domain");
+      const fullDomain = `${subdomain}.ai-travelstudio.nl`;
+      const result = await supabase
+        .from("brand_domains")
+        .select("brand_id")
+        .eq("domain", fullDomain)
+        .maybeSingle();
+
+      domainData = result.data;
+      domainError = result.error;
+
+      if (domainError || !domainData) {
+        console.error("[VIEWER] Both domain lookups failed:", { subdomain, fullDomain, domainError });
+        return new Response(
+          renderErrorPage("Domein niet gevonden", `Het domein '${subdomain}' is niet geregistreerd.`),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "text/html" } }
+        );
+      }
+      console.log("[VIEWER] Found domain with full domain:", fullDomain);
     }
 
     const brandId = domainData.brand_id;
