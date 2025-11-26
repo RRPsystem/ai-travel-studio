@@ -98,7 +98,15 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
 
       if (indexPage) {
-        return new Response(renderPage(indexPage), {
+        const { data: menuPages } = await supabase
+          .from("pages")
+          .select("id, title, slug, menu_label")
+          .eq("brand_id", brandId)
+          .eq("show_in_menu", true)
+          .eq("status", "published")
+          .order("menu_order", { ascending: true });
+
+        return new Response(renderPageWithMenu(indexPage, menuPages || []), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "text/html" },
         });
@@ -115,7 +123,15 @@ Deno.serve(async (req: Request) => {
         .maybeSingle();
 
       if (firstPage) {
-        return new Response(renderPage(firstPage), {
+        const { data: menuPages } = await supabase
+          .from("pages")
+          .select("id, title, slug, menu_label")
+          .eq("brand_id", brandId)
+          .eq("show_in_menu", true)
+          .eq("status", "published")
+          .order("menu_order", { ascending: true });
+
+        return new Response(renderPageWithMenu(firstPage, menuPages || []), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "text/html" },
         });
@@ -133,7 +149,15 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    return new Response(renderPage(page), {
+    const { data: menuPages } = await supabase
+      .from("pages")
+      .select("id, title, slug, menu_label")
+      .eq("brand_id", brandId)
+      .eq("show_in_menu", true)
+      .eq("status", "published")
+      .order("menu_order", { ascending: true });
+
+    return new Response(renderPageWithMenu(page, menuPages || []), {
       status: 200,
       headers: {
         ...corsHeaders,
@@ -359,6 +383,32 @@ const sliderInitScript = `
     });
 })(window.jQuery);
 </script>`;
+
+function renderPageWithMenu(page: any, menuPages: any[]): string {
+  let html = renderPage(page);
+
+  if (menuPages.length > 0) {
+    const menuScript = `
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const menuItems = ${JSON.stringify(menuPages)};
+  const mainMenu = document.querySelector('.main-menu ul');
+
+  if (mainMenu) {
+    mainMenu.innerHTML = menuItems.map(item => {
+      const slug = item.slug.startsWith('/') ? item.slug.substring(1) : item.slug;
+      return '<li class="menu-item"><a href="/' + slug + '">' + (item.menu_label || item.title) + '</a></li>';
+    }).join('');
+    console.log('[MENU] Replaced template menu with', menuItems.length, 'items');
+  }
+});
+</script>`;
+
+    html = html.replace('</body>', menuScript + '\n</body>');
+  }
+
+  return html;
+}
 
 function renderPage(page: any): string {
   let html = "";
