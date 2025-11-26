@@ -167,6 +167,100 @@ function renderPage(page: any): string {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const cssBaseUrl = `${supabaseUrl}/storage/v1/object/public/assets/styles`;
 
+  const sliderDependencies = `
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick-theme.css">
+  <script src="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"></script>`;
+
+  const sliderInit = `
+<script>
+(function($) {
+    'use strict';
+    $(document).ready(function() {
+        $('.destination-slider, .tour-slider, .testimonial-slider, .gallery-slider, .clients-slider, .tour-gallery-slider').filter('.slick-initialized').slick('unslick');
+
+        if ($('.destination-slider').length && !$('.destination-slider').hasClass('slick-initialized')) {
+            $('.destination-slider').slick({
+                dots: false, arrows: false, infinite: true, speed: 800, autoplay: true,
+                variableWidth: true, slidesToShow: 6, slidesToScroll: 1,
+                prevArrow: '<div class="prev"><i class="far fa-angle-left"></i></div>',
+                nextArrow: '<div class="next"><i class="far fa-angle-right"></i></div>',
+                responsive: [
+                    { breakpoint: 1400, settings: { slidesToShow: 4 } },
+                    { breakpoint: 1024, settings: { slidesToShow: 3 } },
+                    { breakpoint: 767, settings: { slidesToShow: 1 } }
+                ]
+            });
+        }
+
+        if ($('.tour-slider').length && !$('.tour-slider').hasClass('slick-initialized')) {
+            $('.tour-slider').slick({
+                dots: true, arrows: false, infinite: true, speed: 800, autoplay: true,
+                slidesToShow: 4, slidesToScroll: 1,
+                prevArrow: '<div class="prev"><i class="far fa-angle-left"></i></div>',
+                nextArrow: '<div class="next"><i class="far fa-angle-right"></i></div>',
+                responsive: [
+                    { breakpoint: 1500, settings: { slidesToShow: 3 } },
+                    { breakpoint: 1200, settings: { slidesToShow: 2 } },
+                    { breakpoint: 767, settings: { slidesToShow: 1 } }
+                ]
+            });
+        }
+
+        if ($('.testimonial-slider').length && !$('.testimonial-slider').hasClass('slick-initialized')) {
+            var sliderDots = $('.testimonial-dots');
+            $('.testimonial-slider').slick({
+                dots: true, arrows: false, infinite: true, speed: 800, appendDots: sliderDots,
+                autoplay: true, slidesToShow: 1, slidesToScroll: 1,
+                prevArrow: '<div class="prev"><i class="far fa-angle-left"></i></div>',
+                nextArrow: '<div class="next"><i class="far fa-angle-right"></i></div>'
+            });
+        }
+
+        if ($('.gallery-slider').length && !$('.gallery-slider').hasClass('slick-initialized')) {
+            $('.gallery-slider').slick({
+                dots: false, arrows: false, infinite: true, speed: 800, autoplay: true,
+                slidesToShow: 5, slidesToScroll: 1,
+                prevArrow: '<div class="prev"><i class="far fa-angle-left"></i></div>',
+                nextArrow: '<div class="next"><i class="far fa-angle-right"></i></div>',
+                responsive: [
+                    { breakpoint: 1500, settings: { slidesToShow: 3 } },
+                    { breakpoint: 1200, settings: { slidesToShow: 2 } },
+                    { breakpoint: 550, settings: { slidesToShow: 1 } }
+                ]
+            });
+        }
+
+        if ($('.clients-slider').length && !$('.clients-slider').hasClass('slick-initialized')) {
+            $('.clients-slider').slick({
+                dots: false, arrows: false, infinite: true, speed: 800, autoplay: true,
+                slidesToShow: 6, slidesToScroll: 1,
+                prevArrow: '<div class="prev"><i class="far fa-angle-left"></i></div>',
+                nextArrow: '<div class="next"><i class="far fa-angle-right"></i></div>',
+                responsive: [
+                    { breakpoint: 1450, settings: { slidesToShow: 5 } },
+                    { breakpoint: 1200, settings: { slidesToShow: 3 } },
+                    { breakpoint: 767, settings: { slidesToShow: 2 } },
+                    { breakpoint: 400, settings: { slidesToShow: 1 } }
+                ]
+            });
+        }
+
+        if ($('.tour-gallery-slider').length && !$('.tour-gallery-slider').hasClass('slick-initialized')) {
+            $('.tour-gallery-slider').slick({
+                dots: false, arrows: true, infinite: true, speed: 800, autoplay: true,
+                slidesToShow: 1, slidesToScroll: 1,
+                prevArrow: '<div class="prev"><i class="far fa-angle-left"></i></div>',
+                nextArrow: '<div class="next"><i class="far fa-angle-right"></i></div>'
+            });
+        }
+
+        console.log('✅ Sliders initialized');
+    });
+})(window.jQuery);
+</script>`;
+
   if (!html.includes("<html") && !html.includes("<!DOCTYPE")) {
     html = `<!DOCTYPE html>
 <html lang="nl">
@@ -179,10 +273,10 @@ function renderPage(page: any): string {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="${cssBaseUrl}/main.css">
-  <link rel="stylesheet" href="${cssBaseUrl}/components.css">
+  <link rel="stylesheet" href="${cssBaseUrl}/components.css">${sliderDependencies}
 </head>
 <body>
-${html}
+${html}${sliderInit}
 </body>
 </html>`;
   } else {
@@ -197,6 +291,14 @@ ${html}
   <link rel="stylesheet" href="${cssBaseUrl}/components.css">
 </head>`
       );
+    }
+
+    if (!html.includes('jquery') && !html.includes('slick')) {
+      html = html.replace('</head>', sliderDependencies + '\n</head>');
+    }
+
+    if (!html.includes('slick-initialized')) {
+      html = html.replace('</body>', sliderInit + '\n</body>');
     }
   }
 
@@ -355,6 +457,100 @@ function renderWebsitePage(page: any, website: any, menuPages: any[]): string {
     </nav>
   ` : '';
 
+  const sliderDependencies = `
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick-theme.css">
+  <script src="https://cdn.jsdelivr.net/npm/slick-carousel@1.8.1/slick/slick.min.js"></script>`;
+
+  const sliderInit = `
+<script>
+(function($) {
+    'use strict';
+    $(document).ready(function() {
+        $('.destination-slider, .tour-slider, .testimonial-slider, .gallery-slider, .clients-slider, .tour-gallery-slider').filter('.slick-initialized').slick('unslick');
+
+        if ($('.destination-slider').length && !$('.destination-slider').hasClass('slick-initialized')) {
+            $('.destination-slider').slick({
+                dots: false, arrows: false, infinite: true, speed: 800, autoplay: true,
+                variableWidth: true, slidesToShow: 6, slidesToScroll: 1,
+                prevArrow: '<div class="prev"><i class="far fa-angle-left"></i></div>',
+                nextArrow: '<div class="next"><i class="far fa-angle-right"></i></div>',
+                responsive: [
+                    { breakpoint: 1400, settings: { slidesToShow: 4 } },
+                    { breakpoint: 1024, settings: { slidesToShow: 3 } },
+                    { breakpoint: 767, settings: { slidesToShow: 1 } }
+                ]
+            });
+        }
+
+        if ($('.tour-slider').length && !$('.tour-slider').hasClass('slick-initialized')) {
+            $('.tour-slider').slick({
+                dots: true, arrows: false, infinite: true, speed: 800, autoplay: true,
+                slidesToShow: 4, slidesToScroll: 1,
+                prevArrow: '<div class="prev"><i class="far fa-angle-left"></i></div>',
+                nextArrow: '<div class="next"><i class="far fa-angle-right"></i></div>',
+                responsive: [
+                    { breakpoint: 1500, settings: { slidesToShow: 3 } },
+                    { breakpoint: 1200, settings: { slidesToShow: 2 } },
+                    { breakpoint: 767, settings: { slidesToShow: 1 } }
+                ]
+            });
+        }
+
+        if ($('.testimonial-slider').length && !$('.testimonial-slider').hasClass('slick-initialized')) {
+            var sliderDots = $('.testimonial-dots');
+            $('.testimonial-slider').slick({
+                dots: true, arrows: false, infinite: true, speed: 800, appendDots: sliderDots,
+                autoplay: true, slidesToShow: 1, slidesToScroll: 1,
+                prevArrow: '<div class="prev"><i class="far fa-angle-left"></i></div>',
+                nextArrow: '<div class="next"><i class="far fa-angle-right"></i></div>'
+            });
+        }
+
+        if ($('.gallery-slider').length && !$('.gallery-slider').hasClass('slick-initialized')) {
+            $('.gallery-slider').slick({
+                dots: false, arrows: false, infinite: true, speed: 800, autoplay: true,
+                slidesToShow: 5, slidesToScroll: 1,
+                prevArrow: '<div class="prev"><i class="far fa-angle-left"></i></div>',
+                nextArrow: '<div class="next"><i class="far fa-angle-right"></i></div>',
+                responsive: [
+                    { breakpoint: 1500, settings: { slidesToShow: 3 } },
+                    { breakpoint: 1200, settings: { slidesToShow: 2 } },
+                    { breakpoint: 550, settings: { slidesToShow: 1 } }
+                ]
+            });
+        }
+
+        if ($('.clients-slider').length && !$('.clients-slider').hasClass('slick-initialized')) {
+            $('.clients-slider').slick({
+                dots: false, arrows: false, infinite: true, speed: 800, autoplay: true,
+                slidesToShow: 6, slidesToScroll: 1,
+                prevArrow: '<div class="prev"><i class="far fa-angle-left"></i></div>',
+                nextArrow: '<div class="next"><i class="far fa-angle-right"></i></div>',
+                responsive: [
+                    { breakpoint: 1450, settings: { slidesToShow: 5 } },
+                    { breakpoint: 1200, settings: { slidesToShow: 3 } },
+                    { breakpoint: 767, settings: { slidesToShow: 2 } },
+                    { breakpoint: 400, settings: { slidesToShow: 1 } }
+                ]
+            });
+        }
+
+        if ($('.tour-gallery-slider').length && !$('.tour-gallery-slider').hasClass('slick-initialized')) {
+            $('.tour-gallery-slider').slick({
+                dots: false, arrows: true, infinite: true, speed: 800, autoplay: true,
+                slidesToShow: 1, slidesToScroll: 1,
+                prevArrow: '<div class="prev"><i class="far fa-angle-left"></i></div>',
+                nextArrow: '<div class="next"><i class="far fa-angle-right"></i></div>'
+            });
+        }
+
+        console.log('✅ Sliders initialized');
+    });
+})(window.jQuery);
+</script>`;
+
   if (!html.includes("<html") && !html.includes("<!DOCTYPE")) {
     html = `<!DOCTYPE html>
 <html lang="nl">
@@ -367,14 +563,14 @@ function renderWebsitePage(page: any, website: any, menuPages: any[]): string {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="${cssBaseUrl}/main.css">
-  <link rel="stylesheet" href="${cssBaseUrl}/components.css">
+  <link rel="stylesheet" href="${cssBaseUrl}/components.css">${sliderDependencies}
   <style>
     body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
   </style>
 </head>
 <body>
 ${menuHtml}
-${html}
+${html}${sliderInit}
 </body>
 </html>`;
   } else {
@@ -393,6 +589,14 @@ ${html}
 
     if (menuHtml && !html.includes('<nav')) {
       html = html.replace('<body>', `<body>\n${menuHtml}`);
+    }
+
+    if (!html.includes('jquery') && !html.includes('slick')) {
+      html = html.replace('</head>', sliderDependencies + '\n</head>');
+    }
+
+    if (!html.includes('slick-initialized')) {
+      html = html.replace('</body>', sliderInit + '\n</body>');
     }
   }
 
