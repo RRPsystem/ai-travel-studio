@@ -77,7 +77,16 @@ Deno.serve(async (req: Request) => {
       .eq('service_name', 'OpenAI API')
       .maybeSingle();
 
-    if (settingsError || !apiSettings?.is_active || !apiSettings?.api_key) {
+    let openaiKey = apiSettings?.api_key;
+
+    if ((!openaiKey || !apiSettings?.is_active) && !settingsError) {
+      openaiKey = Deno.env.get('OPENAI_API_KEY');
+      if (openaiKey) {
+        console.log('⚠️ Using system-wide OPENAI_API_KEY fallback');
+      }
+    }
+
+    if (!openaiKey) {
       return new Response(
         JSON.stringify({ error: 'OpenAI API key not configured or inactive' }),
         {
@@ -104,7 +113,7 @@ Deno.serve(async (req: Request) => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiSettings.api_key}`,
+        'Authorization': `Bearer ${openaiKey}`,
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',

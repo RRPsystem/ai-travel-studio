@@ -86,11 +86,18 @@ Deno.serve(async (req: Request) => {
       .eq('provider', 'OpenAI')
       .maybeSingle();
 
-    if (!settings?.api_key) {
-      throw new Error('OpenAI API key not configured');
+    let openaiApiKey = settings?.api_key;
+
+    if (!openaiApiKey) {
+      openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+      if (openaiApiKey) {
+        console.log('⚠️ Using system-wide OPENAI_API_KEY fallback');
+      }
     }
 
-    const openaiApiKey = settings.api_key;
+    if (!openaiApiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
 
     const { data: gptModel } = await supabase
       .from('gpt_models')
