@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, Image as ImageIcon, Tag as TagIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { SlidingMediaSelector } from '../shared/SlidingMediaSelector';
 
 interface NewsItem {
   id: string;
@@ -44,6 +45,7 @@ export function NewsEditor({ newsItem: propNewsItem, newsId, onClose, onSave, on
   const [isMandatory, setIsMandatory] = useState(false);
   const [enabledForBrands, setEnabledForBrands] = useState(false);
   const [enabledForFranchise, setEnabledForFranchise] = useState(false);
+  const [showMediaSelector, setShowMediaSelector] = useState(false);
 
   const SYSTEM_BRAND_ID = '00000000-0000-0000-0000-000000000999';
 
@@ -185,6 +187,11 @@ export function NewsEditor({ newsItem: propNewsItem, newsId, onClose, onSave, on
     if (onCancel) onCancel();
   };
 
+  const handleMediaSelect = (url: string) => {
+    setFeaturedImage(url);
+    setShowMediaSelector(false);
+  };
+
   const editorContent = (
     <div className={inline ? "bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col" : "bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"}>
       <div className="flex items-center justify-between px-6 py-4 border-b">
@@ -262,16 +269,26 @@ export function NewsEditor({ newsItem: propNewsItem, newsId, onClose, onSave, on
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 <div className="flex items-center gap-2">
                   <ImageIcon className="w-4 h-4" />
-                  Uitgelichte Afbeelding URL
+                  Uitgelichte Afbeelding
                 </div>
               </label>
-              <input
-                type="text"
-                value={featuredImage}
-                onChange={(e) => setFeaturedImage(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                placeholder="https://example.com/image.jpg"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={featuredImage}
+                  onChange={(e) => setFeaturedImage(e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                  placeholder="https://example.com/image.jpg"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowMediaSelector(true)}
+                  className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors flex items-center gap-2"
+                >
+                  <ImageIcon className="w-4 h-4" />
+                  Kies Media
+                </button>
+              </div>
               {featuredImage && (
                 <div className="mt-2">
                   <img
@@ -409,12 +426,34 @@ export function NewsEditor({ newsItem: propNewsItem, newsId, onClose, onSave, on
   );
 
   if (inline) {
-    return editorContent;
+    return (
+      <>
+        {editorContent}
+        {showMediaSelector && (
+          <SlidingMediaSelector
+            isOpen={showMediaSelector}
+            onClose={() => setShowMediaSelector(false)}
+            onSelect={handleMediaSelect}
+            title="Selecteer Uitgelichte Afbeelding"
+          />
+        )}
+      </>
+    );
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      {editorContent}
-    </div>
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        {editorContent}
+      </div>
+      {showMediaSelector && (
+        <SlidingMediaSelector
+          isOpen={showMediaSelector}
+          onClose={() => setShowMediaSelector(false)}
+          onSelect={handleMediaSelect}
+          title="Selecteer Uitgelichte Afbeelding"
+        />
+      )}
+    </>
   );
 }
