@@ -21,13 +21,17 @@ interface NewsItem {
 
 interface NewsEditorProps {
   newsItem?: NewsItem | null;
-  onClose: () => void;
+  newsId?: string;
+  onClose?: () => void;
   onSave: () => void;
+  onCancel?: () => void;
+  mode?: 'admin' | 'brand';
 }
 
-export function NewsEditor({ newsItem, onClose, onSave }: NewsEditorProps) {
+export function NewsEditor({ newsItem: propNewsItem, newsId, onClose, onSave, onCancel, mode = 'admin' }: NewsEditorProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [newsItem, setNewsItem] = useState<NewsItem | null>(propNewsItem || null);
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [excerpt, setExcerpt] = useState('');
@@ -41,6 +45,30 @@ export function NewsEditor({ newsItem, onClose, onSave }: NewsEditorProps) {
   const [enabledForFranchise, setEnabledForFranchise] = useState(false);
 
   const SYSTEM_BRAND_ID = '00000000-0000-0000-0000-000000000999';
+
+  useEffect(() => {
+    if (newsId && !newsItem) {
+      loadNewsItem();
+    }
+  }, [newsId]);
+
+  const loadNewsItem = async () => {
+    if (!newsId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('news_items')
+        .select('*')
+        .eq('id', newsId)
+        .single();
+
+      if (error) throw error;
+      setNewsItem(data);
+    } catch (error) {
+      console.error('Error loading news item:', error);
+      alert('Kon nieuwsbericht niet laden');
+    }
+  };
 
   useEffect(() => {
     if (newsItem) {
@@ -105,7 +133,7 @@ export function NewsEditor({ newsItem, onClose, onSave }: NewsEditorProps) {
     setLoading(true);
 
     try {
-      const newsData = {
+      const newsData: any = {
         title: title.trim(),
         slug: slug.trim(),
         excerpt: excerpt.trim(),
@@ -113,20 +141,23 @@ export function NewsEditor({ newsItem, onClose, onSave }: NewsEditorProps) {
         featured_image: featuredImage.trim(),
         status,
         tags,
-        author_type: 'admin',
+        author_type: mode === 'brand' ? 'brand' : 'admin',
         author_id: user?.id,
-        brand_id: SYSTEM_BRAND_ID,
-        is_mandatory: isMandatory,
-        enabled_for_brands: enabledForBrands,
-        enabled_for_franchise: enabledForFranchise,
+        brand_id: mode === 'brand' ? user?.brand_id : SYSTEM_BRAND_ID,
         published_at: status === 'published' ? new Date().toISOString() : null
       };
 
-      if (newsItem?.id) {
+      if (mode === 'admin') {
+        newsData.is_mandatory = isMandatory;
+        newsData.enabled_for_brands = enabledForBrands;
+        newsData.enabled_for_franchise = enabledForFranchise;
+      }
+
+      if (newsItem?.id || newsId) {
         const { error } = await supabase
           .from('news_items')
           .update(newsData)
-          .eq('id', newsItem.id);
+          .eq('id', newsItem?.id || newsId);
 
         if (error) throw error;
       } else {
@@ -138,7 +169,8 @@ export function NewsEditor({ newsItem, onClose, onSave }: NewsEditorProps) {
       }
 
       onSave();
-      onClose();
+      if (onClose) onClose();
+      if (onCancel) onCancel();
     } catch (error: any) {
       console.error('Error saving news:', error);
       alert(`Fout bij opslaan: ${error.message}`);
@@ -147,15 +179,20 @@ export function NewsEditor({ newsItem, onClose, onSave }: NewsEditorProps) {
     }
   };
 
+  const handleClose = () => {
+    if (onClose) onClose();
+    if (onCancel) onCancel();
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h2 className="text-xl font-bold text-gray-900">
-            {newsItem ? 'Nieuwsbericht Bewerken' : 'Nieuw Nieuwsbericht'}
+            {newsItem || newsId ? 'Nieuwsbericht Bewerken' : 'Nieuw Nieuwsbericht'}
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
           >
             <X className="w-6 h-6" />
@@ -307,49 +344,51 @@ export function NewsEditor({ newsItem, onClose, onSave }: NewsEditorProps) {
               </select>
             </div>
 
-            <div className="space-y-3 pt-4 border-t">
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={isMandatory}
-                  onChange={(e) => setIsMandatory(e.target.checked)}
-                  className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                />
-                <span className="text-sm font-medium text-gray-700">
-                  Verplicht voor alle merken
-                </span>
-              </label>
+            {mode === 'admin' && (
+              <div className="space-y-3 pt-4 border-t">
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={isMandatory}
+                    onChange={(e) => setIsMandatory(e.target.checked)}
+                    className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Verplicht voor alle merken
+                  </span>
+                </label>
 
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={enabledForBrands}
-                  onChange={(e) => setEnabledForBrands(e.target.checked)}
-                  className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                />
-                <span className="text-sm font-medium text-gray-700">
-                  Beschikbaar voor custom merken
-                </span>
-              </label>
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={enabledForBrands}
+                    onChange={(e) => setEnabledForBrands(e.target.checked)}
+                    className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Beschikbaar voor custom merken
+                  </span>
+                </label>
 
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={enabledForFranchise}
-                  onChange={(e) => setEnabledForFranchise(e.target.checked)}
-                  className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                />
-                <span className="text-sm font-medium text-gray-700">
-                  Beschikbaar voor franchise merken
-                </span>
-              </label>
-            </div>
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={enabledForFranchise}
+                    onChange={(e) => setEnabledForFranchise(e.target.checked)}
+                    className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    Beschikbaar voor franchise merken
+                  </span>
+                </label>
+              </div>
+            )}
           </div>
         </div>
 
         <div className="flex items-center justify-end gap-3 px-6 py-4 border-t bg-gray-50">
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="px-4 py-2 text-gray-700 hover:text-gray-900 transition-colors"
             disabled={loading}
           >

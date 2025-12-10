@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Newspaper, Eye, Plus, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { generateBuilderJWT, generateBuilderDeeplink } from '../../lib/jwtHelper';
+import { NewsEditor } from '../Admin/NewsEditor';
 
 interface NewsAssignment {
   id: string;
@@ -28,6 +28,8 @@ export function NewsApproval() {
   const [assignments, setAssignments] = useState<NewsAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
+  const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.brand_id && !isLoadingData) {
@@ -182,60 +184,9 @@ export function NewsApproval() {
     window.open(`${previewUrl}/preview/news/${slug}`, '_blank');
   };
 
-  const handleEdit = async (assignment: NewsAssignment) => {
-    console.log('[NewsApproval] handleEdit called', {
-      user_brand_id: user?.brand_id,
-      user_id: user?.id,
-      news_slug: assignment.news_item.slug
-    });
-
-    if (!user?.brand_id || !user?.id) {
-      console.error('[NewsApproval] Missing user data');
-      alert('Gebruikersgegevens ontbreken. Log opnieuw in.');
-      return;
-    }
-
-    try {
-      console.log('[NewsApproval] Generating JWT...');
-      const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, ['content:read', 'content:write'], {
-        newsSlug: assignment.news_item.slug,
-        authorType: 'brand',
-        authorId: user.id,
-        mode: 'news'
-      });
-      console.log('[NewsApproval] JWT generated successfully', jwtResponse);
-
-      const builderBaseUrl = 'https://www.ai-websitestudio.nl';
-      const apiBaseUrl = jwtResponse.api_url || import.meta.env.VITE_SUPABASE_URL;
-      const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-      // Use configured app URL as return URL
-      const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-      const returnUrl = `${appUrl}/#/brand/content/news`;
-
-      const newsSlug = assignment.news_item.slug;
-      const newsId = assignment.news_item.id;
-      console.log('[NewsApproval] Building deeplink with slug:', newsSlug, 'id:', newsId);
-
-      const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=news_items&slug=${encodeURIComponent(newsSlug)}&id=${encodeURIComponent(newsId)}&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
-
-      console.log('[NewsApproval] Opening deeplink for editing:', deeplink);
-      console.log('[NewsApproval] Article details:', {
-        slug: newsSlug,
-        title: assignment.news_item.title,
-        id: assignment.news_item.id
-      });
-      console.log('[NewsApproval] Return URL:', returnUrl);
-      const result = window.open(deeplink, '_blank');
-      console.log('[NewsApproval] window.open result:', result);
-
-      if (!result) {
-        alert('Pop-up geblokkeerd! Sta pop-ups toe voor deze website.');
-      }
-    } catch (error) {
-      console.error('[NewsApproval] Error opening builder:', error);
-      alert(`Fout bij openen builder: ${error instanceof Error ? error.message : 'Onbekende fout'}`);
-    }
+  const handleEdit = (assignment: NewsAssignment) => {
+    setEditingNewsId(assignment.news_item.id);
+    setShowEditor(true);
   };
 
   const handleDelete = async (assignment: NewsAssignment) => {
@@ -311,31 +262,15 @@ export function NewsApproval() {
     }
   };
 
-  const createNewArticle = async () => {
-    if (!user?.brand_id || !user?.id) return;
+  const createNewArticle = () => {
+    setEditingNewsId(null);
+    setShowEditor(true);
+  };
 
-    try {
-      const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, ['content:read', 'content:write'], {
-        authorType: 'brand',
-        authorId: user.id,
-        mode: 'news'
-      });
-      const builderBaseUrl = 'https://www.ai-websitestudio.nl';
-      const apiBaseUrl = jwtResponse.api_url || import.meta.env.VITE_SUPABASE_URL;
-      const apiKey = jwtResponse.api_key || import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-      // Use configured app URL for return (not window.location which could be builder URL)
-      const appUrl = import.meta.env.VITE_APP_URL || window.location.origin;
-      // Don't include hash - builder handles redirect and browser maintains hash state
-      const returnUrl = appUrl;
-
-      const deeplink = `${builderBaseUrl}?api=${encodeURIComponent(apiBaseUrl)}&apikey=${encodeURIComponent(apiKey)}&brand_id=${user.brand_id}&token=${encodeURIComponent(jwtResponse.token)}&content_type=news_items&return_url=${encodeURIComponent(returnUrl)}#/mode/news`;
-
-      window.open(deeplink, '_blank');
-    } catch (error) {
-      console.error('Error opening builder:', error);
-      alert('Kon de website builder niet openen');
-    }
+  const handleEditorClose = () => {
+    setShowEditor(false);
+    setEditingNewsId(null);
+    loadAssignments();
   };
 
   if (loading) {
@@ -347,6 +282,16 @@ export function NewsApproval() {
   }
 
   return (
+    <>
+      {showEditor && (
+        <NewsEditor
+          newsId={editingNewsId || undefined}
+          onSave={handleEditorClose}
+          onCancel={handleEditorClose}
+          mode="brand"
+        />
+      )}
+
     <div className="space-y-6">
       <div className="flex justify-between items-start">
         <div className="flex items-center gap-3">
@@ -483,5 +428,6 @@ export function NewsApproval() {
         </div>
       )}
     </div>
+    </>
   );
 }
