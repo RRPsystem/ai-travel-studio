@@ -98,7 +98,11 @@ export function UserManagement() {
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Fout bij aanmaken gebruiker');
+        let errorMessage = result.error || 'Fout bij aanmaken gebruiker';
+        if (errorMessage.includes('already been registered')) {
+          errorMessage = 'Dit email adres is al in gebruik. De gebruiker bestaat mogelijk al in het systeem maar is niet zichtbaar. Neem contact op met de systeembeheerder.';
+        }
+        throw new Error(errorMessage);
       }
 
       alert('Gebruiker succesvol aangemaakt!');
@@ -227,11 +231,7 @@ export function UserManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Gebruikersbeheer</h2>
-          <p className="text-gray-600">Beheer gebruikers en hun rechten</p>
-        </div>
+      <div className="flex items-center justify-end">
         <button
           onClick={() => setShowNewUserForm(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
