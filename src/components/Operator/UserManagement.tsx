@@ -25,6 +25,8 @@ export function UserManagement() {
   const [editingUser, setEditingUser] = useState<UserData | null>(null);
   const [resetPasswordUser, setResetPasswordUser] = useState<{ id: string; email: string } | null>(null);
   const [newPassword, setNewPassword] = useState('');
+  const [orphanedUsers, setOrphanedUsers] = useState<Array<{ id: string; email: string }>>([]);
+  const [showOrphanedUsers, setShowOrphanedUsers] = useState(false);
 
   const [formData, setFormData] = useState({
     email: '',
@@ -37,7 +39,66 @@ export function UserManagement() {
   useEffect(() => {
     loadUsers();
     loadBrands();
+    checkOrphanedUsers();
   }, []);
+
+  const checkOrphanedUsers = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/check-orphaned-users`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setOrphanedUsers(result.orphanedUsers || []);
+      }
+    } catch (error) {
+      console.error('Error checking orphaned users:', error);
+    }
+  };
+
+  const cleanupOrphanedUser = async (userId: string, email: string) => {
+    if (!confirm(`Weet je zeker dat je ${email} wilt verwijderen uit het authenticatiesysteem?`)) {
+      return;
+    }
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        alert('Je moet ingelogd zijn');
+        return;
+      }
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/cleanup-orphaned-user`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ user_id: userId })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Fout bij opruimen gebruiker');
+      }
+
+      alert('Gebruiker succesvol verwijderd uit authenticatiesysteem!');
+      checkOrphanedUsers();
+    } catch (error: any) {
+      console.error('Error cleaning up user:', error);
+      alert('Fout bij opruimen gebruiker: ' + error.message);
+    }
+  };
 
   const loadUsers = async () => {
     setLoading(true);
@@ -231,7 +292,16 @@ export function UserManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-end">
+      <div className="flex items-center justify-end gap-3">
+        {orphanedUsers.length > 0 && (
+          <button
+            onClick={() => setShowOrphanedUsers(!showOrphanedUsers)}
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
+          >
+            <Shield className="w-5 h-5" />
+            Orphaned Users ({orphanedUsers.length})
+          </button>
+        )}
         <button
           onClick={() => setShowNewUserForm(true)}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -240,6 +310,29 @@ export function UserManagement() {
           Nieuwe Gebruiker
         </button>
       </div>
+
+      {showOrphanedUsers && orphanedUsers.length > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
+          <h3 className="text-lg font-bold text-orange-900 mb-4">Orphaned Users</h3>
+          <p className="text-sm text-orange-800 mb-4">
+            Deze gebruikers bestaan in het authenticatiesysteem maar niet in de applicatie database.
+            Verwijder ze om nieuwe gebruikers met deze email adressen aan te kunnen maken.
+          </p>
+          <div className="space-y-2">
+            {orphanedUsers.map(user => (
+              <div key={user.id} className="flex items-center justify-between bg-white p-3 rounded-lg">
+                <span className="text-gray-900">{user.email}</span>
+                <button
+                  onClick={() => cleanupOrphanedUser(user.id, user.email)}
+                  className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 text-sm"
+                >
+                  Verwijderen
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {showNewUserForm && (
         <div className="bg-white rounded-xl shadow-lg p-6">
