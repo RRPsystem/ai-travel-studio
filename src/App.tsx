@@ -10,6 +10,8 @@ import { PreviewPage } from './components/Preview/PreviewPage';
 import { NewsPreview } from './components/Preview/NewsPreview';
 import { ClientInterface } from './components/TravelBro/ClientInterface';
 import { SubdomainViewer } from './components/Website/SubdomainViewer';
+import TravelJournal from './components/TravelJournal/TravelJournal';
+import QuestionSubmission from './components/Podcast/QuestionSubmission';
 
 function AppContent() {
   console.log('🚀 AppContent component rendering');
@@ -53,6 +55,16 @@ function AppContent() {
   const newsPreviewMatch = path.match(/^\/preview\/news\/(.+)$/);
   if (newsPreviewMatch) {
     return <NewsPreview />;
+  }
+
+  if (path === '/podcast/vragen' || path === '/podcast/questions') {
+    console.log('[App] Matched podcast questions route');
+    return <QuestionSubmission />;
+  }
+
+  if (path === '/travel-journal' || path === '/travel-journaal' || path === '/podcast') {
+    console.log('[App] Matched Travel Journal/Podcast route');
+    return <TravelJournal />;
   }
 
   const params = new URLSearchParams(window.location.search);

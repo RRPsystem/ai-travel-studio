@@ -21,7 +21,8 @@ import {
   Layout,
   Puzzle,
   Zap,
-  Download
+  Download,
+  Mic
 } from 'lucide-react';
 import RoadmapManagement from './RoadmapManagement';
 import TestManagement from './TestManagement';
@@ -29,12 +30,15 @@ import TemplateManager from './TemplateManager';
 import ExternalBuilderManager from './ExternalBuilderManager';
 import QuickStartManager from './QuickStartManager';
 import { WordPressDownloads } from './WordPressDownloads';
+import PodcastManagement from '../Podcast/PodcastManagement';
+import TravelJournal from '../TravelJournal/TravelJournal';
 
 export function OperatorDashboard() {
   const { user, signOut } = useAuth();
   const [activeSection, setActiveSection] = useState('test-management');
 
   const sidebarItems = [
+    { id: 'podcast-management', label: 'Podcast Management', icon: Mic },
     { id: 'test-management', label: 'Test Management', icon: ClipboardCheck },
     { id: 'external-builders', label: 'External Builders', icon: Puzzle },
     { id: 'quickstart', label: 'Windsurf Templates', icon: Zap },
@@ -116,6 +120,7 @@ export function OperatorDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">
+                {activeSection === 'podcast-management' && 'Podcast Management'}
                 {activeSection === 'test-management' && 'Test Management'}
                 {activeSection === 'external-builders' && 'External Builders'}
                 {activeSection === 'quickstart' && 'Windsurf Templates'}
@@ -131,6 +136,7 @@ export function OperatorDashboard() {
                 {activeSection === 'travel-journal' && 'Travel Journaal'}
               </h1>
               <p className="text-gray-600 mt-1">
+                {activeSection === 'podcast-management' && 'Plan episodes, beheer vragen en werk samen met hosts'}
                 {activeSection === 'test-management' && 'Manage testing rounds and review feedback from testers'}
                 {activeSection === 'external-builders' && 'Register and manage external template builders (Windsurf, AI Website Studio)'}
                 {activeSection === 'quickstart' && 'Configure Windsurf template packages for brands'}
@@ -160,27 +166,21 @@ export function OperatorDashboard() {
         </header>
 
         {/* Content */}
-        <main className="flex-1 p-6 overflow-y-auto">
-          {activeSection === 'test-management' && <TestManagement />}
-          {activeSection === 'external-builders' && <ExternalBuilderManager />}
-          {activeSection === 'quickstart' && <QuickStartManager />}
-          {activeSection === 'templates' && <TemplateManager />}
-          {activeSection === 'wordpress-downloads' && <WordPressDownloads />}
-          {activeSection === 'roadmap' && <RoadmapManagement />}
-          {activeSection === 'monitoring' && <MonitoringDashboard />}
-          {activeSection === 'system-health' && <SystemHealth />}
-          {activeSection === 'api-settings' && <APISettings />}
-          {activeSection === 'gpt-management' && <GPTManagement />}
-          {activeSection === 'oauth-management' && <OAuthManagement />}
-          {activeSection === 'chatbot-management' && <ChatbotManagement />}
-          {activeSection === 'travel-journal' && (
-            <div className="max-w-6xl mx-auto">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-2xl font-bold text-gray-900 mb-4">Travel Journaal</h2>
-                <p className="text-gray-600">Coming soon: Houd een dagboek bij van je reizen en deel je ervaringen.</p>
-              </div>
-            </div>
-          )}
+        <main className="flex-1 overflow-y-auto">
+          {activeSection === 'podcast-management' && <PodcastManagement />}
+          {activeSection === 'test-management' && <div className="p-6"><TestManagement /></div>}
+          {activeSection === 'external-builders' && <div className="p-6"><ExternalBuilderManager /></div>}
+          {activeSection === 'quickstart' && <div className="p-6"><QuickStartManager /></div>}
+          {activeSection === 'templates' && <div className="p-6"><TemplateManager /></div>}
+          {activeSection === 'wordpress-downloads' && <div className="p-6"><WordPressDownloads /></div>}
+          {activeSection === 'roadmap' && <div className="p-6"><RoadmapManagement /></div>}
+          {activeSection === 'monitoring' && <div className="p-6"><MonitoringDashboard /></div>}
+          {activeSection === 'system-health' && <div className="p-6"><SystemHealth /></div>}
+          {activeSection === 'api-settings' && <div className="p-6"><APISettings /></div>}
+          {activeSection === 'gpt-management' && <div className="p-6"><GPTManagement /></div>}
+          {activeSection === 'oauth-management' && <div className="p-6"><OAuthManagement /></div>}
+          {activeSection === 'chatbot-management' && <div className="p-6"><ChatbotManagement /></div>}
+          {activeSection === 'travel-journal' && <TravelJournal />}
         </main>
       </div>
       <HelpBot />
