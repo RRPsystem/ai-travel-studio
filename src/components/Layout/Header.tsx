@@ -146,11 +146,15 @@ export function Header() {
                         <button
                           key={ctx.type}
                           onClick={() => {
-                            switchContext({ role: ctx.type as any });
+                            if (ctx.type === 'operator') {
+                              resetContext();
+                            } else {
+                              switchContext({ role: ctx.type as any });
+                            }
                             setShowContextMenu(false);
                           }}
                           className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors ${
-                            impersonationContext?.role === ctx.type ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                            (ctx.type === 'operator' && !impersonationContext) || impersonationContext?.role === ctx.type ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
                           }`}
                         >
                           {getContextIcon(ctx.type)}
