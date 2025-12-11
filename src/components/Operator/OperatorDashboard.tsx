@@ -20,13 +20,15 @@ import {
   BookOpen,
   Layout,
   Puzzle,
-  Zap
+  Zap,
+  Download
 } from 'lucide-react';
 import RoadmapManagement from './RoadmapManagement';
 import TestManagement from './TestManagement';
 import TemplateManager from './TemplateManager';
 import ExternalBuilderManager from './ExternalBuilderManager';
 import QuickStartManager from './QuickStartManager';
+import { WordPressDownloads } from './WordPressDownloads';
 
 export function OperatorDashboard() {
   const { user, signOut } = useAuth();
@@ -37,6 +39,7 @@ export function OperatorDashboard() {
     { id: 'external-builders', label: 'External Builders', icon: Puzzle },
     { id: 'quickstart', label: 'Windsurf Templates', icon: Zap },
     { id: 'templates', label: 'WordPress Templates', icon: Layout },
+    { id: 'wordpress-downloads', label: 'WordPress Downloads', icon: Download },
     { id: 'roadmap', label: 'Roadmap Management', icon: Map },
     { id: 'monitoring', label: 'Monitoring & Alerts', icon: Bell },
     { id: 'system-health', label: 'System Health', icon: Activity },
@@ -117,6 +120,7 @@ export function OperatorDashboard() {
                 {activeSection === 'external-builders' && 'External Builders'}
                 {activeSection === 'quickstart' && 'Windsurf Templates'}
                 {activeSection === 'templates' && 'WordPress Templates'}
+                {activeSection === 'wordpress-downloads' && 'WordPress Downloads'}
                 {activeSection === 'roadmap' && 'Roadmap Management'}
                 {activeSection === 'monitoring' && 'Monitoring & Alerts'}
                 {activeSection === 'system-health' && 'System Health'}
@@ -131,6 +135,7 @@ export function OperatorDashboard() {
                 {activeSection === 'external-builders' && 'Register and manage external template builders (Windsurf, AI Website Studio)'}
                 {activeSection === 'quickstart' && 'Configure Windsurf template packages for brands'}
                 {activeSection === 'templates' && 'Manage WordPress templates for brands'}
+                {activeSection === 'wordpress-downloads' && 'Download WordPress plugins en integraties'}
                 {activeSection === 'roadmap' && 'Manage feature requests and development priorities'}
                 {activeSection === 'monitoring' && 'Real-time error tracking, alerts, and performance monitoring'}
                 {activeSection === 'system-health' && 'Real-time browser metrics and service status'}
@@ -160,6 +165,7 @@ export function OperatorDashboard() {
           {activeSection === 'external-builders' && <ExternalBuilderManager />}
           {activeSection === 'quickstart' && <QuickStartManager />}
           {activeSection === 'templates' && <TemplateManager />}
+          {activeSection === 'wordpress-downloads' && <WordPressDownloads />}
           {activeSection === 'roadmap' && <RoadmapManagement />}
           {activeSection === 'monitoring' && <MonitoringDashboard />}
           {activeSection === 'system-health' && <SystemHealth />}
