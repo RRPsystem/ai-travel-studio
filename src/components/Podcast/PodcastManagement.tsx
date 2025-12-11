@@ -117,60 +117,34 @@ export default function PodcastManagement() {
 
   const generateAIQuestions = async (episodeId: string, topic: string) => {
     try {
-      const { data: apiSettings } = await supabase
-        .from('api_settings')
-        .select('openai_api_key')
-        .limit(1)
-        .maybeSingle();
+      const { data: { session } } = await supabase.auth.getSession();
 
-      if (!apiSettings?.openai_api_key) {
-        alert('OpenAI API key not configured');
+      if (!session) {
+        alert('Je moet ingelogd zijn om AI vragen te genereren');
         return;
       }
 
-      const prompt = `Genereer 10 interessante, diepgaande vragen voor een reispodcast over het onderwerp: "${topic}".
-
-De vragen moeten:
-- Open en inspirerend zijn
-- Praktische waarde hebben voor luisteraars
-- Variëren van algemeen naar specifiek
-- Aanmoedigen tot storytelling
-
-Geef alleen de vragen, genummerd 1-10.`;
-
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const response = await fetch(`${supabaseUrl}/functions/v1/generate-podcast-questions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiSettings.openai_api_key}`
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
-          model: 'gpt-4',
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.7
+          episode_id: episodeId,
+          topic: topic
         })
       });
 
       const result = await response.json();
-      const generatedText = result.choices[0].message.content;
 
-      const questionLines = generatedText
-        .split('\n')
-        .filter((line: string) => line.match(/^\d+\./))
-        .map((line: string) => line.replace(/^\d+\.\s*/, '').trim());
-
-      for (let i = 0; i < questionLines.length; i++) {
-        await supabase.from('podcast_questions').insert({
-          episode_planning_id: episodeId,
-          question: questionLines[i],
-          source_type: 'ai',
-          status: 'suggested',
-          order_index: questions.length + i
-        });
+      if (!response.ok) {
+        throw new Error(result.error || 'Fout bij genereren van vragen');
       }
 
       loadQuestions(episodeId);
-      alert('AI vragen succesvol gegenereerd!');
+      alert(result.message || 'AI vragen succesvol gegenereerd!');
     } catch (error: any) {
       console.error('Error generating questions:', error);
       alert('Fout bij genereren van vragen: ' + error.message);
