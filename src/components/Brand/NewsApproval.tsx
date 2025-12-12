@@ -30,6 +30,7 @@ export function NewsApproval() {
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [showEditor, setShowEditor] = useState(false);
   const [editingNewsId, setEditingNewsId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'assigned' | 'own'>('assigned');
 
   useEffect(() => {
     if (user?.brand_id && !isLoadingData) {
@@ -293,6 +294,10 @@ export function NewsApproval() {
     );
   }
 
+  const assignedNews = assignments.filter(a => a.status !== 'brand');
+  const ownNews = assignments.filter(a => a.status === 'brand');
+  const displayedAssignments = activeTab === 'assigned' ? assignedNews : ownNews;
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-start">
@@ -302,20 +307,72 @@ export function NewsApproval() {
           </div>
           <h2 className="text-2xl font-bold text-gray-900">Nieuwsbeheer</h2>
         </div>
-        <button
-          onClick={createNewArticle}
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Nieuw Bericht
-        </button>
+        {activeTab === 'own' && (
+          <button
+            onClick={createNewArticle}
+            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-colors"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Nieuw Bericht
+          </button>
+        )}
       </div>
 
-      {assignments.length === 0 ? (
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8">
+          <button
+            onClick={() => setActiveTab('assigned')}
+            className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'assigned'
+                ? 'border-orange-600 text-orange-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Toegewezen Nieuws
+            {assignedNews.length > 0 && (
+              <span className="ml-2 py-0.5 px-2 rounded-full text-xs bg-orange-100 text-orange-800">
+                {assignedNews.length}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setActiveTab('own')}
+            className={`whitespace-nowrap pb-4 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'own'
+                ? 'border-orange-600 text-orange-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            Eigen Nieuws
+            {ownNews.length > 0 && (
+              <span className="ml-2 py-0.5 px-2 rounded-full text-xs bg-purple-100 text-purple-800">
+                {ownNews.length}
+              </span>
+            )}
+          </button>
+        </nav>
+      </div>
+
+      {displayedAssignments.length === 0 ? (
         <div className="text-center py-12 bg-gray-50 rounded-lg">
           <Newspaper className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">Geen nieuwsberichten</h3>
-          <p className="mt-1 text-sm text-gray-500">Er zijn nog geen nieuwsberichten beschikbaar.</p>
+          <h3 className="mt-2 text-sm font-medium text-gray-900">
+            {activeTab === 'assigned' ? 'Geen toegewezen nieuwsberichten' : 'Geen eigen nieuwsberichten'}
+          </h3>
+          <p className="mt-1 text-sm text-gray-500">
+            {activeTab === 'assigned'
+              ? 'Er zijn nog geen nieuwsberichten toegewezen aan jouw brand.'
+              : 'Maak je eerste nieuws artikel met de knop hierboven.'}
+          </p>
+          {activeTab === 'own' && (
+            <button
+              onClick={createNewArticle}
+              className="mt-4 inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-orange-600 hover:bg-orange-700 transition-colors"
+            >
+              <Plus className="h-5 w-5 mr-2" />
+              Nieuw Bericht
+            </button>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -331,7 +388,7 @@ export function NewsApproval() {
             </tr>
           </thead>
           <tbody className="bg-white">
-            {assignments.map((assignment) => (
+            {displayedAssignments.map((assignment) => (
               <tr key={assignment.id} className="border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors">
                 <td className="px-6 py-4">
                   <div className="flex items-start flex-col">
