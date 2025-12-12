@@ -14,7 +14,7 @@ Deno.serve(async (req: Request) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -24,8 +24,12 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
     const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
 
     if (authError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), {
@@ -34,11 +38,19 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { data: userData } = await supabase
+    const { data: userData, error: userDataError } = await supabaseClient
       .from('users')
       .select('role')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
+
+    if (userDataError) {
+      console.error('Error loading user data:', userDataError);
+      return new Response(JSON.stringify({ error: 'Database error loading user' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
 
     if (!userData || !['operator', 'admin'].includes(userData.role)) {
       return new Response(JSON.stringify({ error: 'Insufficient permissions' }), {
@@ -46,6 +58,8 @@ Deno.serve(async (req: Request) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
     const { user_id, new_password } = await req.json();
 
@@ -63,7 +77,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const { error: updateError } = await supabase.auth.admin.updateUserById(
+    const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
       user_id,
       { password: new_password }
     );
