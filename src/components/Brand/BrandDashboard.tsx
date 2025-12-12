@@ -47,6 +47,7 @@ export function BrandDashboard() {
   const [stats, setStats] = useState({ pages: 0, newsItems: 0, agents: 0 });
   const [newRoadmapCount, setNewRoadmapCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [isWordPressMode, setIsWordPressMode] = useState(false);
 
   useEffect(() => {
     const handleHashChange = () => {
@@ -78,6 +79,12 @@ export function BrandDashboard() {
       loadDashboardData();
     }
   }, [activeSection, user?.brand_id]);
+
+  useEffect(() => {
+    if (user?.brand_id) {
+      loadWebsites();
+    }
+  }, [user?.brand_id]);
 
   const loadDashboardData = async () => {
     if (!user?.brand_id) return;
@@ -146,6 +153,9 @@ export function BrandDashboard() {
     try {
       const data = await db.getWebsites(user.brand_id);
       setWebsites(data || []);
+
+      const hasWordPress = (data || []).some(site => site.template_source_type === 'wordpress');
+      setIsWordPressMode(hasWordPress);
     } catch (error) {
       console.error('Error loading websites:', error);
       setWebsites([]);
@@ -176,7 +186,11 @@ export function BrandDashboard() {
     { id: 'testing', label: 'Test Dashboard', icon: ClipboardCheck },
   ];
 
-  const websiteManagementItems = [
+  const websiteManagementItems = isWordPressMode ? [
+    { id: 'wordpress-settings', label: 'WordPress Instellingen', icon: Globe },
+    { id: 'wordpress-api', label: 'API Configuratie', icon: Settings },
+    { id: 'wordpress-plugin', label: 'Plugin Download', icon: FileText },
+  ] : [
     { id: 'new-page', label: 'Quick Start', icon: Rocket },
     { id: 'pages', label: 'Pagina Beheer', icon: FileText },
   ];
@@ -188,7 +202,10 @@ export function BrandDashboard() {
     { id: 'ai-video', label: 'AI Travel Video', icon: Video },
   ];
 
-  const contentItems = [
+  const contentItems = isWordPressMode ? [
+    { id: 'nieuwsbeheer', label: 'Nieuwsbeheer', icon: Newspaper },
+    { id: 'destinations', label: 'Bestemmingen', icon: MapPin },
+  ] : [
     { id: 'nieuwsbeheer', label: 'Nieuwsbeheer', icon: Newspaper },
     { id: 'destinations', label: 'Bestemmingen', icon: MapPin },
     { id: 'trips', label: 'Reizen', icon: Plane },
@@ -315,7 +332,7 @@ export function BrandDashboard() {
               >
                 <div className="flex items-center space-x-3">
                   <Globe size={20} />
-                  <span>Website Management</span>
+                  <span>{isWordPressMode ? 'WordPress Management' : 'Website Management'}</span>
                 </div>
                 {showWebsiteSubmenu ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
               </button>
@@ -514,6 +531,9 @@ export function BrandDashboard() {
                   {activeSection === 'agents' && 'Agents'}
                   {activeSection === 'new-page' && 'Quick Start'}
                   {activeSection === 'pages' && 'Pagina Beheer'}
+                  {activeSection === 'wordpress-settings' && 'WordPress Instellingen'}
+                  {activeSection === 'wordpress-api' && 'API Configuratie'}
+                  {activeSection === 'wordpress-plugin' && 'Plugin Download'}
                   {activeSection === 'content' && 'Nieuwsberichten'}
                   {activeSection === 'ai-content' && 'AI Content Generator'}
                   {activeSection === 'ai-travelbro' && 'AI TravelBRO'}
@@ -527,6 +547,9 @@ export function BrandDashboard() {
                   {activeSection === 'quickstart' && 'Maak snel een complete website met templates'}
                   {activeSection === 'new-page' && 'Voeg een nieuwe pagina toe aan je website'}
                   {activeSection === 'pages' && 'Beheer alle pagina\'s van je website'}
+                  {activeSection === 'wordpress-settings' && 'Configureer je WordPress instellingen'}
+                  {activeSection === 'wordpress-api' && 'API gegevens voor WordPress integratie'}
+                  {activeSection === 'wordpress-plugin' && 'Download de WordPress plugin voor nieuwsintegratie'}
                   {activeSection === 'ai-content' && 'Generate travel content with AI'}
                   {activeSection === 'ai-travelbro' && 'Your AI travel assistant'}
                   {activeSection === 'ai-import' && 'Import travel data with AI'}
@@ -628,6 +651,58 @@ export function BrandDashboard() {
 
           {activeSection === 'new-page' && <QuickStart />}
           {activeSection === 'pages' && <PageManagement />}
+          {activeSection === 'wordpress-settings' && <BrandSettings />}
+          {activeSection === 'wordpress-api' && (
+            <div className="p-6">
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-2xl font-bold mb-4">API Configuratie</h2>
+                <p className="text-gray-600 mb-4">
+                  Configureer hier je API instellingen voor de WordPress integratie.
+                </p>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      API URL
+                    </label>
+                    <input
+                      type="text"
+                      value={`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/wordpress-news`}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Brand ID
+                    </label>
+                    <input
+                      type="text"
+                      value={user?.brand_id || ''}
+                      readOnly
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          {activeSection === 'wordpress-plugin' && (
+            <div className="p-6">
+              <div className="bg-white rounded-lg shadow p-6">
+                <h2 className="text-2xl font-bold mb-4">Plugin Download</h2>
+                <p className="text-gray-600 mb-4">
+                  Download de WordPress plugin om nieuwsberichten te integreren in je WordPress website.
+                </p>
+                <a
+                  href="/wordpress-ai-news-plugin.php"
+                  download
+                  className="inline-flex items-center px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700"
+                >
+                  Download Plugin
+                </a>
+              </div>
+            </div>
+          )}
           {activeSection === 'settings' && <BrandSettings />}
           {activeSection === 'social-connector' && <SocialMediaConnector />}
           {activeSection === 'nieuwsbeheer' && (
