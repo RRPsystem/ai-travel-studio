@@ -38,6 +38,15 @@ export function BrandSettings() {
     logo_url: ''
   });
 
+  const [websiteInfo, setWebsiteInfo] = useState<{
+    type: string;
+    builderName?: string;
+    hasWebsite: boolean;
+  }>({
+    type: 'Geen website',
+    hasWebsite: false
+  });
+
   useEffect(() => {
     loadBrandData();
   }, [user]);
@@ -87,6 +96,37 @@ export function BrandSettings() {
           country: data.country || 'Netherlands',
           website_url: data.website_url || '',
           logo_url: data.logo_url || ''
+        });
+      }
+
+      const { data: website, error: websiteError } = await supabase
+        .from('websites')
+        .select('id, template_source_type, external_builder_id, external_builders(name)')
+        .eq('brand_id', user.brand_id)
+        .maybeSingle();
+
+      if (!websiteError && website) {
+        let type = 'Onbekend';
+        let builderName = undefined;
+
+        if (website.template_source_type === 'wordpress') {
+          type = 'WordPress Website';
+        } else if (website.external_builder_id && website.external_builders) {
+          type = 'External Builder Website';
+          builderName = (website.external_builders as any).name || 'Unknown Builder';
+        } else if (website.template_source_type === 'quickstart') {
+          type = 'QuickStart Website (External Builder)';
+        }
+
+        setWebsiteInfo({
+          type,
+          builderName,
+          hasWebsite: true
+        });
+      } else {
+        setWebsiteInfo({
+          type: 'Geen website',
+          hasWebsite: false
         });
       }
     } catch (err) {
@@ -392,6 +432,31 @@ export function BrandSettings() {
                     onChange={(e) => handleInputChange('secondary_color', e.target.value)}
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                   />
+                </div>
+              </div>
+            </div>
+
+            <div className="border-t border-gray-200 pt-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Website Informatie</h3>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <div className="flex items-start">
+                  <Globe className="w-5 h-5 text-blue-600 mr-3 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-medium text-blue-900">Website Type</p>
+                    <p className="text-sm text-blue-700 mt-1">
+                      {websiteInfo.hasWebsite ? (
+                        <>
+                          {websiteInfo.type}
+                          {websiteInfo.builderName && (
+                            <span className="ml-2 text-blue-600">({websiteInfo.builderName})</span>
+                          )}
+                        </>
+                      ) : (
+                        'Geen website geconfigureerd'
+                      )}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
