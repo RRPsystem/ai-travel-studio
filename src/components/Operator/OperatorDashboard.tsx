@@ -29,7 +29,8 @@ import {
   ChevronDown,
   Building2,
   UserCircle,
-  Wrench
+  Wrench,
+  Database
 } from 'lucide-react';
 import RoadmapManagement from './RoadmapManagement';
 import TestManagement from './TestManagement';
@@ -39,6 +40,7 @@ import QuickStartManager from './QuickStartManager';
 import { WordPressDownloads } from './WordPressDownloads';
 import PodcastManagement from '../Podcast/PodcastManagement';
 import TravelJournal from '../TravelJournal/TravelJournal';
+import DatabasePerformanceMonitor from './DatabasePerformanceMonitor';
 
 export function OperatorDashboard() {
   const { user, signOut, impersonationContext, availableContexts, switchContext, resetContext } = useAuth();
@@ -66,6 +68,7 @@ export function OperatorDashboard() {
     { id: 'templates', label: 'WordPress Templates', icon: Layout },
     { id: 'wordpress-downloads', label: 'WordPress Downloads', icon: Download },
     { id: 'roadmap', label: 'Roadmap Management', icon: Map },
+    { id: 'db-performance', label: 'Database Performance', icon: Database },
     { id: 'monitoring', label: 'Monitoring & Alerts', icon: Bell },
     { id: 'system-health', label: 'System Health', icon: Activity },
     { id: 'api-settings', label: 'API Settings', icon: Key },
@@ -149,6 +152,7 @@ export function OperatorDashboard() {
                 {activeSection === 'templates' && 'WordPress Templates'}
                 {activeSection === 'wordpress-downloads' && 'WordPress Downloads'}
                 {activeSection === 'roadmap' && 'Roadmap Management'}
+                {activeSection === 'db-performance' && 'Database Performance'}
                 {activeSection === 'monitoring' && 'Monitoring & Alerts'}
                 {activeSection === 'system-health' && 'System Health'}
                 {activeSection === 'api-settings' && 'API Settings'}
@@ -166,6 +170,7 @@ export function OperatorDashboard() {
                 {activeSection === 'templates' && 'Manage WordPress templates for brands'}
                 {activeSection === 'wordpress-downloads' && 'Download WordPress plugins en integraties'}
                 {activeSection === 'roadmap' && 'Manage feature requests and development priorities'}
+                {activeSection === 'db-performance' && 'Real-time database health and capacity monitoring for 400+ users'}
                 {activeSection === 'monitoring' && 'Real-time error tracking, alerts, and performance monitoring'}
                 {activeSection === 'system-health' && 'Real-time browser metrics and service status'}
                 {activeSection === 'api-settings' && 'Configure API keys and external service credentials'}
@@ -316,6 +321,7 @@ export function OperatorDashboard() {
           {activeSection === 'templates' && <div className="p-6"><TemplateManager /></div>}
           {activeSection === 'wordpress-downloads' && <div className="p-6"><WordPressDownloads /></div>}
           {activeSection === 'roadmap' && <div className="p-6"><RoadmapManagement /></div>}
+          {activeSection === 'db-performance' && <div className="p-6"><DatabasePerformanceMonitor /></div>}
           {activeSection === 'monitoring' && <div className="p-6"><MonitoringDashboard /></div>}
           {activeSection === 'system-health' && <div className="p-6"><SystemHealth /></div>}
           {activeSection === 'api-settings' && <div className="p-6"><APISettings /></div>}
