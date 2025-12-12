@@ -27,21 +27,21 @@ interface TripAssignment {
 }
 
 export function TripApproval() {
-  const { user } = useAuth();
+  const { user, effectiveBrandId } = useAuth();
   const [assignments, setAssignments] = useState<TripAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLoadingData, setIsLoadingData] = useState(false);
 
   useEffect(() => {
-    if (user?.brand_id && !isLoadingData) {
+    if (effectiveBrandId && !isLoadingData) {
       loadAssignments();
-    } else if (!user?.brand_id) {
+    } else if (!effectiveBrandId) {
       setLoading(false);
     }
-  }, [user?.brand_id]);
+  }, [effectiveBrandId]);
 
   const loadAssignments = async () => {
-    if (!user?.brand_id || isLoadingData) {
+    if (!effectiveBrandId || isLoadingData) {
       return;
     }
 
@@ -71,7 +71,7 @@ export function TripApproval() {
             published_at
           )
         `)
-        .eq('brand_id', user.brand_id)
+        .eq('brand_id', effectiveBrandId)
         .order('assigned_at', { ascending: false });
 
       if (assignmentError) throw assignmentError;
@@ -93,7 +93,7 @@ export function TripApproval() {
       const { data: brandTripsData, error: brandTripsError } = await supabase
         .from('trips')
         .select('id, title, slug, description, featured_image, price, duration_days, created_at, published_at, status, page_id')
-        .eq('brand_id', user.brand_id)
+        .eq('brand_id', effectiveBrandId)
         .order('created_at', { ascending: false });
 
       if (brandTripsError) throw brandTripsError;
@@ -203,30 +203,30 @@ export function TripApproval() {
   };
 
   const handlePreview = async (assignment: TripAssignment) => {
-    if (!user?.brand_id || !assignment.page_id) return;
+    if (!effectiveBrandId || !assignment.page_id) return;
 
     const { data: domains } = await supabase
       .from('brand_domains')
       .select('domain')
-      .eq('brand_id', user.brand_id)
+      .eq('brand_id', effectiveBrandId)
       .eq('is_verified', true)
       .maybeSingle();
 
     const previewUrl = domains?.domain
       ? `https://${domains.domain}/${assignment.trip.slug}`
-      : `/preview?brand_id=${user.brand_id}&slug=${assignment.trip.slug}`;
+      : `/preview?brand_id=${effectiveBrandId}&slug=${assignment.trip.slug}`;
 
     window.open(previewUrl, '_blank');
   };
 
   const handleEdit = async (assignment: TripAssignment) => {
-    if (!user?.brand_id || !user?.id) return;
+    if (!effectiveBrandId || !user?.id) return;
 
     try {
       const { data: tripData, error: tripError } = await supabase
         .from('trips')
         .select('id, slug, title')
-        .eq('brand_id', user.brand_id)
+        .eq('brand_id', effectiveBrandId)
         .eq('title', assignment.trip.title)
         .order('created_at', { ascending: false })
         .limit(1)
@@ -251,7 +251,7 @@ export function TripApproval() {
         jwtPayload.pageId = assignment.page_id;
       }
 
-      const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, [
+      const jwtResponse = await generateBuilderJWT(effectiveBrandId, user.id, [
         'pages:read',
         'pages:write',
         'trips:read',
@@ -267,7 +267,7 @@ export function TripApproval() {
 
       const params: Record<string, string> = {
         api: apiBaseUrl,
-        brand_id: user.brand_id,
+        brand_id: effectiveBrandId,
         token: jwtResponse.token,
         apikey: apiKey,
         content_type: 'trips',
@@ -369,10 +369,10 @@ export function TripApproval() {
   };
 
   const createNewTrip = async () => {
-    if (!user?.brand_id || !user?.id) return;
+    if (!effectiveBrandId || !user?.id) return;
 
     try {
-      const jwtResponse = await generateBuilderJWT(user.brand_id, user.id, [
+      const jwtResponse = await generateBuilderJWT(effectiveBrandId, user.id, [
         'pages:read',
         'pages:write',
         'trips:read',
@@ -390,7 +390,7 @@ export function TripApproval() {
 
       const params = new URLSearchParams({
         api: apiBaseUrl,
-        brand_id: user.brand_id,
+        brand_id: effectiveBrandId,
         token: jwtResponse.token,
         apikey: apiKey,
         content_type: 'trips',

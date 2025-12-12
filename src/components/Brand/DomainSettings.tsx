@@ -28,7 +28,7 @@ interface Website {
 }
 
 export function DomainSettings() {
-  const { user } = useAuth();
+  const { user, effectiveBrandId } = useAuth();
   const [domains, setDomains] = useState<Domain[]>([]);
   const [websites, setWebsites] = useState<Website[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,16 +43,16 @@ export function DomainSettings() {
   useEffect(() => {
     loadDomains();
     loadWebsites();
-  }, [user?.brand_id]);
+  }, [effectiveBrandId]);
 
   const loadDomains = async () => {
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
 
     try {
       const { data, error } = await db.supabase
         .from('brand_domains')
         .select('*')
-        .eq('brand_id', user.brand_id)
+        .eq('brand_id', effectiveBrandId)
         .order('is_primary', { ascending: false })
         .order('domain_type', { ascending: true })
         .order('created_at', { ascending: false });
@@ -68,13 +68,13 @@ export function DomainSettings() {
   };
 
   const loadWebsites = async () => {
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
 
     try {
       const { data, error } = await db.supabase
         .from('websites')
         .select('id, name, domain')
-        .eq('brand_id', user.brand_id)
+        .eq('brand_id', effectiveBrandId)
         .order('name');
 
       if (error) throw error;
@@ -97,7 +97,7 @@ export function DomainSettings() {
       const { data, error } = await db.supabase
         .from('brand_domains')
         .insert({
-          brand_id: user?.brand_id,
+          brand_id: effectiveBrandId,
           domain: newDomain.toLowerCase().trim(),
           website_id: selectedWebsiteId || null,
           status: 'pending'
@@ -160,7 +160,7 @@ export function DomainSettings() {
   };
 
   const handleCreateSubdomain = async () => {
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
 
     setCreatingSubdomain(true);
     setError('');
@@ -176,7 +176,7 @@ export function DomainSettings() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            brand_id: user.brand_id,
+            brand_id: effectiveBrandId,
             website_id: websites[0]?.id || null
           })
         }

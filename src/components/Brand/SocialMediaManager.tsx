@@ -38,7 +38,7 @@ interface BrandVoiceSettings {
 }
 
 export function SocialMediaManager() {
-  const { user } = useAuth();
+  const { user, effectiveBrandId } = useAuth();
   const [posts, setPosts] = useState<SocialMediaPost[]>([]);
   const [accounts, setAccounts] = useState<SocialMediaAccount[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,17 +70,17 @@ export function SocialMediaManager() {
     loadPosts();
     loadAccounts();
     loadBrandVoice();
-  }, [user?.brand_id]);
+  }, [effectiveBrandId]);
 
   const loadPosts = async () => {
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
 
     setLoading(true);
     try {
       const { data, error } = await db.supabase
         .from('social_media_posts')
         .select('*')
-        .eq('brand_id', user.brand_id)
+        .eq('brand_id', effectiveBrandId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -94,13 +94,13 @@ export function SocialMediaManager() {
   };
 
   const loadAccounts = async () => {
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
 
     try {
       const { data, error } = await db.supabase
         .from('social_media_accounts')
         .select('*')
-        .eq('brand_id', user.brand_id);
+        .eq('brand_id', effectiveBrandId);
 
       if (error) throw error;
       setAccounts(data || []);
@@ -110,13 +110,13 @@ export function SocialMediaManager() {
   };
 
   const loadBrandVoice = async () => {
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
 
     try {
       const { data, error } = await db.supabase
         .from('brand_voice_settings')
         .select('*')
-        .eq('brand_id', user.brand_id)
+        .eq('brand_id', effectiveBrandId)
         .maybeSingle();
 
       if (error) throw error;
@@ -187,7 +187,7 @@ export function SocialMediaManager() {
 
     try {
       const postData = {
-        brand_id: user?.brand_id,
+        brand_id: effectiveBrandId,
         created_by: user?.id,
         content: formData.content,
         platforms: formData.platforms,
@@ -225,7 +225,7 @@ export function SocialMediaManager() {
 
     try {
       const postData = {
-        brand_id: user?.brand_id,
+        brand_id: effectiveBrandId,
         created_by: user?.id,
         content: formData.content,
         platforms: formData.platforms,
@@ -590,7 +590,7 @@ export function SocialMediaManager() {
                           body: JSON.stringify({
                             type: 'content_calendar',
                             brand_voice: brandVoice,
-                            brand_id: user?.brand_id
+                            brand_id: effectiveBrandId
                           }),
                         }
                       );
@@ -689,7 +689,7 @@ export function SocialMediaManager() {
                           body: JSON.stringify({
                             type: 'suggestions',
                             brand_voice: brandVoice,
-                            brand_id: user?.brand_id,
+                            brand_id: effectiveBrandId,
                             count: 5
                           }),
                         }
@@ -912,7 +912,7 @@ export function SocialMediaManager() {
                                     const { error } = await db.supabase
                                       .from('social_media_accounts')
                                       .upsert({
-                                        brand_id: user?.brand_id,
+                                        brand_id: effectiveBrandId,
                                         platform: platformConfig.platform,
                                         platform_username: platformConfig.name,
                                         access_token: platformCredentials.access_token || 'test_token',
@@ -1038,7 +1038,7 @@ export function SocialMediaManager() {
                       const { error } = await db.supabase
                         .from('brand_voice_settings')
                         .upsert({
-                          brand_id: user?.brand_id,
+                          brand_id: effectiveBrandId,
                           tone: brandVoice.tone,
                           style: brandVoice.style,
                           keywords: brandVoice.keywords

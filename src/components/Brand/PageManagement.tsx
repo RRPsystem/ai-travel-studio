@@ -27,7 +27,7 @@ interface Page {
 }
 
 export function PageManagement() {
-  const { user } = useAuth();
+  const { user, effectiveBrandId } = useAuth();
   const [pages, setPages] = useState<Page[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingPageId, setEditingPageId] = useState<string | null>(null);
@@ -35,21 +35,21 @@ export function PageManagement() {
   const [editingSlug, setEditingSlug] = useState('');
 
   useEffect(() => {
-    if (user?.brand_id) {
-      loadPages(user.brand_id);
+    if (effectiveBrandId) {
+      loadPages(effectiveBrandId);
     }
-  }, [user?.brand_id]);
+  }, [effectiveBrandId]);
 
   useEffect(() => {
     const handleFocus = () => {
-      if (user?.brand_id) {
-        loadPages(user.brand_id, false);
+      if (effectiveBrandId) {
+        loadPages(effectiveBrandId, false);
       }
     };
 
     window.addEventListener('focus', handleFocus);
     return () => window.removeEventListener('focus', handleFocus);
-  }, [user?.brand_id]);
+  }, [effectiveBrandId]);
 
   const loadPages = async (brandId: string, showLoading = true) => {
     try {
@@ -104,7 +104,7 @@ export function PageManagement() {
   };
 
   const openInBuilder = async (pageId: string) => {
-    if (!user || !user.brand_id) {
+    if (!user || !effectiveBrandId) {
       console.error('[PageManagement] Missing user or brand_id:', { user });
       alert('Gebruiker of brand ID ontbreekt');
       return;
@@ -114,13 +114,13 @@ export function PageManagement() {
       console.log('[PageManagement] Opening builder for page:', {
         pageId,
         userId: user.id,
-        brandId: user.brand_id
+        brandId: effectiveBrandId
       });
 
       const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}#/brand/website/pages`;
       console.log('[PageManagement] Return URL:', returnUrl);
 
-      const deeplink = await openBuilder(user.brand_id, user.id, { pageId, returnUrl });
+      const deeplink = await openBuilder(effectiveBrandId, user.id, { pageId, returnUrl });
       console.log('[PageManagement] Generated deeplink:', deeplink);
 
       const newWindow = window.open(deeplink, '_blank');
@@ -136,11 +136,11 @@ export function PageManagement() {
   };
 
   const createNewPage = async () => {
-    if (!user || !user.brand_id) return;
+    if (!user || !effectiveBrandId) return;
 
     try {
       const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}#/brand/website/pages`;
-      const deeplink = await openBuilder(user.brand_id, user.id, { returnUrl });
+      const deeplink = await openBuilder(effectiveBrandId, user.id, { returnUrl });
       window.open(deeplink, '_blank');
     } catch (error) {
       console.error('Error generating deeplink:', error);
@@ -148,7 +148,7 @@ export function PageManagement() {
   };
 
   const duplicatePage = async (pageId: string) => {
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
 
     try {
       const { data: originalPage } = await supabase
@@ -168,7 +168,7 @@ export function PageManagement() {
           content_type: 'page',
         });
 
-        await loadPages(user.brand_id);
+        await loadPages(effectiveBrandId);
       }
     } catch (error) {
       console.error('Error duplicating page:', error);
@@ -177,14 +177,14 @@ export function PageManagement() {
 
   const deletePage = async (pageId: string) => {
     if (!confirm('Weet je zeker dat je deze pagina wilt verwijderen?')) return;
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
 
     try {
       const { error } = await supabase
         .from('pages')
         .delete()
         .eq('id', pageId)
-        .eq('brand_id', user.brand_id);
+        .eq('brand_id', effectiveBrandId);
 
       if (error) {
         console.error('[PageManagement] Delete failed:', error);
@@ -192,7 +192,7 @@ export function PageManagement() {
       }
 
       console.log('[PageManagement] Page deleted successfully');
-      await loadPages(user.brand_id, false);
+      await loadPages(effectiveBrandId, false);
     } catch (error) {
       console.error('[PageManagement] Error deleting page:', error);
       alert('Kon pagina niet verwijderen: ' + error);
@@ -212,7 +212,7 @@ export function PageManagement() {
   };
 
   const saveEdit = async () => {
-    if (!user?.brand_id || !editingPageId) return;
+    if (!effectiveBrandId || !editingPageId) return;
 
     try {
       const { error } = await supabase
@@ -223,11 +223,11 @@ export function PageManagement() {
           updated_at: new Date().toISOString()
         })
         .eq('id', editingPageId)
-        .eq('brand_id', user.brand_id);
+        .eq('brand_id', effectiveBrandId);
 
       if (error) throw error;
 
-      await loadPages(user.brand_id, false);
+      await loadPages(effectiveBrandId, false);
       cancelEdit();
     } catch (error) {
       console.error('Error updating page:', error);
@@ -236,7 +236,7 @@ export function PageManagement() {
   };
 
   const togglePublishStatus = async (pageId: string, currentStatus: string) => {
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
 
     const isPublished = currentStatus === 'published';
     const newStatus = isPublished ? 'draft' : 'published';
@@ -258,11 +258,11 @@ export function PageManagement() {
         .from('pages')
         .update(updateData)
         .eq('id', pageId)
-        .eq('brand_id', user.brand_id);
+        .eq('brand_id', effectiveBrandId);
 
       if (error) throw error;
 
-      await loadPages(user.brand_id, false);
+      await loadPages(effectiveBrandId, false);
     } catch (error) {
       console.error(`Error ${action} page:`, error);
       alert(`Kon pagina niet ${action}: ` + error);
@@ -270,7 +270,7 @@ export function PageManagement() {
   };
 
   const toggleShowInMenu = async (pageId: string, currentValue: boolean) => {
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
 
     try {
       const { error } = await supabase
@@ -280,11 +280,11 @@ export function PageManagement() {
           updated_at: new Date().toISOString()
         })
         .eq('id', pageId)
-        .eq('brand_id', user.brand_id);
+        .eq('brand_id', effectiveBrandId);
 
       if (error) throw error;
 
-      await loadPages(user.brand_id, false);
+      await loadPages(effectiveBrandId, false);
     } catch (error) {
       console.error('Error updating menu settings:', error);
     }
@@ -305,7 +305,7 @@ export function PageManagement() {
     <div className="p-8">
       <div className="flex items-center justify-end mb-8 space-x-3">
         <button
-          onClick={() => user?.brand_id && loadPages(user.brand_id, false)}
+          onClick={() => effectiveBrandId && loadPages(effectiveBrandId, false)}
           className="inline-flex items-center space-x-2 px-4 py-3 bg-gray-100 text-gray-700 rounded-lg font-medium transition-colors hover:bg-gray-200"
           title="Ververs pagina's"
         >
@@ -467,10 +467,10 @@ export function PageManagement() {
                           >
                             <Edit size={18} />
                           </button>
-                          {isVisible && user?.brand_id && (
+                          {isVisible && effectiveBrandId && (
                             <button
                               onClick={() => {
-                                const url = generateTemplatePreviewUrl(user.brand_id!, pageType);
+                                const url = generateTemplatePreviewUrl(effectiveBrandId!, pageType);
                                 window.open(url, '_blank');
                               }}
                               className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"

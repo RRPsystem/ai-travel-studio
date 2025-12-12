@@ -36,7 +36,7 @@ export function NewPage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [newPageTitle, setNewPageTitle] = useState('');
   const [newPageSlug, setNewPageSlug] = useState('');
-  const { user } = useAuth();
+  const { user, effectiveBrandId } = useAuth();
 
   useEffect(() => {
     loadTemplates();
@@ -59,14 +59,14 @@ export function NewPage() {
   };
 
   useEffect(() => {
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
 
     const loadPageCount = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) return;
 
-        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pages-api/list?brand_id=${user.brand_id}`;
+        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pages-api/list?brand_id=${effectiveBrandId}`;
         const response = await fetch(apiUrl, {
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
@@ -93,7 +93,7 @@ export function NewPage() {
     const interval = setInterval(loadPageCount, 3000);
 
     return () => clearInterval(interval);
-  }, [user?.brand_id, initialPageCount]);
+  }, [effectiveBrandId, initialPageCount]);
 
   const loadTemplates = async () => {
     try {
@@ -129,13 +129,13 @@ export function NewPage() {
   };
 
   const handleConfirmCreate = async () => {
-    if (!user || !user.brand_id || !newPageTitle || !newPageSlug) return;
+    if (!user || !effectiveBrandId || !newPageTitle || !newPageSlug) return;
 
     try {
       const { data: existingPages } = await supabase
         .from('pages')
         .select('menu_order')
-        .eq('brand_id', user.brand_id)
+        .eq('brand_id', effectiveBrandId)
         .order('menu_order', { ascending: false })
         .limit(1);
 
@@ -149,7 +149,7 @@ export function NewPage() {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="brand-id" content="${user.brand_id}">
+    <meta name="brand-id" content="${effectiveBrandId}">
     <title>${newPageTitle}</title>
 </head>
 <body>
@@ -166,7 +166,7 @@ export function NewPage() {
           slug: newPageSlug,
           content_json: {},
           body_html: defaultHtml,
-          brand_id: user.brand_id,
+          brand_id: effectiveBrandId,
           status: 'draft',
           version: 1,
           content_type: 'page',
@@ -189,7 +189,7 @@ export function NewPage() {
 
         setShowModal(false);
         const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}#/brand/website/pages`;
-        const deeplink = await openBuilder(user.brand_id, user.id, {
+        const deeplink = await openBuilder(effectiveBrandId, user.id, {
           pageId: newPageData.id,
           returnUrl
         });
@@ -220,7 +220,7 @@ export function NewPage() {
 
         let bodyHtml = template.body_html;
         if (bodyHtml && !bodyHtml.includes('meta name="brand-id"')) {
-          const brandMetaTag = `\n    <meta name="brand-id" content="${user.brand_id}">`;
+          const brandMetaTag = `\n    <meta name="brand-id" content="${effectiveBrandId}">`;
           if (bodyHtml.includes('<head>')) {
             bodyHtml = bodyHtml.replace('<head>', `<head>${brandMetaTag}`);
           }
@@ -237,7 +237,7 @@ export function NewPage() {
           slug: newPageSlug,
           content_json: contentJson,
           body_html: bodyHtml,
-          brand_id: user.brand_id,
+          brand_id: effectiveBrandId,
           status: 'draft',
           version: 1,
           content_type: 'page',
@@ -260,7 +260,7 @@ export function NewPage() {
 
         setShowModal(false);
         const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}#/brand/website/pages`;
-        const deeplink = await openBuilder(user.brand_id, user.id, {
+        const deeplink = await openBuilder(effectiveBrandId, user.id, {
           pageId: newPageData.id,
           returnUrl
         });
@@ -273,7 +273,7 @@ export function NewPage() {
   };
 
   const handleUseTemplate = async (templateId: string) => {
-    if (!user || !user.brand_id) return;
+    if (!user || !effectiveBrandId) return;
 
     try {
       const { data: template, error: templateError } = await supabase

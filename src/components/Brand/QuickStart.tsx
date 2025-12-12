@@ -48,7 +48,7 @@ export function QuickStart() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [themes, setThemes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
+  const { user, effectiveBrandId } = useAuth();
 
   const [websiteTemplates, setWebsiteTemplates] = useState<WebsiteTemplate[]>([]);
   const [websiteCategories, setWebsiteCategories] = useState<TemplateCategory[]>([]);
@@ -172,9 +172,9 @@ export function QuickStart() {
               </p>
               <button
                 onClick={async () => {
-                  if (!user?.brand_id || !user?.id) return;
+                  if (!effectiveBrandId || !user?.id) return;
                   const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}#/brand/quick-start`;
-                  const deeplink = await openBuilder(user.brand_id, user.id, { returnUrl, mode: 'page' });
+                  const deeplink = await openBuilder(effectiveBrandId, user.id, { returnUrl, mode: 'page' });
                   window.open(deeplink, '_blank');
                 }}
                 className="px-6 py-3 text-white rounded-lg transition-colors font-medium flex items-center gap-2 cursor-pointer"
@@ -232,7 +232,7 @@ export function QuickStart() {
                 key={idx}
                 className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow bg-white cursor-pointer"
                 onClick={async () => {
-                  if (!user?.brand_id) return;
+                  if (!effectiveBrandId) return;
 
                   if (category.template_type === 'wordpress') {
                     alert('WordPress template functionaliteit komt binnenkort');
@@ -246,7 +246,7 @@ export function QuickStart() {
                     const { data: websiteData, error: insertError } = await supabase
                       .from('websites')
                       .insert({
-                        brand_id: user.brand_id,
+                        brand_id: effectiveBrandId,
                         created_by: user.id,
                         name: category.category,
                         slug: websiteSlug,
@@ -284,7 +284,7 @@ export function QuickStart() {
 
                     const newPages = templatePages.map((tp: any, index: number) => ({
                       website_id: websiteData.id,
-                      brand_id: user.brand_id,
+                      brand_id: effectiveBrandId,
                       created_by: user.id,
                       title: tp.template_name,
                       slug: index === 0 ? '/' : `/${tp.template_name.toLowerCase().replace(/\s+/g, '-')}`,
@@ -469,9 +469,9 @@ export function QuickStart() {
                 key={template.id}
                 className="group border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow cursor-pointer bg-white"
                 onClick={async () => {
-                  if (!user?.brand_id || !user?.id) return;
+                  if (!effectiveBrandId || !user?.id) return;
                   const returnUrl = `${import.meta.env.VITE_APP_URL || window.location.origin}#/brand/quick-start`;
-                  const deeplink = await openBuilder(user.brand_id, user.id, {
+                  const deeplink = await openBuilder(effectiveBrandId, user.id, {
                     templateId: template.id,
                     returnUrl,
                     mode: 'page'

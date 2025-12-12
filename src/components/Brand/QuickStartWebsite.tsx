@@ -36,7 +36,7 @@ interface Brand {
 }
 
 export function QuickStartWebsite() {
-  const { user } = useAuth();
+  const { user, effectiveBrandId } = useAuth();
   const [websites, setWebsites] = useState<Website[]>([]);
   const [loading, setLoading] = useState(true);
   const [brand, setBrand] = useState<Brand | null>(null);
@@ -52,21 +52,21 @@ export function QuickStartWebsite() {
   const [editingWebsiteId, setEditingWebsiteId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user?.brand_id) {
+    if (effectiveBrandId) {
       loadBrand();
       loadWebsites();
       handleTemplateReturn();
     }
-  }, [user?.brand_id]);
+  }, [effectiveBrandId]);
 
   async function loadBrand() {
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
 
     try {
       const { data, error } = await db.supabase
         .from('brands')
         .select('id, name, slug')
-        .eq('id', user.brand_id)
+        .eq('id', effectiveBrandId)
         .single();
 
       if (error) throw error;
@@ -77,14 +77,14 @@ export function QuickStartWebsite() {
   }
 
   async function loadWebsites() {
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
 
     setLoading(true);
     try {
       const { data, error } = await db.supabase
         .from('websites')
         .select('*')
-        .eq('brand_id', user.brand_id)
+        .eq('brand_id', effectiveBrandId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -99,14 +99,14 @@ export function QuickStartWebsite() {
   async function handleTemplateReturn() {
     const exportData = localStorage.getItem('template_export');
 
-    if (exportData && user?.brand_id) {
+    if (exportData && effectiveBrandId) {
       try {
         const data = JSON.parse(exportData);
 
         const { error } = await db.supabase
           .from('websites')
           .insert({
-            brand_id: user.brand_id,
+            brand_id: effectiveBrandId,
             created_by: user.id,
             name: `${data.template.charAt(0).toUpperCase() + data.template.slice(1)} Website`,
             slug: `${data.template}-${Date.now()}`,
@@ -133,7 +133,7 @@ export function QuickStartWebsite() {
   }
 
   async function generateQuickStartDeeplink(): Promise<string> {
-    if (!user?.brand_id || !db.supabase) return '';
+    if (!effectiveBrandId || !db.supabase) return '';
 
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
     const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -143,7 +143,7 @@ export function QuickStartWebsite() {
     const jwtToken = session?.access_token || '';
 
     const params = new URLSearchParams({
-      brand_id: user.brand_id,
+      brand_id: effectiveBrandId,
       token: jwtToken,
       apikey: supabaseKey,
       api: `${supabaseUrl}/functions/v1`,
@@ -154,7 +154,7 @@ export function QuickStartWebsite() {
   }
 
   async function editWebsite(website: Website) {
-    if (!user?.brand_id || !website.id || !db.supabase) return;
+    if (!effectiveBrandId || !website.id || !db.supabase) return;
 
     if (website.source_type === 'wordpress_template') {
       setEditingWebsiteId(website.id);
@@ -213,7 +213,7 @@ export function QuickStartWebsite() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            brand_id: user.brand_id,
+            brand_id: effectiveBrandId,
             return_url: window.location.href
           })
         });
@@ -227,7 +227,7 @@ export function QuickStartWebsite() {
         const params = new URLSearchParams({
           page_id: firstPage.id,
           website_id: website.id,
-          brand_id: user.brand_id,
+          brand_id: effectiveBrandId,
           token: result.token,
           apikey: supabaseKey,
           api: `${supabaseUrl}/functions/v1`,
@@ -273,7 +273,7 @@ export function QuickStartWebsite() {
         const params = new URLSearchParams({
           page_id: firstPage.id,
           website_id: website.id,
-          brand_id: user.brand_id,
+          brand_id: effectiveBrandId,
           token: jwtToken,
           apikey: supabaseKey,
           api: `${supabaseUrl}/functions/v1`,
@@ -367,7 +367,7 @@ export function QuickStartWebsite() {
   }
 
   async function createExternalBuilderWebsite() {
-    if (!selectedEBCategory || selectedEBTemplates.length === 0 || !user?.brand_id) return;
+    if (!selectedEBCategory || selectedEBTemplates.length === 0 || !effectiveBrandId) return;
 
     setCreatingWebsite(true);
     try {
@@ -376,7 +376,7 @@ export function QuickStartWebsite() {
       const { data: websiteData, error: insertError } = await db.supabase
         .from('websites')
         .insert({
-          brand_id: user.brand_id,
+          brand_id: effectiveBrandId,
           created_by: user.id,
           name: selectedEBCategory,
           slug: websiteSlug,
@@ -419,7 +419,7 @@ export function QuickStartWebsite() {
 
           return {
             website_id: websiteData.id,
-            brand_id: user.brand_id,
+            brand_id: effectiveBrandId,
             created_by: user.id,
             title: tp.template_name,
             slug: uniqueSlug,
@@ -478,7 +478,7 @@ export function QuickStartWebsite() {
   }
 
   async function createWordPressWebsite() {
-    if (!selectedWPCategory || selectedWPTemplates.length === 0 || !user?.brand_id) return;
+    if (!selectedWPCategory || selectedWPTemplates.length === 0 || !effectiveBrandId) return;
 
     setCreatingWebsite(true);
     try {
@@ -541,7 +541,7 @@ export function QuickStartWebsite() {
       const { error: insertError } = await db.supabase
         .from('websites')
         .insert({
-          brand_id: user.brand_id,
+          brand_id: effectiveBrandId,
           created_by: user.id,
           name: selectedWPCategory,
           slug: `${selectedWPCategory.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`,

@@ -19,7 +19,7 @@ import RoadmapBoard from './RoadmapBoard';
 import TestDashboard from '../Testing/TestDashboard';
 
 export function BrandDashboard() {
-  const { user, signOut, isOperator, impersonationContext, resetContext } = useAuth();
+  const { user, signOut, isOperator, impersonationContext, resetContext, effectiveBrandId } = useAuth();
 
   const getInitialSection = () => {
     const hash = window.location.hash;
@@ -78,23 +78,23 @@ export function BrandDashboard() {
     if (activeSection === 'dashboard') {
       loadDashboardData();
     }
-  }, [activeSection, user?.brand_id]);
+  }, [activeSection, effectiveBrandId]);
 
   useEffect(() => {
-    if (user?.brand_id) {
+    if (effectiveBrandId) {
       loadWebsites();
     }
-  }, [user?.brand_id]);
+  }, [effectiveBrandId]);
 
   const loadDashboardData = async () => {
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
     setLoading(true);
     try {
       const [brandResult, websitesResult, newsResult, agentsResult] = await Promise.all([
-        db.supabase.from('brands').select('*').eq('id', user.brand_id).maybeSingle(),
-        db.supabase.from('websites').select('id', { count: 'exact' }).eq('brand_id', user.brand_id),
-        db.supabase.from('news_items').select('id', { count: 'exact' }).eq('brand_id', user.brand_id),
-        db.supabase.from('agents').select('id', { count: 'exact' }).eq('brand_id', user.brand_id)
+        db.supabase.from('brands').select('*').eq('id', effectiveBrandId).maybeSingle(),
+        db.supabase.from('websites').select('id', { count: 'exact' }).eq('brand_id', effectiveBrandId),
+        db.supabase.from('news_items').select('id', { count: 'exact' }).eq('brand_id', effectiveBrandId),
+        db.supabase.from('agents').select('id', { count: 'exact' }).eq('brand_id', effectiveBrandId)
       ]);
 
       let pagesCount = 0;
@@ -110,7 +110,7 @@ export function BrandDashboard() {
       const legacyPagesResult = await db.supabase
         .from('pages')
         .select('id', { count: 'exact' })
-        .eq('brand_id', user.brand_id)
+        .eq('brand_id', effectiveBrandId)
         .eq('is_template', false);
       pagesCount += legacyPagesResult.count || 0;
 
@@ -148,10 +148,10 @@ export function BrandDashboard() {
   };
 
   const loadWebsites = async () => {
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
     setLoading(true);
     try {
-      const data = await db.getWebsites(user.brand_id);
+      const data = await db.getWebsites(effectiveBrandId);
       setWebsites(data || []);
 
       const hasWordPress = (data || []).some(site => site.template_source_type === 'wordpress');
@@ -177,7 +177,7 @@ export function BrandDashboard() {
     if (activeSection === 'websites') {
       loadWebsites();
     }
-  }, [activeSection, user?.brand_id]);
+  }, [activeSection, effectiveBrandId]);
 
   const sidebarItems = [
     { id: 'dashboard', label: 'Dashboard', icon: Sparkles },
@@ -677,7 +677,7 @@ export function BrandDashboard() {
                     </label>
                     <input
                       type="text"
-                      value={user?.brand_id || ''}
+                      value={effectiveBrandId || ''}
                       readOnly
                       className="w-full px-3 py-2 border border-gray-300 rounded-md bg-gray-50"
                     />

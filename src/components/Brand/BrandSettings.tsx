@@ -7,7 +7,7 @@ import { DomainSettings } from './DomainSettings';
 type TabType = 'general' | 'domains';
 
 export function BrandSettings() {
-  const { user } = useAuth();
+  const { user, effectiveBrandId } = useAuth();
   const getInitialTab = (): TabType => {
     const hash = window.location.hash;
     if (hash.includes('domains')) return 'domains';
@@ -65,7 +65,7 @@ export function BrandSettings() {
   }, []);
 
   const loadBrandData = async () => {
-    if (!user?.brand_id) {
+    if (!effectiveBrandId) {
       setLoading(false);
       return;
     }
@@ -75,7 +75,7 @@ export function BrandSettings() {
       const { data, error: fetchError } = await supabase
         .from('brands')
         .select('*')
-        .eq('id', user.brand_id)
+        .eq('id', effectiveBrandId)
         .maybeSingle();
 
       if (fetchError) throw fetchError;
@@ -104,7 +104,7 @@ export function BrandSettings() {
       const { data: website, error: websiteError } = await supabase
         .from('websites')
         .select('id, template_source_type, external_builder_id, external_builders(name)')
-        .eq('brand_id', user.brand_id)
+        .eq('brand_id', effectiveBrandId)
         .maybeSingle();
 
       if (!websiteError && website) {
@@ -182,7 +182,7 @@ export function BrandSettings() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
 
     setSaving(true);
     setError('');
@@ -209,7 +209,7 @@ export function BrandSettings() {
           website_type: formData.website_type,
           updated_at: new Date().toISOString()
         })
-        .eq('id', user.brand_id);
+        .eq('id', effectiveBrandId);
 
       if (updateError) throw updateError;
 
@@ -300,7 +300,7 @@ export function BrandSettings() {
                 <div className="flex-1">
                   <p className="text-sm font-medium text-blue-900 mb-1">Brand ID</p>
                   <p className="text-sm text-blue-800 font-mono bg-blue-100 px-2 py-1 rounded inline-block">
-                    {user?.brand_id || 'N/A'}
+                    {effectiveBrandId || 'N/A'}
                   </p>
                   <p className="text-xs text-blue-700 mt-2">
                     Dit ID gebruik je voor externe integraties en API calls

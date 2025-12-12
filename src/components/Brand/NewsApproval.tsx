@@ -25,7 +25,7 @@ interface NewsAssignment {
 }
 
 export function NewsApproval() {
-  const { user } = useAuth();
+  const { user, effectiveBrandId } = useAuth();
   const [assignments, setAssignments] = useState<NewsAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [isLoadingData, setIsLoadingData] = useState(false);
@@ -36,22 +36,22 @@ export function NewsApproval() {
   const [websiteId, setWebsiteId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user?.brand_id && !isLoadingData) {
+    if (effectiveBrandId && !isLoadingData) {
       loadWebsiteInfo();
       loadAssignments();
-    } else if (!user?.brand_id) {
+    } else if (!effectiveBrandId) {
       setLoading(false);
     }
-  }, [user?.brand_id]);
+  }, [effectiveBrandId]);
 
   const loadWebsiteInfo = async () => {
-    if (!user?.brand_id) return;
+    if (!effectiveBrandId) return;
 
     try {
       const { data: brandData, error: brandError } = await supabase
         .from('brands')
         .select('website_type')
-        .eq('id', user.brand_id)
+        .eq('id', effectiveBrandId)
         .maybeSingle();
 
       if (!brandError && brandData) {
@@ -61,7 +61,7 @@ export function NewsApproval() {
       const { data: websiteData, error: websiteError } = await supabase
         .from('websites')
         .select('id')
-        .eq('brand_id', user.brand_id)
+        .eq('brand_id', effectiveBrandId)
         .maybeSingle();
 
       if (!websiteError && websiteData) {
@@ -73,7 +73,7 @@ export function NewsApproval() {
   };
 
   const loadAssignments = async () => {
-    if (!user?.brand_id || isLoadingData) {
+    if (!effectiveBrandId || isLoadingData) {
       return;
     }
 
@@ -99,7 +99,7 @@ export function NewsApproval() {
             tags
           )
         `)
-        .eq('brand_id', user.brand_id)
+        .eq('brand_id', effectiveBrandId)
         .order('assigned_at', { ascending: false });
 
       if (assignmentError) throw assignmentError;
@@ -119,7 +119,7 @@ export function NewsApproval() {
       const { data: brandNewsData, error: brandNewsError } = await supabase
         .from('news_items')
         .select('id, title, slug, excerpt, featured_image, created_at, published_at, status, tags')
-        .eq('brand_id', user.brand_id)
+        .eq('brand_id', effectiveBrandId)
         .order('created_at', { ascending: false });
 
       if (brandNewsError) throw brandNewsError;
@@ -218,7 +218,7 @@ export function NewsApproval() {
   };
 
   const handleEdit = async (assignment: NewsAssignment) => {
-    if (!user || !user.brand_id) return;
+    if (!user || !effectiveBrandId) return;
 
     const usesExternalEditor = websiteType === 'wordpress' || websiteType === 'external_builder' || websiteType === 'quickstart';
 
@@ -236,7 +236,7 @@ export function NewsApproval() {
         ];
 
         const jwtResponse = await generateBuilderJWT(
-          user.brand_id,
+          effectiveBrandId,
           user.id,
           scopes,
           {
@@ -281,7 +281,7 @@ export function NewsApproval() {
 
       if (assignment.status === 'brand') {
         const newsId = assignment.news_id || assignment.news_item.id;
-        console.log('[NewsApproval] Deleting brand news item:', newsId, 'User brand_id:', user?.brand_id);
+        console.log('[NewsApproval] Deleting brand news item:', newsId, 'User brand_id:', effectiveBrandId);
 
         const { data, error } = await supabase
           .from('news_items')
@@ -307,7 +307,7 @@ export function NewsApproval() {
           ? assignment.news_id
           : assignment.id;
 
-        console.log('[NewsApproval] Deleting assignment:', assignmentId, 'for brand:', user?.brand_id);
+        console.log('[NewsApproval] Deleting assignment:', assignmentId, 'for brand:', effectiveBrandId);
         const { data, error } = await supabase
           .from('news_brand_assignments')
           .delete()
@@ -340,7 +340,7 @@ export function NewsApproval() {
   };
 
   const createNewArticle = async () => {
-    if (!user || !user.brand_id) return;
+    if (!user || !effectiveBrandId) return;
 
     const usesExternalEditor = websiteType === 'wordpress' || websiteType === 'external_builder' || websiteType === 'quickstart';
 
@@ -358,7 +358,7 @@ export function NewsApproval() {
         ];
 
         const jwtResponse = await generateBuilderJWT(
-          user.brand_id,
+          effectiveBrandId,
           user.id,
           scopes,
           {
