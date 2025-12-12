@@ -188,11 +188,11 @@ export function BrandForm({ onBack, onSuccess, editingBrand }: BrandFormProps) {
   };
 
   return (
-    <div className="flex-1 bg-gray-50">
+    <div className="flex-1 bg-gray-50 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="bg-white border-b px-6 py-4">
+      <div className="bg-white border-b px-6 py-4 flex-shrink-0">
         <div className="flex items-center space-x-4">
-          <button 
+          <button
             onClick={onBack}
             className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
           >
@@ -203,8 +203,8 @@ export function BrandForm({ onBack, onSuccess, editingBrand }: BrandFormProps) {
               {isEditing ? 'Brand Bewerken' : 'Nieuwe Brand Aanmaken'}
             </h1>
             <p className="text-sm text-gray-600">
-              {isEditing 
-                ? 'Wijzig de gegevens van de travel agency brand' 
+              {isEditing
+                ? 'Wijzig de gegevens van de travel agency brand'
                 : 'Vul de basisgegevens in voor de nieuwe travel agency brand'
               }
             </p>
@@ -213,7 +213,7 @@ export function BrandForm({ onBack, onSuccess, editingBrand }: BrandFormProps) {
       </div>
 
       {/* Form */}
-      <div className="p-6 max-w-4xl">
+      <div className="flex-1 overflow-y-auto p-6 max-w-4xl">
         <form onSubmit={handleSubmit} className="space-y-8">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">

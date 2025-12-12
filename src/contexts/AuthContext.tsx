@@ -187,15 +187,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { data: agents } = await supabase
         .from('agents')
-        .select('id, first_name, last_name, brand_id')
-        .order('first_name');
+        .select('id, name, brand_id')
+        .order('name');
 
       if (agents) {
         agents.forEach(agent => {
           contexts.push({
             type: 'agent',
             id: agent.id,
-            name: `${agent.first_name} ${agent.last_name}`,
+            name: agent.name,
             brandId: agent.brand_id
           });
         });
