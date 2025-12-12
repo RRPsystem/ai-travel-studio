@@ -134,14 +134,6 @@ export default function DatabasePerformanceMonitor() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Activity className="h-7 w-7 text-blue-600" />
-            Database Performance Monitor
-          </h2>
-          <p className="text-gray-600 mt-1">Real-time database health for 400+ concurrent users</p>
-        </div>
-
         <div className="flex items-center gap-3">
           <button
             onClick={() => setAutoRefresh(!autoRefresh)}

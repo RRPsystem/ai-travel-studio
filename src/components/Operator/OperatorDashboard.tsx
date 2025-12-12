@@ -68,8 +68,8 @@ export function OperatorDashboard() {
     { id: 'templates', label: 'WordPress Templates', icon: Layout },
     { id: 'wordpress-downloads', label: 'WordPress Downloads', icon: Download },
     { id: 'roadmap', label: 'Roadmap Management', icon: Map },
-    { id: 'db-performance', label: 'Database Performance', icon: Database },
-    { id: 'monitoring', label: 'Monitoring & Alerts', icon: Bell },
+    { id: 'db-performance', label: 'DB Capaciteit (400 users)', icon: Database },
+    { id: 'monitoring', label: 'Error Monitoring', icon: Bell },
     { id: 'system-health', label: 'System Health', icon: Activity },
     { id: 'api-settings', label: 'API Settings', icon: Key },
     { id: 'gpt-management', label: 'GPT Management', icon: Bot },
@@ -152,8 +152,8 @@ export function OperatorDashboard() {
                 {activeSection === 'templates' && 'WordPress Templates'}
                 {activeSection === 'wordpress-downloads' && 'WordPress Downloads'}
                 {activeSection === 'roadmap' && 'Roadmap Management'}
-                {activeSection === 'db-performance' && 'Database Performance'}
-                {activeSection === 'monitoring' && 'Monitoring & Alerts'}
+                {activeSection === 'db-performance' && 'Database Capaciteit (400 users)'}
+                {activeSection === 'monitoring' && 'Error Monitoring'}
                 {activeSection === 'system-health' && 'System Health'}
                 {activeSection === 'api-settings' && 'API Settings'}
                 {activeSection === 'gpt-management' && 'GPT Management'}
@@ -170,8 +170,8 @@ export function OperatorDashboard() {
                 {activeSection === 'templates' && 'Manage WordPress templates for brands'}
                 {activeSection === 'wordpress-downloads' && 'Download WordPress plugins en integraties'}
                 {activeSection === 'roadmap' && 'Manage feature requests and development priorities'}
-                {activeSection === 'db-performance' && 'Real-time database health and capacity monitoring for 400+ users'}
-                {activeSection === 'monitoring' && 'Real-time error tracking, alerts, and performance monitoring'}
+                {activeSection === 'db-performance' && 'Database connections, queries, locks & capacity voor 400+ concurrent users'}
+                {activeSection === 'monitoring' && 'Application errors, alerts en frontend performance tracking'}
                 {activeSection === 'system-health' && 'Real-time browser metrics and service status'}
                 {activeSection === 'api-settings' && 'Configure API keys and external service credentials'}
                 {activeSection === 'gpt-management' && 'Configure custom GPTs and content generation'}
