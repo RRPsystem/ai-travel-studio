@@ -35,7 +35,11 @@ export function BrandSettings() {
     country: 'Netherlands',
     website_url: '',
     logo_url: '',
-    website_type: 'internal'
+    website_type: 'internal',
+    wordpress_url: '',
+    wordpress_username: '',
+    wordpress_app_password: '',
+    wordpress_connected: false
   });
 
   const [websiteInfo, setWebsiteInfo] = useState<{
@@ -95,7 +99,11 @@ export function BrandSettings() {
           country: data.country || 'Netherlands',
           website_url: data.website_url || '',
           logo_url: data.logo_url || '',
-          website_type: data.website_type || 'internal'
+          website_type: data.website_type || 'internal',
+          wordpress_url: data.wordpress_url || '',
+          wordpress_username: data.wordpress_username || '',
+          wordpress_app_password: data.wordpress_app_password || '',
+          wordpress_connected: data.wordpress_connected || false
         });
       }
 
@@ -204,6 +212,9 @@ export function BrandSettings() {
           website_url: formData.website_url,
           logo_url: formData.logo_url,
           website_type: formData.website_type,
+          wordpress_url: formData.wordpress_url,
+          wordpress_username: formData.wordpress_username,
+          wordpress_app_password: formData.wordpress_app_password,
           updated_at: new Date().toISOString()
         })
         .eq('id', effectiveBrandId);
@@ -569,6 +580,85 @@ export function BrandSettings() {
                 </div>
               </div>
             </div>
+
+            {formData.website_type === 'wordpress' && (
+              <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">WordPress Integratie</h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Verbind je WordPress site om pagina's automatisch te synchroniseren naar Bolt
+                </p>
+
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                  <h4 className="text-sm font-semibold text-yellow-900 mb-2">WordPress Application Password nodig</h4>
+                  <p className="text-xs text-yellow-800 mb-2">
+                    Je hebt een WordPress Application Password nodig (geen gewoon wachtwoord):
+                  </p>
+                  <ol className="text-xs text-yellow-800 space-y-1 ml-4 list-decimal">
+                    <li>Log in op je WordPress admin</li>
+                    <li>Ga naar: Gebruikers → Profiel</li>
+                    <li>Scroll naar "Application Passwords"</li>
+                    <li>Geef een naam (bijv. "Bolt Integration")</li>
+                    <li>Klik "Add New Application Password"</li>
+                    <li>Kopieer het gegenereerde wachtwoord hieronder</li>
+                  </ol>
+                </div>
+
+                {formData.wordpress_connected && (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-green-800">✓ WordPress verbinding actief</p>
+                  </div>
+                )}
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      WordPress URL *
+                    </label>
+                    <input
+                      type="url"
+                      value={formData.wordpress_url}
+                      onChange={(e) => handleInputChange('wordpress_url', e.target.value)}
+                      placeholder="https://jouwwebsite.nl"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      required={formData.website_type === 'wordpress'}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">De volledige URL van je WordPress site</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      WordPress Gebruikersnaam *
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.wordpress_username}
+                      onChange={(e) => handleInputChange('wordpress_username', e.target.value)}
+                      placeholder="admin"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      required={formData.website_type === 'wordpress'}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Je WordPress admin gebruikersnaam</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Application Password *
+                    </label>
+                    <input
+                      type="password"
+                      value={formData.wordpress_app_password}
+                      onChange={(e) => handleInputChange('wordpress_app_password', e.target.value)}
+                      placeholder="xxxx xxxx xxxx xxxx xxxx xxxx"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent font-mono"
+                      required={formData.website_type === 'wordpress'}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Het WordPress Application Password (inclusief spaties is OK)
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end pt-6 border-t border-gray-200">
               <button
