@@ -24,7 +24,6 @@ export function BrandSettings() {
     name: '',
     slug: '',
     description: '',
-    business_type: 'custom_travel_agency',
     primary_color: '#3B82F6',
     secondary_color: '#6B7280',
     contact_person: '',
@@ -85,7 +84,6 @@ export function BrandSettings() {
           name: data.name || '',
           slug: data.slug || '',
           description: data.description || '',
-          business_type: data.business_type || 'custom_travel_agency',
           primary_color: data.primary_color || '#3B82F6',
           secondary_color: data.secondary_color || '#6B7280',
           contact_person: data.contact_person || '',
@@ -194,7 +192,6 @@ export function BrandSettings() {
         .update({
           name: formData.name,
           description: formData.description,
-          business_type: formData.business_type,
           primary_color: formData.primary_color,
           secondary_color: formData.secondary_color,
           contact_person: formData.contact_person,
@@ -349,51 +346,33 @@ export function BrandSettings() {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Business Type
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Logo
+              </label>
+              <div className="flex items-center space-x-3">
+                {formData.logo_url && (
+                  <img
+                    src={formData.logo_url}
+                    alt="Logo"
+                    className="w-12 h-12 object-contain rounded border border-gray-300"
+                  />
+                )}
+                <label className="flex-1 cursor-pointer">
+                  <div className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    <Upload size={16} className="mr-2" />
+                    <span className="text-sm text-gray-700">
+                      {uploadingLogo ? 'Uploading...' : 'Upload Logo'}
+                    </span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoUpload}
+                    className="hidden"
+                    disabled={uploadingLogo}
+                  />
                 </label>
-                <select
-                  value={formData.business_type}
-                  onChange={(e) => handleInputChange('business_type', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-                >
-                  <option value="custom_travel_agency">Custom Travel Agency</option>
-                  <option value="tour_operator">Tour Operator</option>
-                  <option value="travel_agent">Travel Agent</option>
-                  <option value="destination_management">Destination Management</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Logo
-                </label>
-                <div className="flex items-center space-x-3">
-                  {formData.logo_url && (
-                    <img
-                      src={formData.logo_url}
-                      alt="Logo"
-                      className="w-12 h-12 object-contain rounded border border-gray-300"
-                    />
-                  )}
-                  <label className="flex-1 cursor-pointer">
-                    <div className="flex items-center justify-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-                      <Upload size={16} className="mr-2" />
-                      <span className="text-sm text-gray-700">
-                        {uploadingLogo ? 'Uploading...' : 'Upload Logo'}
-                      </span>
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                      className="hidden"
-                      disabled={uploadingLogo}
-                    />
-                  </label>
-                </div>
               </div>
             </div>
 
