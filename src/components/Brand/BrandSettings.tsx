@@ -423,20 +423,18 @@ export function BrandSettings() {
 
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Website Type / Builder
+                  Content Systeem
                 </label>
                 <select
                   value={formData.website_type}
                   onChange={(e) => handleInputChange('website_type', e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 >
-                  <option value="internal">Interne Builder (Legacy)</option>
-                  <option value="wordpress">WordPress Website</option>
-                  <option value="external_builder">External Builder (AI Website Studio / Gowild)</option>
-                  <option value="quickstart">QuickStart Website</option>
+                  <option value="internal">Option A - Interne Content Systeem</option>
+                  <option value="wordpress">Option B - WordPress</option>
                 </select>
                 <p className="text-xs text-gray-500 mt-1">
-                  Selecteer het type website/builder dat je gebruikt. Dit bepaalt welke editor wordt geopend bij het bewerken van content.
+                  Kies je content management systeem: Gebruik het interne systeem (A) of koppel je WordPress website (B).
                 </p>
               </div>
 
