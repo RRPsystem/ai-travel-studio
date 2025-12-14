@@ -171,7 +171,13 @@ export function generateBuilderDeeplink({
   if (headerId) params.append('header_id', headerId);
   if (footerId) params.append('footer_id', footerId);
   if (returnUrl) params.append('return_url', returnUrl);
-  if (mode) params.append('mode', mode);
+
+  // Only add mode parameter for non-content types (pages, templates, etc)
+  // For news/destinations/trips, mode is determined by presence of slug
+  if (mode && !contentType) {
+    params.append('mode', mode);
+  }
+
   if (authorType) params.append('author_type', authorType);
   if (authorId) params.append('author_id', authorId);
 
