@@ -254,15 +254,36 @@ export function WordPressCatalogSync() {
 
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
         <h3 className="text-sm font-semibold text-blue-900 mb-2">
-          Hoe werkt het?
+          Workflow
         </h3>
-        <ul className="space-y-1 text-sm text-blue-800">
-          <li>• WordPress admin markeert reizen via "Toon in TravelC Web Catalogus"</li>
-          <li>• REST API endpoint levert alle gemarkeerde reizen</li>
-          <li>• Sync importeert reizen in de trips tabel met source "wordpress_catalog"</li>
-          <li>• Bestaande reizen (op basis van TC ID) worden bijgewerkt</li>
-          <li>• Nieuwe reizen worden aangemaakt en beschikbaar voor alle brands</li>
-        </ul>
+        <ol className="space-y-2 text-sm text-blue-800">
+          <li className="flex items-start">
+            <span className="font-bold mr-2">1.</span>
+            <span>WordPress admin markeert reizen via "Toon in TravelC Web Catalogus"</span>
+          </li>
+          <li className="flex items-start">
+            <span className="font-bold mr-2">2.</span>
+            <span>Klik op "Catalogus Synchroniseren" om reizen te importeren</span>
+          </li>
+          <li className="flex items-start">
+            <span className="font-bold mr-2">3.</span>
+            <span>Ga naar "Reizen Catalogus" om geïmporteerde reizen toe te wijzen aan brands</span>
+          </li>
+          <li className="flex items-start">
+            <span className="font-bold mr-2">4.</span>
+            <span>Brands kunnen toegewezen reizen accepteren en publiceren</span>
+          </li>
+        </ol>
+      </div>
+
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-amber-900 mb-2">
+          Belangrijk
+        </h3>
+        <p className="text-sm text-amber-800">
+          Geïmporteerde reizen zijn NIET automatisch zichtbaar voor brands. Je moet ze handmatig toewijzen via
+          <span className="font-semibold"> Operator Dashboard → Reizen Catalogus</span>.
+        </p>
       </div>
     </div>
   );
