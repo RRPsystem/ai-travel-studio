@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { CreditCard, DollarSign, Settings, Save, AlertCircle, CheckCircle, Euro } from 'lucide-react';
+import { CreditCard, DollarSign, Settings, Save, AlertCircle, CheckCircle, Euro, RefreshCw, Clock } from 'lucide-react';
 
 interface CreditPrice {
   id: string;
@@ -18,11 +18,23 @@ interface SystemSettings {
   minimum_purchase_eur: number;
 }
 
+interface MolliePayment {
+  id: string;
+  mollie_payment_id: string;
+  user_id: string;
+  amount_eur: string;
+  credits_amount: number;
+  status: string;
+  created_at: string;
+}
+
 export default function CreditSystemManagement() {
   const [prices, setPrices] = useState<CreditPrice[]>([]);
   const [settings, setSettings] = useState<SystemSettings | null>(null);
+  const [payments, setPayments] = useState<MolliePayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [processing, setProcessing] = useState<string | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const [editedPrices, setEditedPrices] = useState<{ [key: string]: number }>({});
@@ -34,17 +46,24 @@ export default function CreditSystemManagement() {
 
   const loadData = async () => {
     try {
-      const [pricesRes, settingsRes] = await Promise.all([
+      const [pricesRes, settingsRes, paymentsRes] = await Promise.all([
         supabase.from('credit_prices').select('*').order('action_label'),
-        supabase.from('credit_system_settings').select('*').single()
+        supabase.from('credit_system_settings').select('*').single(),
+        supabase
+          .from('mollie_payments')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(20)
       ]);
 
       if (pricesRes.error) throw pricesRes.error;
       if (settingsRes.error) throw settingsRes.error;
+      if (paymentsRes.error) throw paymentsRes.error;
 
       setPrices(pricesRes.data || []);
       setSettings(settingsRes.data);
       setEditedSettings(settingsRes.data);
+      setPayments(paymentsRes.data || []);
     } catch (error) {
       console.error('Error loading data:', error);
       setMessage({ type: 'error', text: 'Fout bij laden van gegevens' });
@@ -161,6 +180,39 @@ export default function CreditSystemManagement() {
     } catch (error) {
       console.error('Error toggling system:', error);
       setMessage({ type: 'error', text: 'Fout bij wijzigen systeem status' });
+    }
+  };
+
+  const handleProcessPayment = async (molliePaymentId: string) => {
+    setProcessing(molliePaymentId);
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/process-mollie-payment`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ mollie_payment_id: molliePaymentId }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (result.success) {
+        setMessage({ type: 'success', text: result.message || 'Betaling verwerkt' });
+        await loadData();
+      } else {
+        setMessage({ type: 'error', text: result.message || 'Fout bij verwerken betaling' });
+      }
+
+      setTimeout(() => setMessage(null), 5000);
+    } catch (error) {
+      console.error('Error processing payment:', error);
+      setMessage({ type: 'error', text: 'Fout bij verwerken betaling' });
+      setTimeout(() => setMessage(null), 5000);
+    } finally {
+      setProcessing(null);
     }
   };
 
@@ -344,6 +396,69 @@ export default function CreditSystemManagement() {
               <p className="font-medium mb-1">Let op:</p>
               <p>Het credit systeem is momenteel <strong>{settings?.enabled ? 'ingeschakeld' : 'uitgeschakeld'}</strong>.
               {!settings?.enabled && ' Schakel het in om betalingen te kunnen ontvangen.'}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <Clock className="text-blue-600" size={24} />
+          <h2 className="text-xl font-semibold text-gray-900">Recente Betalingen</h2>
+        </div>
+
+        {payments.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">
+            Nog geen betalingen ontvangen
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {payments.map((payment) => (
+              <div key={payment.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex-1">
+                  <div className="flex items-center gap-3">
+                    <div className={`px-2 py-1 rounded text-xs font-medium ${
+                      payment.status === 'paid' ? 'bg-green-100 text-green-800' :
+                      payment.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                      payment.status === 'open' ? 'bg-blue-100 text-blue-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {payment.status}
+                    </div>
+                    <span className="font-medium text-gray-900 font-mono text-sm">
+                      {payment.user_id.substring(0, 8)}...
+                    </span>
+                  </div>
+                  <div className="mt-1 text-sm text-gray-500">
+                    {payment.credits_amount} credits (€{payment.amount_eur})
+                  </div>
+                  <div className="mt-1 text-xs text-gray-400">
+                    {new Date(payment.created_at).toLocaleString('nl-NL')}
+                  </div>
+                </div>
+
+                {payment.status !== 'paid' && (
+                  <button
+                    onClick={() => handleProcessPayment(payment.mollie_payment_id)}
+                    disabled={processing === payment.mollie_payment_id}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                  >
+                    <RefreshCw size={16} className={processing === payment.mollie_payment_id ? 'animate-spin' : ''} />
+                    {processing === payment.mollie_payment_id ? 'Verwerken...' : 'Verwerk Betaling'}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-6 p-4 bg-yellow-50 rounded-lg">
+          <div className="flex items-start gap-2">
+            <AlertCircle className="text-yellow-600 mt-0.5" size={20} />
+            <div className="text-sm text-yellow-800">
+              <p className="font-medium mb-1">Test Betalingen:</p>
+              <p>Bij Mollie test betalingen wordt de webhook niet altijd automatisch getriggerd.
+              Gebruik de "Verwerk Betaling" knop om handmatig de status te checken en credits toe te voegen.</p>
             </div>
           </div>
         </div>
