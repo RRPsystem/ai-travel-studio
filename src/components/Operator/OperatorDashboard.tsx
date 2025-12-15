@@ -23,7 +23,6 @@ import {
   Puzzle,
   Zap,
   Download,
-  Mic,
   Users,
   User,
   ChevronDown,
@@ -38,7 +37,6 @@ import TemplateManager from './TemplateManager';
 import ExternalBuilderManager from './ExternalBuilderManager';
 import QuickStartManager from './QuickStartManager';
 import { WordPressDownloads } from './WordPressDownloads';
-import PodcastManagement from '../Podcast/PodcastManagement';
 import TravelJournal from '../TravelJournal/TravelJournal';
 import DatabasePerformanceMonitor from './DatabasePerformanceMonitor';
 import { BrandManagement } from './BrandManagement';
@@ -63,7 +61,6 @@ export function OperatorDashboard() {
   const sidebarItems = [
     { id: 'user-management', label: 'Gebruikersbeheer', icon: Users },
     { id: 'brand-management', label: 'Brand Management', icon: Building2 },
-    { id: 'podcast-management', label: 'Podcast Management', icon: Mic },
     { id: 'test-management', label: 'Test Management', icon: ClipboardCheck },
     { id: 'external-builders', label: 'External Builders', icon: Puzzle },
     { id: 'quickstart', label: 'Windsurf Templates', icon: Zap },
@@ -148,7 +145,6 @@ export function OperatorDashboard() {
               <h1 className="text-2xl font-bold text-gray-900">
                 {activeSection === 'user-management' && 'Gebruikersbeheer'}
                 {activeSection === 'brand-management' && 'Brand Management'}
-                {activeSection === 'podcast-management' && 'Podcast Management'}
                 {activeSection === 'test-management' && 'Test Management'}
                 {activeSection === 'external-builders' && 'External Builders'}
                 {activeSection === 'quickstart' && 'Windsurf Templates'}
@@ -167,7 +163,6 @@ export function OperatorDashboard() {
               <p className="text-gray-600 mt-1">
                 {activeSection === 'user-management' && 'Beheer gebruikers en hun rechten'}
                 {activeSection === 'brand-management' && 'Beheer brands en hun website types'}
-                {activeSection === 'podcast-management' && 'Plan episodes, beheer vragen en werk samen met hosts'}
                 {activeSection === 'test-management' && 'Manage testing rounds and review feedback from testers'}
                 {activeSection === 'external-builders' && 'Register and manage external template builders (Windsurf, AI Website Studio)'}
                 {activeSection === 'quickstart' && 'Configure Windsurf template packages for brands'}
@@ -319,7 +314,6 @@ export function OperatorDashboard() {
         <main className="flex-1 overflow-y-auto">
           {activeSection === 'user-management' && <div className="p-6"><UserManagement /></div>}
           {activeSection === 'brand-management' && <div className="p-6"><BrandManagement /></div>}
-          {activeSection === 'podcast-management' && <PodcastManagement />}
           {activeSection === 'test-management' && <div className="p-6"><TestManagement /></div>}
           {activeSection === 'external-builders' && <div className="p-6"><ExternalBuilderManager /></div>}
           {activeSection === 'quickstart' && <div className="p-6"><QuickStartManager /></div>}
