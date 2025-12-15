@@ -40,9 +40,26 @@ export default function CreditWallet() {
   const [purchasing, setPurchasing] = useState(false);
   const [purchaseAmount, setPurchaseAmount] = useState(10);
   const [showTransactions, setShowTransactions] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState<'success' | 'error' | null>(null);
 
   useEffect(() => {
     loadData();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const payment = urlParams.get('payment');
+
+    if (payment === 'success') {
+      setPaymentStatus('success');
+      setTimeout(() => {
+        loadData();
+        window.history.replaceState({}, '', window.location.pathname);
+      }, 1000);
+    } else if (payment === 'error') {
+      setPaymentStatus('error');
+      setTimeout(() => {
+        window.history.replaceState({}, '', window.location.pathname);
+      }, 3000);
+    }
   }, []);
 
   const loadData = async () => {
@@ -133,6 +150,30 @@ export default function CreditWallet() {
 
   return (
     <div className="space-y-6">
+      {paymentStatus === 'success' && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="text-green-600 flex-shrink-0 mt-0.5" size={20} />
+          <div>
+            <h3 className="font-semibold text-green-900">Betaling Geslaagd!</h3>
+            <p className="text-sm text-green-700 mt-1">
+              Je credits zijn toegevoegd aan je wallet. Het kan enkele seconden duren voordat ze zichtbaar zijn.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {paymentStatus === 'error' && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+          <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+          <div>
+            <h3 className="font-semibold text-red-900">Betaling Mislukt</h3>
+            <p className="text-sm text-red-700 mt-1">
+              Er is iets misgegaan met je betaling. Probeer het opnieuw of neem contact op met support.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg shadow-lg p-6 text-white">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">

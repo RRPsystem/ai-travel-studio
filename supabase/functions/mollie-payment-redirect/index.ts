@@ -19,7 +19,7 @@ Deno.serve(async (req: Request) => {
     const userId = url.searchParams.get('user_id');
 
     // Redirect to the app with a success message
-    const appUrl = Deno.env.get('SUPABASE_URL')?.replace(/\/\/[^.]+\./, '//');
+    const appUrl = Deno.env.get('APP_URL') || 'https://www.ai-travelstudio.nl';
     const redirectUrl = `${appUrl}?payment=success&user_id=${userId}`;
 
     return new Response(null, {
@@ -32,7 +32,7 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     console.error('Error in redirect:', error);
 
-    const appUrl = Deno.env.get('SUPABASE_URL')?.replace(/\/\/[^.]+\./, '//');
+    const appUrl = Deno.env.get('APP_URL') || 'https://www.ai-travelstudio.nl';
     const redirectUrl = `${appUrl}?payment=error`;
 
     return new Response(null, {
