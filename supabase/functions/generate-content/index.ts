@@ -81,6 +81,15 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    const authHeader = req.headers.get('Authorization');
+    let userId: string | null = null;
+
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      const { data: { user } } = await supabase.auth.getUser(token);
+      userId = user?.id || null;
+    }
+
     const { data: settings } = await supabase
       .from('api_settings')
       .select('api_key')
@@ -754,6 +763,29 @@ Output ALLEEN het JSON object, geen extra tekst, geen markdown formatting.`;
       console.log('[GPT] Max tokens:', maxTokensToUse);
     } else {
       console.log('[GPT] No operator instructions found, using fallback prompt');
+    }
+
+    if (userId) {
+      const creditResult = await deductCredits(
+        supabase,
+        userId,
+        'ai_content_generation',
+        `AI content: ${contentType}`,
+        { contentType, prompt: prompt.substring(0, 100) }
+      );
+
+      if (!creditResult.success) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: creditResult.error || 'Failed to deduct credits'
+          }),
+          {
+            status: 402,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
     }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
