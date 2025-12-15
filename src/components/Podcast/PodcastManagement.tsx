@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
-import { Plus, Calendar, Users, MessageSquare, FileText, Sparkles, Send, Check, X, Eye, EyeOff, Clock, Play } from 'lucide-react';
+import { Plus, Calendar, Users, MessageSquare, FileText, Sparkles, Send, Check, X, Eye, EyeOff, Clock, Play, Edit as EditIcon } from 'lucide-react';
+import EpisodeEditor from './EpisodeEditor';
 
 interface PodcastEpisode {
   id: string;
@@ -42,6 +43,7 @@ export default function PodcastManagement() {
   const { user } = useAuth();
   const [episodes, setEpisodes] = useState<PodcastEpisode[]>([]);
   const [selectedEpisode, setSelectedEpisode] = useState<PodcastEpisode | null>(null);
+  const [editingEpisodeId, setEditingEpisodeId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [hostNotes, setHostNotes] = useState<HostNote[]>([]);
   const [hosts, setHosts] = useState<any[]>([]);
@@ -190,6 +192,21 @@ export default function PodcastManagement() {
     cancelled: 'bg-gray-300 text-gray-600'
   };
 
+  if (editingEpisodeId) {
+    return (
+      <EpisodeEditor
+        episodeId={editingEpisodeId}
+        onClose={() => {
+          setEditingEpisodeId(null);
+          loadEpisodes();
+        }}
+        onSave={() => {
+          loadEpisodes();
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-7xl mx-auto">
@@ -223,26 +240,39 @@ export default function PodcastManagement() {
 
               <div className="divide-y max-h-[600px] overflow-y-auto">
                 {episodes.map((episode) => (
-                  <button
+                  <div
                     key={episode.id}
-                    onClick={() => setSelectedEpisode(episode)}
-                    className={`w-full p-4 text-left hover:bg-gray-50 transition-colors ${
+                    className={`p-4 hover:bg-gray-50 transition-colors ${
                       selectedEpisode?.id === episode.id ? 'bg-blue-50 border-l-4 border-blue-600' : ''
                     }`}
                   >
                     <div className="flex items-start justify-between mb-2">
-                      <h3 className="font-medium text-gray-900 line-clamp-2">{episode.title}</h3>
-                      <span className={`px-2 py-1 text-xs rounded-full ${statusColors[episode.status]}`}>
-                        {episode.status}
-                      </span>
-                    </div>
-                    {episode.scheduled_date && (
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
-                        <Calendar className="w-4 h-4" />
-                        {new Date(episode.scheduled_date).toLocaleDateString('nl-NL')}
+                      <button
+                        onClick={() => setSelectedEpisode(episode)}
+                        className="flex-1 text-left"
+                      >
+                        <h3 className="font-medium text-gray-900 line-clamp-2">{episode.title}</h3>
+                        {episode.scheduled_date && (
+                          <div className="flex items-center gap-2 text-sm text-gray-500 mt-1">
+                            <Calendar className="w-4 h-4" />
+                            {new Date(episode.scheduled_date).toLocaleDateString('nl-NL')}
+                          </div>
+                        )}
+                      </button>
+                      <div className="flex items-center space-x-2">
+                        <span className={`px-2 py-1 text-xs rounded-full ${statusColors[episode.status]}`}>
+                          {episode.status}
+                        </span>
+                        <button
+                          onClick={() => setEditingEpisodeId(episode.id)}
+                          className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                          title="Open Volledige Editor"
+                        >
+                          <EditIcon className="w-4 h-4" />
+                        </button>
                       </div>
-                    )}
-                  </button>
+                    </div>
+                  </div>
                 ))}
               </div>
             </div>

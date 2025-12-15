@@ -1,0 +1,432 @@
+import React, { useState, useEffect } from 'react';
+import { supabase } from '../../lib/supabase';
+import { MessageSquare, Plus, CheckCircle, Clock, AlertCircle, Trash2, ArrowUp, ArrowDown, Brain, User, Building2, Users as UsersIcon } from 'lucide-react';
+
+interface Question {
+  id: string;
+  question: string;
+  status: string;
+  source_type: string;
+  submitted_by: string | null;
+  submitter_name: string | null;
+  order_index: number;
+  notes: string | null;
+  discussion_count: number;
+  ai_generated: boolean;
+  priority: number;
+  created_at: string;
+  updated_at: string;
+}
+
+interface QuestionBoardProps {
+  episodeId: string;
+  onOpenDiscussion: (questionId: string) => void;
+  onStatsUpdate: () => void;
+}
+
+export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpdate }: QuestionBoardProps) {
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newQuestion, setNewQuestion] = useState('');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'concept' | 'under_discussion' | 'approved' | 'in_schedule'>('all');
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    loadQuestions();
+    loadCurrentUser();
+
+    const subscription = supabase
+      .channel(`questions_${episodeId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'podcast_questions',
+        filter: `episode_planning_id=eq.${episodeId}`
+      }, () => {
+        loadQuestions();
+        onStatsUpdate();
+      })
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [episodeId, filter]);
+
+  const loadCurrentUser = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      setCurrentUser(data);
+    }
+  };
+
+  const loadQuestions = async () => {
+    try {
+      let query = supabase
+        .from('podcast_questions')
+        .select('*')
+        .eq('episode_planning_id', episodeId)
+        .order('order_index', { ascending: true });
+
+      if (filter !== 'all') {
+        query = query.eq('status', filter);
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      setQuestions(data || []);
+    } catch (error) {
+      console.error('Error loading questions:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addQuestion = async () => {
+    if (!newQuestion.trim() || !currentUser) return;
+
+    try {
+      const maxOrder = Math.max(...questions.map(q => q.order_index), 0);
+
+      const { error } = await supabase
+        .from('podcast_questions')
+        .insert({
+          episode_planning_id: episodeId,
+          question: newQuestion.trim(),
+          source_type: 'admin',
+          submitted_by: currentUser.id,
+          submitter_name: currentUser.full_name || currentUser.email,
+          status: 'concept',
+          order_index: maxOrder + 1,
+          discussion_count: 0,
+          ai_generated: false,
+          priority: 0
+        });
+
+      if (error) throw error;
+
+      setNewQuestion('');
+      setShowAddForm(false);
+      onStatsUpdate();
+    } catch (error) {
+      console.error('Error adding question:', error);
+      alert('Fout bij toevoegen vraag');
+    }
+  };
+
+  const updateQuestionStatus = async (questionId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('podcast_questions')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', questionId);
+
+      if (error) throw error;
+      onStatsUpdate();
+    } catch (error) {
+      console.error('Error updating question status:', error);
+    }
+  };
+
+  const moveQuestion = async (questionId: string, direction: 'up' | 'down') => {
+    const currentIndex = questions.findIndex(q => q.id === questionId);
+    if (currentIndex === -1) return;
+    if (direction === 'up' && currentIndex === 0) return;
+    if (direction === 'down' && currentIndex === questions.length - 1) return;
+
+    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    const current = questions[currentIndex];
+    const target = questions[targetIndex];
+
+    try {
+      await Promise.all([
+        supabase.from('podcast_questions').update({ order_index: target.order_index }).eq('id', current.id),
+        supabase.from('podcast_questions').update({ order_index: current.order_index }).eq('id', target.id)
+      ]);
+    } catch (error) {
+      console.error('Error moving question:', error);
+    }
+  };
+
+  const deleteQuestion = async (questionId: string) => {
+    if (!confirm('Weet je zeker dat je deze vraag wilt verwijderen?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('podcast_questions')
+        .delete()
+        .eq('id', questionId);
+
+      if (error) throw error;
+      onStatsUpdate();
+    } catch (error) {
+      console.error('Error deleting question:', error);
+    }
+  };
+
+  const getStatusInfo = (status: string) => {
+    switch (status) {
+      case 'concept':
+        return { label: 'Concept', color: 'bg-gray-100 text-gray-700', icon: Clock };
+      case 'under_discussion':
+        return { label: 'In Discussie', color: 'bg-blue-100 text-blue-700', icon: MessageSquare };
+      case 'approved':
+        return { label: 'Goedgekeurd', color: 'bg-green-100 text-green-700', icon: CheckCircle };
+      case 'in_schedule':
+        return { label: 'In Schema', color: 'bg-purple-100 text-purple-700', icon: CheckCircle };
+      case 'asked':
+        return { label: 'Gesteld', color: 'bg-indigo-100 text-indigo-700', icon: CheckCircle };
+      case 'skipped':
+        return { label: 'Overgeslagen', color: 'bg-orange-100 text-orange-700', icon: AlertCircle };
+      case 'rejected':
+        return { label: 'Afgewezen', color: 'bg-red-100 text-red-700', icon: AlertCircle };
+      default:
+        return { label: status, color: 'bg-gray-100 text-gray-700', icon: Clock };
+    }
+  };
+
+  const getSourceIcon = (sourceType: string) => {
+    switch (sourceType) {
+      case 'ai':
+        return <Brain size={14} className="text-purple-600" title="AI Gegenereerd" />;
+      case 'brand':
+        return <Building2 size={14} className="text-blue-600" title="Van Brand" />;
+      case 'agent':
+        return <UsersIcon size={14} className="text-green-600" title="Van Agent" />;
+      case 'admin':
+        return <User size={14} className="text-gray-600" title="Van Admin" />;
+      default:
+        return <User size={14} className="text-gray-600" />;
+    }
+  };
+
+  const filteredQuestions = filter === 'all' ? questions : questions.filter(q => q.status === filter);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-7xl mx-auto">
+      {/* Filters */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                filter === 'all' ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Alle ({questions.length})
+            </button>
+            <button
+              onClick={() => setFilter('concept')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                filter === 'concept' ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Concept ({questions.filter(q => q.status === 'concept').length})
+            </button>
+            <button
+              onClick={() => setFilter('under_discussion')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                filter === 'under_discussion' ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Discussie ({questions.filter(q => q.status === 'under_discussion').length})
+            </button>
+            <button
+              onClick={() => setFilter('approved')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                filter === 'approved' ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Goedgekeurd ({questions.filter(q => q.status === 'approved').length})
+            </button>
+            <button
+              onClick={() => setFilter('in_schedule')}
+              className={`px-4 py-2 rounded-lg transition-colors ${
+                filter === 'in_schedule' ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              In Schema ({questions.filter(q => q.status === 'in_schedule').length})
+            </button>
+          </div>
+
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+          >
+            <Plus size={18} />
+            <span>Nieuwe Vraag</span>
+          </button>
+        </div>
+
+        {showAddForm && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <textarea
+              value={newQuestion}
+              onChange={(e) => setNewQuestion(e.target.value)}
+              placeholder="Typ hier je vraag..."
+              rows={3}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent mb-3"
+            />
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={addQuestion}
+                className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+              >
+                Vraag Toevoegen
+              </button>
+              <button
+                onClick={() => {
+                  setShowAddForm(false);
+                  setNewQuestion('');
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Annuleren
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Questions List */}
+      <div className="space-y-3">
+        {filteredQuestions.length === 0 ? (
+          <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+            <MessageSquare className="mx-auto h-12 w-12 text-gray-300 mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Geen vragen</h3>
+            <p className="text-gray-600 mb-4">Voeg de eerste vraag toe voor deze episode</p>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="inline-flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+            >
+              <Plus size={18} />
+              <span>Nieuwe Vraag</span>
+            </button>
+          </div>
+        ) : (
+          filteredQuestions.map((question, index) => {
+            const statusInfo = getStatusInfo(question.status);
+            const StatusIcon = statusInfo.icon;
+
+            return (
+              <div
+                key={question.id}
+                className="bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <span className="text-sm font-medium text-gray-500">#{index + 1}</span>
+                      {getSourceIcon(question.source_type)}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusInfo.color} flex items-center space-x-1`}>
+                        <StatusIcon size={12} />
+                        <span>{statusInfo.label}</span>
+                      </span>
+                      {question.discussion_count > 0 && (
+                        <span className="flex items-center space-x-1 text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+                          <MessageSquare size={12} />
+                          <span>{question.discussion_count}</span>
+                        </span>
+                      )}
+                      {question.ai_generated && (
+                        <span className="px-2 py-1 bg-purple-50 text-purple-600 text-xs rounded-full">
+                          AI
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-gray-900 text-lg mb-2">{question.question}</p>
+
+                    {question.notes && (
+                      <p className="text-sm text-gray-600 italic mb-2">Notitie: {question.notes}</p>
+                    )}
+
+                    <div className="flex items-center space-x-4 text-xs text-gray-500">
+                      <span>Door: {question.submitter_name || 'Onbekend'}</span>
+                      <span>{new Date(question.created_at).toLocaleDateString('nl-NL')}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-2 ml-4">
+                    {/* Move buttons */}
+                    {filter === 'all' && (
+                      <div className="flex flex-col space-y-1">
+                        <button
+                          onClick={() => moveQuestion(question.id, 'up')}
+                          disabled={index === 0}
+                          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded disabled:opacity-30"
+                        >
+                          <ArrowUp size={14} />
+                        </button>
+                        <button
+                          onClick={() => moveQuestion(question.id, 'down')}
+                          disabled={index === filteredQuestions.length - 1}
+                          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded disabled:opacity-30"
+                        >
+                          <ArrowDown size={14} />
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Status dropdown */}
+                    <select
+                      value={question.status}
+                      onChange={(e) => updateQuestionStatus(question.id, e.target.value)}
+                      className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                    >
+                      <option value="concept">Concept</option>
+                      <option value="under_discussion">In Discussie</option>
+                      <option value="approved">Goedgekeurd</option>
+                      <option value="in_schedule">In Schema</option>
+                      <option value="asked">Gesteld</option>
+                      <option value="skipped">Overgeslagen</option>
+                      <option value="rejected">Afgewezen</option>
+                    </select>
+
+                    {/* Discussion button */}
+                    <button
+                      onClick={() => onOpenDiscussion(question.id)}
+                      className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors relative"
+                      title="Open discussie"
+                    >
+                      <MessageSquare size={18} />
+                      {question.discussion_count > 0 && (
+                        <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center">
+                          {question.discussion_count}
+                        </span>
+                      )}
+                    </button>
+
+                    {/* Delete button */}
+                    <button
+                      onClick={() => deleteQuestion(question.id)}
+                      className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Verwijder vraag"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
