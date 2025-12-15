@@ -30,7 +30,9 @@ import {
   Building2,
   UserCircle,
   Wrench,
-  Database
+  Database,
+  Plane,
+  Send
 } from 'lucide-react';
 import RoadmapManagement from './RoadmapManagement';
 import TestManagement from './TestManagement';
@@ -42,6 +44,7 @@ import PodcastManagement from '../Podcast/PodcastManagement';
 import TravelJournal from '../TravelJournal/TravelJournal';
 import DatabasePerformanceMonitor from './DatabasePerformanceMonitor';
 import { BrandManagement } from './BrandManagement';
+import { TripSubmissionManager } from './TripSubmissionManager';
 
 export function OperatorDashboard() {
   const { user, signOut, impersonationContext, availableContexts, switchContext, resetContext } = useAuth();
@@ -63,6 +66,7 @@ export function OperatorDashboard() {
   const sidebarItems = [
     { id: 'user-management', label: 'Gebruikersbeheer', icon: Users },
     { id: 'brand-management', label: 'Brand Management', icon: Building2 },
+    { id: 'trip-submissions', label: 'Reizen Catalogus', icon: Send },
     { id: 'podcast-management', label: 'Podcast Management', icon: Mic },
     { id: 'test-management', label: 'Test Management', icon: ClipboardCheck },
     { id: 'external-builders', label: 'External Builders', icon: Puzzle },
@@ -148,6 +152,7 @@ export function OperatorDashboard() {
               <h1 className="text-2xl font-bold text-gray-900">
                 {activeSection === 'user-management' && 'Gebruikersbeheer'}
                 {activeSection === 'brand-management' && 'Brand Management'}
+                {activeSection === 'trip-submissions' && 'Reizen Catalogus'}
                 {activeSection === 'podcast-management' && 'Podcast Management'}
                 {activeSection === 'test-management' && 'Test Management'}
                 {activeSection === 'external-builders' && 'External Builders'}
@@ -167,6 +172,7 @@ export function OperatorDashboard() {
               <p className="text-gray-600 mt-1">
                 {activeSection === 'user-management' && 'Beheer gebruikers en hun rechten'}
                 {activeSection === 'brand-management' && 'Beheer brands en hun website types'}
+                {activeSection === 'trip-submissions' && 'Dien je reizen in bij de centrale catalogus voor goedkeuring en distributie'}
                 {activeSection === 'podcast-management' && 'Plan episodes, beheer vragen en werk samen met hosts'}
                 {activeSection === 'test-management' && 'Manage testing rounds and review feedback from testers'}
                 {activeSection === 'external-builders' && 'Register and manage external template builders (Windsurf, AI Website Studio)'}
@@ -319,6 +325,7 @@ export function OperatorDashboard() {
         <main className="flex-1 overflow-y-auto">
           {activeSection === 'user-management' && <div className="p-6"><UserManagement /></div>}
           {activeSection === 'brand-management' && <div className="p-6"><BrandManagement /></div>}
+          {activeSection === 'trip-submissions' && <div className="p-6"><TripSubmissionManager /></div>}
           {activeSection === 'podcast-management' && <PodcastManagement />}
           {activeSection === 'test-management' && <div className="p-6"><TestManagement /></div>}
           {activeSection === 'external-builders' && <div className="p-6"><ExternalBuilderManager /></div>}

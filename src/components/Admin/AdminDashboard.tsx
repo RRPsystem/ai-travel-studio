@@ -6,6 +6,7 @@ import { BrandForm } from './BrandForm';
 import { NewsManagement } from './NewsManagement';
 import { DestinationManagement } from './DestinationManagement';
 import { TemplateManager } from './TemplateManager';
+import { TripCatalogManager } from './TripCatalogManager';
 import DeeplinkTester from './DeeplinkTester';
 import { HelpBot } from '../shared/HelpBot';
 import { Users, Building2, FileText, Settings, Plus, Search, Filter, CreditCard as Edit, Trash2, LayoutGrid as Layout, Menu, Globe, Newspaper, MapPin, Plane, Link, Key, X, Lock, BookOpen } from 'lucide-react'
@@ -182,6 +183,7 @@ export function AdminDashboard() {
     { id: 'admin-news', label: 'Nieuwsbeheer', icon: Newspaper },
     { id: 'destinations', label: 'Bestemmingen', icon: MapPin },
     { id: 'trips', label: 'Reizen', icon: Plane },
+    { id: 'trip-catalog', label: 'Reizen Catalogus', icon: BookOpen },
   ];
 
   const handleTravelStudioClick = () => {
@@ -486,6 +488,7 @@ export function AdminDashboard() {
                 {activeSection === 'agents' && 'Agent Management'}
                 {activeSection === 'admin-news' && 'Admin News Management'}
                 {activeSection === 'destinations' && 'Bestemmingen Beheer'}
+                {activeSection === 'trip-catalog' && 'Reizen Catalogus'}
                 {activeSection === 'deeplink-tester' && 'Deeplink Tester'}
                 {activeSection === 'template-manager' && 'Template Manager'}
                 {activeSection === 'settings' && 'Settings'}
@@ -496,6 +499,7 @@ export function AdminDashboard() {
                 {activeSection === 'dashboard' && 'System overview and statistics'}
                 {activeSection === 'admin-news' && 'Create and manage news items for all brands'}
                 {activeSection === 'destinations' && 'Beheer bestemmingen voor alle brands'}
+                {activeSection === 'trip-catalog' && 'Beoordeel tour operator reizen en wijs ze toe aan brands'}
                 {activeSection === 'deeplink-tester' && 'Test external builder integration'}
                 {activeSection === 'template-manager' && 'Maak en beheer pagina templates voor brands'}
                 {activeSection === 'settings' && 'Systeeminstellingen en configuratie'}
@@ -521,6 +525,7 @@ export function AdminDashboard() {
           {activeSection === 'agents' && <AgentManagement />}
           {activeSection === 'admin-news' && <NewsManagement />}
           {activeSection === 'destinations' && <DestinationManagement />}
+          {activeSection === 'trip-catalog' && <TripCatalogManager />}
           {activeSection === 'deeplink-tester' && <DeeplinkTester />}
           {activeSection === 'template-manager' && <TemplateManager />}
           {activeSection === 'settings' && (
