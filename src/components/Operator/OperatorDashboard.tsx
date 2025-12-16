@@ -42,6 +42,7 @@ import TravelJournal from '../TravelJournal/TravelJournal';
 import DatabasePerformanceMonitor from './DatabasePerformanceMonitor';
 import { BrandManagement } from './BrandManagement';
 import CreditSystemManagement from './CreditSystemManagement';
+import { GoogleAPIDebugger } from './GoogleAPIDebugger';
 
 export function OperatorDashboard() {
   const { user, signOut, impersonationContext, availableContexts, switchContext, resetContext } = useAuth();
@@ -73,6 +74,7 @@ export function OperatorDashboard() {
     { id: 'db-performance', label: 'DB Capaciteit (400 users)', icon: Database },
     { id: 'monitoring', label: 'Error Monitoring', icon: Bell },
     { id: 'system-health', label: 'System Health', icon: Activity },
+    { id: 'google-api-debug', label: 'Google API Debug', icon: Wrench },
     { id: 'api-settings', label: 'API Settings', icon: Key },
     { id: 'gpt-management', label: 'GPT Management', icon: Bot },
     { id: 'oauth-management', label: 'OAuth Apps', icon: Settings },
@@ -158,6 +160,7 @@ export function OperatorDashboard() {
                 {activeSection === 'db-performance' && 'Database Capaciteit (400 users)'}
                 {activeSection === 'monitoring' && 'Error Monitoring'}
                 {activeSection === 'system-health' && 'System Health'}
+                {activeSection === 'google-api-debug' && 'Google API Debugger'}
                 {activeSection === 'api-settings' && 'API Settings'}
                 {activeSection === 'gpt-management' && 'GPT Management'}
                 {activeSection === 'oauth-management' && 'OAuth App Management'}
@@ -177,6 +180,7 @@ export function OperatorDashboard() {
                 {activeSection === 'db-performance' && 'Database connections, queries, locks & capacity voor 400+ concurrent users'}
                 {activeSection === 'monitoring' && 'Application errors, alerts en frontend performance tracking'}
                 {activeSection === 'system-health' && 'Real-time browser metrics and service status'}
+                {activeSection === 'google-api-debug' && 'Test alle Google APIs: Places Autocomplete, Routes, Places Search'}
                 {activeSection === 'api-settings' && 'Configure API keys and external service credentials'}
                 {activeSection === 'gpt-management' && 'Configure custom GPTs and content generation'}
                 {activeSection === 'oauth-management' && 'Manage social media OAuth apps and credentials'}
@@ -329,6 +333,7 @@ export function OperatorDashboard() {
           {activeSection === 'db-performance' && <div className="p-6"><DatabasePerformanceMonitor /></div>}
           {activeSection === 'monitoring' && <div className="p-6"><MonitoringDashboard /></div>}
           {activeSection === 'system-health' && <div className="p-6"><SystemHealth /></div>}
+          {activeSection === 'google-api-debug' && <div className="p-6"><GoogleAPIDebugger /></div>}
           {activeSection === 'api-settings' && <div className="p-6"><APISettings /></div>}
           {activeSection === 'gpt-management' && <div className="p-6"><GPTManagement /></div>}
           {activeSection === 'oauth-management' && <div className="p-6"><OAuthManagement /></div>}
