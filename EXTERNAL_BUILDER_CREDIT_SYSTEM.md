@@ -16,6 +16,63 @@ Dit document beschrijft hoe externe builders het BOLT credit systeem moeten inte
 
 ---
 
+## ⚠️ KRITIEKE WAARSCHUWING: Payload Limiet
+
+**Edge Functions hebben een payload limiet van ~6MB!**
+
+### Video Storage - CORRECTE FLOW:
+
+Als je de fout **"Request Entity Too Large" of "FUNCTION_PAYLOAD_TOO_LARGE"** krijgt bij video opslag:
+
+**✅ JUISTE AANPAK:**
+1. Upload video EERST naar JE EIGEN storage (Cloudflare R2, AWS S3, je eigen CDN)
+2. Stuur alleen de **video URL** (+ kleine metadata) naar BOLT
+3. BOLT schrijft credits af gebaseerd op de URL
+
+```javascript
+// STAP 1: Upload naar je eigen storage
+const videoFile = document.getElementById('video-upload').files[0];
+const uploadResult = await uploadToYourStorage(videoFile);
+// uploadResult.url = 'https://your-cdn.com/videos/abc123.mp4'
+
+// STAP 2: Stuur alleen URL naar BOLT (klein JSON object)
+const response = await fetch(`${BOLT_API_URL}/deduct-credits`, {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    actionType: 'video_storage',
+    description: 'Video opgeslagen',
+    metadata: {
+      videoUrl: uploadResult.url,  // ← Alleen de URL! (paar bytes)
+      fileSizeBytes: videoFile.size,
+      durationSeconds: 120
+    }
+  })
+});
+```
+
+**❌ FOUT - Veroorzaakt "PAYLOAD_TOO_LARGE" error:**
+```javascript
+// Stuur NOOIT de video data zelf:
+body: JSON.stringify({
+  actionType: 'video_storage',
+  videoData: base64VideoData,      // ← Dit is meerdere MB's!
+  videoBlob: videoFile,             // ← Dit is meerdere MB's!
+  videoBuffer: arrayBuffer          // ← Dit is meerdere MB's!
+})
+```
+
+**Waarom deze flow?**
+- Edge Functions hebben een strict limiet van ~6MB request size
+- Videos zijn typisch 10-500MB groot
+- Je bent verantwoordelijk voor je eigen video hosting
+- BOLT registreert alleen de credits voor de opslag
+
+---
+
 ## 🔐 Authentication
 
 Alle API calls naar het credit systeem vereisen authenticatie via één van deze methoden:

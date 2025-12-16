@@ -2,6 +2,26 @@
 
 ---
 
+## ⚠️ VEELVOORKOMENDE FOUT: "Request Entity Too Large"
+
+**Als je deze fout krijgt bij video opslag:**
+
+```
+FUNCTION_PAYLOAD_TOO_LARGE
+Request Entity Too Large
+```
+
+**Probleem:** Je stuurt de **video data** (meerdere MB's) naar de BOLT API.
+
+**Oplossing:**
+1. ✅ Upload video EERST naar JE EIGEN storage (R2, S3, CDN)
+2. ✅ Stuur alleen de **video URL** naar BOLT (paar bytes)
+3. ❌ Stuur NOOIT video data/base64/blob naar BOLT
+
+Zie `EXTERNAL_BUILDER_CREDIT_SYSTEM.md` sectie "⚠️ KRITIEKE WAARSCHUWING" voor voorbeelden.
+
+---
+
 Hoi,
 
 Bedankt voor de implementatie van de video storage billing! We hebben een centraal credit systeem opgezet in BOLT dat alle facturering afhandelt. Dit zorgt voor betere logging, atomische operaties en een audit trail.
