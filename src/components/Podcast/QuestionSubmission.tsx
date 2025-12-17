@@ -97,7 +97,7 @@ export default function QuestionSubmission() {
       question: question.trim(),
       source_type: sourceType,
       submitted_by: user?.id || null,
-      submitter_name: submitterName.trim() || currentUser?.full_name || (user?.email || 'Anoniem'),
+      submitter_name: submitterName.trim() || currentUser?.email || (user?.email || 'Anoniem'),
       status: 'suggested',
       phase: (sourceType === 'brand' || sourceType === 'agent') ? 'pre_submitted' : 'preparation',
       topic_id: selectedTopic,

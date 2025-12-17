@@ -183,7 +183,15 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
   };
 
   const addQuestion = async () => {
-    if (!newQuestion.trim() || !currentUser) return;
+    if (!newQuestion.trim()) {
+      alert('Voer een vraag in');
+      return;
+    }
+
+    if (!currentUser) {
+      alert('Gebruiker niet geladen. Probeer de pagina te verversen.');
+      return;
+    }
 
     try {
       const maxOrder = Math.max(...questions.map(q => q.order_index), 0);
@@ -195,7 +203,7 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
           question: newQuestion.trim(),
           source_type: 'admin',
           submitted_by: currentUser.id,
-          submitter_name: currentUser.full_name || currentUser.email,
+          submitter_name: currentUser.email,
           status: 'concept',
           phase: 'preparation',
           topic_id: selectedTopic,
@@ -215,7 +223,7 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
       onStatsUpdate();
     } catch (error) {
       console.error('Error adding question:', error);
-      alert('Fout bij toevoegen vraag');
+      alert('Fout bij toevoegen vraag: ' + (error as any).message);
     }
   };
 
