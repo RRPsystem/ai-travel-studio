@@ -12,11 +12,18 @@ interface Topic {
   leading_id: string | null;
   sidekick_id: string | null;
   show_visuals: boolean;
+  visuals_url: string | null;
 }
 
 interface Guest {
   id: string;
   name: string;
+}
+
+interface Host {
+  id: string;
+  name: string;
+  is_active: boolean;
 }
 
 interface Question {
@@ -48,6 +55,7 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
   const [questions, setQuestions] = useState<Question[]>([]);
   const [topics, setTopics] = useState<Topic[]>([]);
   const [guests, setGuests] = useState<Guest[]>([]);
+  const [hosts, setHosts] = useState<Host[]>([]);
   const [loading, setLoading] = useState(true);
   const [newQuestion, setNewQuestion] = useState('');
   const [showAddForm, setShowAddForm] = useState(false);
@@ -59,6 +67,7 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
   const [newTopicLeading, setNewTopicLeading] = useState<string | null>(null);
   const [newTopicSidekick, setNewTopicSidekick] = useState<string | null>(null);
   const [newTopicShowVisuals, setNewTopicShowVisuals] = useState(false);
+  const [newTopicVisualsUrl, setNewTopicVisualsUrl] = useState('');
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [selectedGuest, setSelectedGuest] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'concept' | 'under_discussion' | 'approved' | 'in_schedule'>('all');
@@ -69,6 +78,7 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
     loadQuestions();
     loadTopics();
     loadGuests();
+    loadHosts();
     loadCurrentUser();
 
     const questionsSubscription = supabase
@@ -143,6 +153,21 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
     }
   };
 
+  const loadHosts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('podcast_hosts')
+        .select('id, name, is_active')
+        .eq('is_active', true)
+        .order('name');
+
+      if (error) throw error;
+      setHosts(data || []);
+    } catch (error) {
+      console.error('Error loading hosts:', error);
+    }
+  };
+
   const loadQuestions = async () => {
     try {
       let query = supabase
@@ -178,7 +203,8 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
             interviewer_id: newTopicInterviewer || null,
             leading_id: newTopicLeading || null,
             sidekick_id: newTopicSidekick || null,
-            show_visuals: newTopicShowVisuals
+            show_visuals: newTopicShowVisuals,
+            visuals_url: newTopicVisualsUrl.trim() || null
           })
           .eq('id', editingTopicId);
 
@@ -196,7 +222,8 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
             interviewer_id: newTopicInterviewer || null,
             leading_id: newTopicLeading || null,
             sidekick_id: newTopicSidekick || null,
-            show_visuals: newTopicShowVisuals
+            show_visuals: newTopicShowVisuals,
+            visuals_url: newTopicVisualsUrl.trim() || null
           });
 
         if (error) throw error;
@@ -204,6 +231,7 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
 
       setNewTopicTitle('');
       setNewTopicDescription('');
+      setNewTopicVisualsUrl('');
       setNewTopicInterviewer(null);
       setNewTopicLeading(null);
       setNewTopicSidekick(null);
@@ -224,6 +252,7 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
     setNewTopicLeading(topic.leading_id);
     setNewTopicSidekick(topic.sidekick_id);
     setNewTopicShowVisuals(topic.show_visuals);
+    setNewTopicVisualsUrl(topic.visuals_url || '');
     setEditingTopicId(topic.id);
     setShowTopicForm(true);
   };
@@ -236,6 +265,7 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
     setNewTopicLeading(null);
     setNewTopicSidekick(null);
     setNewTopicShowVisuals(false);
+    setNewTopicVisualsUrl('');
     setEditingTopicId(null);
   };
 
@@ -418,6 +448,12 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
     return guest?.name || null;
   };
 
+  const getHostName = (hostId: string | null) => {
+    if (!hostId) return null;
+    const host = hosts.find(h => h.id === hostId);
+    return host?.name || null;
+  };
+
   const getTopicTitle = (topicId: string | null) => {
     if (!topicId) return 'Geen onderwerp';
     const topic = topics.find(t => t.id === topicId);
@@ -506,8 +542,8 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Geen interviewer</option>
-                  {guests.map(guest => (
-                    <option key={guest.id} value={guest.id}>{guest.name}</option>
+                  {hosts.map(host => (
+                    <option key={host.id} value={host.id}>{host.name}</option>
                   ))}
                 </select>
               </div>
@@ -521,8 +557,8 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Geen leading</option>
-                  {guests.map(guest => (
-                    <option key={guest.id} value={guest.id}>{guest.name}</option>
+                  {hosts.map(host => (
+                    <option key={host.id} value={host.id}>{host.name}</option>
                   ))}
                 </select>
               </div>
@@ -536,10 +572,23 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">Geen sidekick</option>
-                  {guests.map(guest => (
-                    <option key={guest.id} value={guest.id}>{guest.name}</option>
+                  {hosts.map(host => (
+                    <option key={host.id} value={host.id}>{host.name}</option>
                   ))}
                 </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Beeldmateriaal URL (optioneel)
+                </label>
+                <input
+                  type="url"
+                  value={newTopicVisualsUrl}
+                  onChange={(e) => setNewTopicVisualsUrl(e.target.value)}
+                  placeholder="https://example.com/image.jpg of video link"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <p className="text-xs text-gray-500 mt-1">Link naar afbeelding, video of ander visueel materiaal</p>
               </div>
               <div className="flex items-center">
                 <label className="flex items-center space-x-2 cursor-pointer">
@@ -550,7 +599,7 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
                     className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                   />
                   <span className="text-sm font-medium text-gray-700">
-                    Beeldmateriaal tonen
+                    Beeldmateriaal tonen tijdens opname
                   </span>
                 </label>
               </div>
@@ -815,19 +864,19 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
                       {topic.interviewer_id && (
                         <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded flex items-center gap-1">
                           <User size={12} />
-                          Interviewer: {getGuestName(topic.interviewer_id)}
+                          Interviewer: {getHostName(topic.interviewer_id)}
                         </span>
                       )}
                       {topic.leading_id && (
                         <span className="px-2 py-1 bg-green-100 text-green-800 rounded flex items-center gap-1">
                           <User size={12} />
-                          Leading: {getGuestName(topic.leading_id)}
+                          Leading: {getHostName(topic.leading_id)}
                         </span>
                       )}
                       {topic.sidekick_id && (
                         <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded flex items-center gap-1">
                           <UsersIcon size={12} />
-                          Sidekick: {getGuestName(topic.sidekick_id)}
+                          Sidekick: {getHostName(topic.sidekick_id)}
                         </span>
                       )}
                       {topic.show_visuals && (
