@@ -277,6 +277,38 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
     }
   };
 
+  const deleteTopic = async (topicId: string) => {
+    if (topicId === 'no-topic') return;
+
+    const topic = topics.find(t => t.id === topicId);
+    if (!topic) return;
+
+    const questionsInTopic = questions.filter(q => q.topic_id === topicId).length;
+
+    if (questionsInTopic > 0) {
+      if (!confirm(`Dit onderwerp bevat ${questionsInTopic} vragen. Deze vragen blijven behouden maar worden losgekoppeld van dit onderwerp. Weet je zeker dat je dit onderwerp wilt verwijderen?`)) {
+        return;
+      }
+    } else {
+      if (!confirm(`Weet je zeker dat je het onderwerp "${topic.title}" wilt verwijderen?`)) {
+        return;
+      }
+    }
+
+    try {
+      const { error } = await supabase
+        .from('podcast_topics')
+        .delete()
+        .eq('id', topicId);
+
+      if (error) throw error;
+      loadTopics();
+    } catch (error) {
+      console.error('Error deleting topic:', error);
+      alert('Fout bij verwijderen onderwerp: ' + (error as any).message);
+    }
+  };
+
   const getStatusInfo = (status: string) => {
     switch (status) {
       case 'concept':
@@ -602,6 +634,15 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
                       <h3 className="font-semibold text-gray-900">{topic.title}</h3>
                       <span className="text-sm text-gray-600">({topicQuestions.length} vragen)</span>
                     </div>
+                    {topic.id !== 'no-topic' && (
+                      <button
+                        onClick={() => deleteTopic(topic.id)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Verwijder onderwerp"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
                   </div>
                   {topic.description && (
                     <p className="text-sm text-gray-600 mt-1">{topic.description}</p>
