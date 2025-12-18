@@ -83,6 +83,15 @@ export default function EpisodeTimeline({ episodeId, totalDuration, onDurationCh
       return;
     }
 
+    const finalTitle = newSegment.segment_type === 'topic' && newSegment.topic_id
+      ? (topics.find(t => t.id === newSegment.topic_id)?.title || newSegment.title)
+      : newSegment.title;
+
+    if (!finalTitle.trim()) {
+      alert('Titel mag niet leeg zijn');
+      return;
+    }
+
     try {
       const maxOrder = Math.max(...segments.map(s => s.order_index), 0);
 
@@ -91,31 +100,39 @@ export default function EpisodeTimeline({ episodeId, totalDuration, onDurationCh
           .from('podcast_segments')
           .update({
             segment_type: newSegment.segment_type,
-            title: newSegment.title.trim(),
+            title: finalTitle.trim(),
             duration_minutes: newSegment.duration_minutes,
             topic_id: newSegment.topic_id,
-            notes: newSegment.notes.trim() || null,
-            background_music_url: newSegment.background_music_url.trim() || null
+            notes: newSegment.notes?.trim() || null,
+            background_music_url: newSegment.background_music_url?.trim() || null
           })
           .eq('id', editingSegmentId);
 
-        if (error) throw error;
+        if (error) {
+          console.error('Database error:', error);
+          alert(`Fout bij opslaan: ${error.message}`);
+          return;
+        }
       } else {
         const { error } = await supabase
           .from('podcast_segments')
           .insert({
             episode_planning_id: episodeId,
             segment_type: newSegment.segment_type,
-            title: newSegment.title.trim(),
+            title: finalTitle.trim(),
             duration_minutes: newSegment.duration_minutes,
             topic_id: newSegment.topic_id,
-            notes: newSegment.notes.trim() || null,
-            background_music_url: newSegment.background_music_url.trim() || null,
+            notes: newSegment.notes?.trim() || null,
+            background_music_url: newSegment.background_music_url?.trim() || null,
             order_index: maxOrder + 1,
             is_recorded: false
           });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Database error:', error);
+          alert(`Fout bij opslaan: ${error.message}`);
+          return;
+        }
       }
 
       setNewSegment({ segment_type: 'topic', title: '', duration_minutes: 10, topic_id: null, notes: '', background_music_url: '' });
@@ -123,9 +140,9 @@ export default function EpisodeTimeline({ episodeId, totalDuration, onDurationCh
       setEditingSegmentId(null);
       loadSegments();
       onStatsUpdate();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving segment:', error);
-      alert('Fout bij opslaan segment');
+      alert(`Fout bij opslaan segment: ${error?.message || 'Onbekende fout'}`);
     }
   };
 
@@ -308,7 +325,7 @@ export default function EpisodeTimeline({ episodeId, totalDuration, onDurationCh
                 <select
                   value={newSegment.topic_id || ''}
                   onChange={(e) => {
-                    const topicId = e.target.value;
+                    const topicId = e.target.value || null;
                     const topic = topics.find(t => t.id === topicId);
                     setNewSegment({
                       ...newSegment,
@@ -326,6 +343,11 @@ export default function EpisodeTimeline({ episodeId, totalDuration, onDurationCh
                     </option>
                   ))}
                 </select>
+                {newSegment.topic_id && (
+                  <p className="mt-2 text-sm text-gray-600">
+                    Gekozen: <strong>{topics.find(t => t.id === newSegment.topic_id)?.title}</strong>
+                  </p>
+                )}
               </div>
             ) : (
               <div>
@@ -368,7 +390,11 @@ export default function EpisodeTimeline({ episodeId, totalDuration, onDurationCh
           <div className="mt-4 flex space-x-2">
             <button
               onClick={addSegment}
-              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+              disabled={
+                (newSegment.segment_type === 'topic' && !newSegment.topic_id) ||
+                (newSegment.segment_type !== 'topic' && !newSegment.title.trim())
+              }
+              className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               {editingSegmentId ? 'Opslaan' : 'Segment Toevoegen'}
             </button>
