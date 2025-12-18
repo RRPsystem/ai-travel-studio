@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { MessageSquare, Plus, CheckCircle, Clock, AlertCircle, Trash2, ArrowUp, ArrowDown, Brain, User, Building2, Users as UsersIcon, FolderOpen, Edit2, Upload, Video, X } from 'lucide-react';
+import { MessageSquare, Plus, CheckCircle, Clock, AlertCircle, Trash2, ArrowUp, ArrowDown, Brain, User, Building2, Users as UsersIcon, FolderOpen, Edit2, Upload, Video, X, Calendar, Bot, Check } from 'lucide-react';
 import { SlidingMediaSelector } from '../shared/SlidingMediaSelector';
 
 interface Topic {
@@ -15,6 +15,12 @@ interface Topic {
   guest_id: string | null;
   show_visuals: boolean;
   visuals_url: string | null;
+  ai_enabled: boolean;
+  recording_date: string | null;
+  recording_time: string | null;
+  is_recorded: boolean;
+  recorded_at: string | null;
+  recording_notes: string | null;
 }
 
 interface Guest {
@@ -71,6 +77,9 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
   const [newTopicGuest, setNewTopicGuest] = useState<string | null>(null);
   const [newTopicShowVisuals, setNewTopicShowVisuals] = useState(false);
   const [newTopicVisualsUrl, setNewTopicVisualsUrl] = useState('');
+  const [newTopicAiEnabled, setNewTopicAiEnabled] = useState(false);
+  const [newTopicRecordingDate, setNewTopicRecordingDate] = useState('');
+  const [newTopicRecordingTime, setNewTopicRecordingTime] = useState('');
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [selectedGuest, setSelectedGuest] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'concept' | 'under_discussion' | 'approved' | 'in_schedule'>('all');
@@ -234,7 +243,10 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
             sidekick_id: newTopicSidekick || null,
             guest_id: newTopicGuest || null,
             show_visuals: newTopicShowVisuals,
-            visuals_url: newTopicVisualsUrl.trim() || null
+            visuals_url: newTopicVisualsUrl.trim() || null,
+            ai_enabled: newTopicAiEnabled,
+            recording_date: newTopicRecordingDate || null,
+            recording_time: newTopicRecordingTime || null
           })
           .eq('id', editingTopicId);
 
@@ -254,7 +266,10 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
             sidekick_id: newTopicSidekick || null,
             guest_id: newTopicGuest || null,
             show_visuals: newTopicShowVisuals,
-            visuals_url: newTopicVisualsUrl.trim() || null
+            visuals_url: newTopicVisualsUrl.trim() || null,
+            ai_enabled: newTopicAiEnabled,
+            recording_date: newTopicRecordingDate || null,
+            recording_time: newTopicRecordingTime || null
           });
 
         if (error) throw error;
@@ -268,6 +283,9 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
       setNewTopicSidekick(null);
       setNewTopicGuest(null);
       setNewTopicShowVisuals(false);
+      setNewTopicAiEnabled(false);
+      setNewTopicRecordingDate('');
+      setNewTopicRecordingTime('');
       setShowTopicForm(false);
       setEditingTopicId(null);
       loadTopics();
@@ -286,6 +304,9 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
     setNewTopicGuest(topic.guest_id);
     setNewTopicShowVisuals(topic.show_visuals);
     setNewTopicVisualsUrl(topic.visuals_url || '');
+    setNewTopicAiEnabled(topic.ai_enabled);
+    setNewTopicRecordingDate(topic.recording_date || '');
+    setNewTopicRecordingTime(topic.recording_time || '');
     setEditingTopicId(topic.id);
     setShowTopicForm(true);
   };
@@ -300,6 +321,9 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
     setNewTopicGuest(null);
     setNewTopicShowVisuals(false);
     setNewTopicVisualsUrl('');
+    setNewTopicAiEnabled(false);
+    setNewTopicRecordingDate('');
+    setNewTopicRecordingTime('');
     setEditingTopicId(null);
   };
 
@@ -430,6 +454,27 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
     }
   };
 
+  const toggleRecordingStatus = async (topicId: string) => {
+    const topic = topics.find(t => t.id === topicId);
+    if (!topic) return;
+
+    try {
+      const { error } = await supabase
+        .from('podcast_topics')
+        .update({
+          is_recorded: !topic.is_recorded,
+          recorded_at: !topic.is_recorded ? new Date().toISOString() : null
+        })
+        .eq('id', topicId);
+
+      if (error) throw error;
+      loadTopics();
+    } catch (error) {
+      console.error('Error updating recording status:', error);
+      alert('Fout bij bijwerken opname status');
+    }
+  };
+
   const getStatusInfo = (status: string) => {
     switch (status) {
       case 'concept':
@@ -515,7 +560,13 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
         sidekick_id: null,
         guest_id: null,
         show_visuals: false,
-        visuals_url: null
+        visuals_url: null,
+        ai_enabled: false,
+        recording_date: null,
+        recording_time: null,
+        is_recorded: false,
+        recorded_at: null,
+        recording_notes: null
       },
       questions: questionsWithoutTopic
     });
@@ -526,8 +577,127 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
     questionsByTopic = questionsByTopic.filter(({ topic }) => topic.id === selectedTopic);
   }
 
+  // Get upcoming recordings
+  const upcomingRecordings = topics
+    .filter(t => !t.is_recorded && t.recording_date)
+    .sort((a, b) => {
+      const dateA = new Date(a.recording_date!);
+      const dateB = new Date(b.recording_date!);
+      if (a.recording_time) dateA.setHours(parseInt(a.recording_time.substring(0, 2)), parseInt(a.recording_time.substring(3, 5)));
+      if (b.recording_time) dateB.setHours(parseInt(b.recording_time.substring(0, 2)), parseInt(b.recording_time.substring(3, 5)));
+      return dateA.getTime() - dateB.getTime();
+    });
+
+  const unscheduledTopics = topics.filter(t => !t.is_recorded && !t.recording_date);
+
   return (
     <div className="max-w-7xl mx-auto">
+      {/* Recording Todo List */}
+      {(upcomingRecordings.length > 0 || unscheduledTopics.length > 0) && (
+        <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg border border-orange-200 p-4 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2 mb-4">
+            <Calendar size={20} className="text-orange-600" />
+            Opname Planning - Todo Lijst
+          </h3>
+
+          {upcomingRecordings.length > 0 && (
+            <div className="mb-4">
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">Geplande Opnames</h4>
+              <div className="space-y-2">
+                {upcomingRecordings.map(topic => (
+                  <div key={topic.id} className="bg-white rounded-lg p-3 border border-orange-200 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => toggleRecordingStatus(topic.id)}
+                        className="flex-shrink-0 w-5 h-5 rounded border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors"
+                        title="Markeer als opgenomen"
+                      />
+                      <div>
+                        <div className="font-medium text-gray-900">{topic.title}</div>
+                        <div className="text-sm text-gray-600 flex items-center gap-2">
+                          <Calendar size={14} />
+                          {new Date(topic.recording_date!).toLocaleDateString('nl-NL', {
+                            weekday: 'short',
+                            day: 'numeric',
+                            month: 'short'
+                          })}
+                          {topic.recording_time && ` om ${topic.recording_time.substring(0, 5)}`}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {topic.ai_enabled && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded flex items-center gap-1">
+                          <Bot size={12} />
+                          AI
+                        </span>
+                      )}
+                      {topic.guest_id && (
+                        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded flex items-center gap-1">
+                          <User size={12} />
+                          {getGuestName(topic.guest_id)}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => editTopic(topic)}
+                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                        title="Bewerk"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {unscheduledTopics.length > 0 && (
+            <div>
+              <h4 className="text-sm font-semibold text-gray-700 mb-2">Nog In Te Plannen</h4>
+              <div className="space-y-2">
+                {unscheduledTopics.map(topic => (
+                  <div key={topic.id} className="bg-white rounded-lg p-3 border border-gray-200 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => toggleRecordingStatus(topic.id)}
+                        className="flex-shrink-0 w-5 h-5 rounded border-2 border-gray-300 hover:border-green-500 hover:bg-green-50 transition-colors"
+                        title="Markeer als opgenomen"
+                      />
+                      <div>
+                        <div className="font-medium text-gray-900">{topic.title}</div>
+                        <div className="text-xs text-gray-500">Nog geen datum gepland</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {topic.ai_enabled && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded flex items-center gap-1">
+                          <Bot size={12} />
+                          AI
+                        </span>
+                      )}
+                      {topic.guest_id && (
+                        <span className="px-2 py-1 bg-yellow-100 text-yellow-700 text-xs rounded flex items-center gap-1">
+                          <User size={12} />
+                          {getGuestName(topic.guest_id)}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => editTopic(topic)}
+                        className="p-1 text-blue-600 hover:bg-blue-50 rounded"
+                        title="Bewerk"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Topic Management */}
       <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
         <div className="flex items-center justify-between mb-4">
@@ -693,6 +863,54 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
                   ))}
                 </select>
               </div>
+              <div className="flex items-center">
+                <label className="flex items-center space-x-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={newTopicAiEnabled}
+                    onChange={(e) => setNewTopicAiEnabled(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <Bot size={16} className="text-blue-600" />
+                  <span className="text-sm font-medium text-gray-700">
+                    AI assist inschakelen
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div className="mb-3 p-3 bg-white rounded-lg border border-gray-200">
+              <h5 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                <Calendar size={16} />
+                Opname Planning
+              </h5>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Opname Datum (optioneel)
+                  </label>
+                  <input
+                    type="date"
+                    value={newTopicRecordingDate}
+                    onChange={(e) => setNewTopicRecordingDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Opname Tijd (optioneel)
+                  </label>
+                  <input
+                    type="time"
+                    value={newTopicRecordingTime}
+                    onChange={(e) => setNewTopicRecordingTime(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mb-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Beeldmateriaal URL (optioneel)
@@ -974,19 +1192,32 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
                       <span className="text-sm text-gray-600">({topicQuestions.length} vragen)</span>
                     </div>
                     {topic.id !== 'no-topic' && (
-                      <button
-                        onClick={() => deleteTopic(topic.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        title="Verwijder onderwerp"
-                      >
-                        <Trash2 size={18} />
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => toggleRecordingStatus(topic.id)}
+                          className={`p-2 rounded-lg transition-colors ${
+                            topic.is_recorded
+                              ? 'text-green-600 hover:bg-green-50'
+                              : 'text-gray-400 hover:bg-gray-100'
+                          }`}
+                          title={topic.is_recorded ? 'Markeer als niet opgenomen' : 'Markeer als opgenomen'}
+                        >
+                          <Check size={18} />
+                        </button>
+                        <button
+                          onClick={() => deleteTopic(topic.id)}
+                          className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Verwijder onderwerp"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     )}
                   </div>
                   {topic.description && (
                     <p className="text-sm text-gray-600 mt-1">{topic.description}</p>
                   )}
-                  {topic.id !== 'no-topic' && (topic.interviewer_id || topic.leading_id || topic.sidekick_id || topic.guest_id || topic.show_visuals) && (
+                  {topic.id !== 'no-topic' && (topic.interviewer_id || topic.leading_id || topic.sidekick_id || topic.guest_id || topic.show_visuals || topic.ai_enabled || topic.recording_date || topic.is_recorded) && (
                     <div className="mt-2 flex flex-wrap gap-2 text-xs">
                       {topic.interviewer_id && (
                         <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded flex items-center gap-1">
@@ -1012,9 +1243,28 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
                           Gast: {getGuestName(topic.guest_id)}
                         </span>
                       )}
+                      {topic.ai_enabled && (
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded flex items-center gap-1">
+                          <Bot size={12} />
+                          AI Assist
+                        </span>
+                      )}
                       {topic.show_visuals && (
                         <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded flex items-center gap-1">
                           📺 Beeldmateriaal
+                        </span>
+                      )}
+                      {topic.is_recorded && (
+                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded flex items-center gap-1">
+                          <Check size={12} />
+                          Opgenomen
+                        </span>
+                      )}
+                      {topic.recording_date && !topic.is_recorded && (
+                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded flex items-center gap-1">
+                          <Calendar size={12} />
+                          {new Date(topic.recording_date).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+                          {topic.recording_time && ` ${topic.recording_time.substring(0, 5)}`}
                         </span>
                       )}
                     </div>
