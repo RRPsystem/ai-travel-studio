@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { MessageSquare, Plus, CheckCircle, Clock, AlertCircle, Trash2, ArrowUp, ArrowDown, Brain, User, Building2, Users as UsersIcon, FolderOpen, Edit2, Image as ImageIcon } from 'lucide-react';
-import FlickrPhotoPicker from '../shared/FlickrPhotoPicker';
+import { MessageSquare, Plus, CheckCircle, Clock, AlertCircle, Trash2, ArrowUp, ArrowDown, Brain, User, Building2, Users as UsersIcon, FolderOpen, Edit2, Upload, Video } from 'lucide-react';
+import { SlidingMediaSelector } from '../shared/SlidingMediaSelector';
 
 interface Topic {
   id: string;
@@ -74,7 +74,9 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
   const [filter, setFilter] = useState<'all' | 'concept' | 'under_discussion' | 'approved' | 'in_schedule'>('all');
   const [viewMode, setViewMode] = useState<'by_topic' | 'by_status'>('by_topic');
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [showFlickrPicker, setShowFlickrPicker] = useState(false);
+  const [showMediaSelector, setShowMediaSelector] = useState(false);
+  const [showAddHostForm, setShowAddHostForm] = useState(false);
+  const [newHostName, setNewHostName] = useState('');
 
   useEffect(() => {
     loadQuestions();
@@ -167,6 +169,31 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
       setHosts(data || []);
     } catch (error) {
       console.error('Error loading hosts:', error);
+    }
+  };
+
+  const addHost = async () => {
+    if (!newHostName.trim()) {
+      alert('Voer een naam in voor de host');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('podcast_hosts')
+        .insert({
+          name: newHostName.trim(),
+          is_active: true
+        });
+
+      if (error) throw error;
+
+      setNewHostName('');
+      setShowAddHostForm(false);
+      loadHosts();
+    } catch (error) {
+      console.error('Error adding host:', error);
+      alert('Fout bij toevoegen host: ' + (error as any).message);
     }
   };
 
@@ -510,6 +537,54 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
           </button>
         </div>
 
+        {showTopicForm && hosts.length === 0 && !showAddHostForm && (
+          <div className="mb-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-semibold text-gray-900 mb-1">Geen hosts beschikbaar</h4>
+                <p className="text-sm text-gray-600">Voeg eerst podcast hosts toe om ze toe te wijzen aan onderwerpen.</p>
+              </div>
+              <button
+                onClick={() => setShowAddHostForm(true)}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+              >
+                <Plus size={16} />
+                <span>Host Toevoegen</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {showAddHostForm && (
+          <div className="mb-4 p-4 bg-green-50 rounded-lg border border-green-200">
+            <h4 className="font-semibold text-gray-900 mb-3">Nieuwe Host Toevoegen</h4>
+            <div className="flex gap-3">
+              <input
+                type="text"
+                value={newHostName}
+                onChange={(e) => setNewHostName(e.target.value)}
+                placeholder="Naam van host..."
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                onClick={addHost}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Toevoegen
+              </button>
+              <button
+                onClick={() => {
+                  setShowAddHostForm(false);
+                  setNewHostName('');
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Annuleren
+              </button>
+            </div>
+          </div>
+        )}
+
         {showTopicForm && (
           <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
             <h4 className="font-semibold text-gray-900 mb-3">
@@ -588,20 +663,20 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
                     type="url"
                     value={newTopicVisualsUrl}
                     onChange={(e) => setNewTopicVisualsUrl(e.target.value)}
-                    placeholder="https://example.com/image.jpg of video link"
+                    placeholder="https://youtube.com/... of https://example.com/image.jpg"
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowFlickrPicker(true)}
-                    className="px-4 py-2 bg-pink-600 text-white rounded-lg hover:bg-pink-700 transition-colors flex items-center gap-2"
-                    title="Selecteer foto van Flickr Pro"
+                    onClick={() => setShowMediaSelector(true)}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    title="Selecteer foto"
                   >
-                    <ImageIcon size={20} />
-                    <span>Flickr</span>
+                    <Upload size={20} />
+                    <span>Foto's</span>
                   </button>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Link naar afbeelding, video of ander visueel materiaal. Of gebruik Flickr Pro om foto's te selecteren.</p>
+                <p className="text-xs text-gray-500 mt-1">Link naar YouTube video of afbeelding. Of gebruik de foto selector voor stock foto's.</p>
               </div>
               <div className="flex items-center">
                 <label className="flex items-center space-x-2 cursor-pointer">
@@ -1123,14 +1198,14 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
         )}
       </div>
 
-      <FlickrPhotoPicker
-        isOpen={showFlickrPicker}
-        onClose={() => setShowFlickrPicker(false)}
+      <SlidingMediaSelector
+        isOpen={showMediaSelector}
+        onClose={() => setShowMediaSelector(false)}
         onSelect={(url) => {
           setNewTopicVisualsUrl(url);
-          setShowFlickrPicker(false);
+          setShowMediaSelector(false);
         }}
-        title="Selecteer Foto van Flickr Pro"
+        title="Selecteer Foto"
       />
     </div>
   );
