@@ -11,7 +11,9 @@ import DeeplinkTester from './DeeplinkTester';
 import { HelpBot } from '../shared/HelpBot';
 import { WordPressCatalogSync } from '../Operator/WordPressCatalogSync';
 import PodcastManagement from '../Podcast/PodcastManagement';
-import { Users, Building2, FileText, Settings, Plus, Search, Filter, CreditCard as Edit, Trash2, LayoutGrid as Layout, Menu, Globe, Newspaper, MapPin, Plane, Link, Key, X, Lock, BookOpen, Mic } from 'lucide-react'
+import { GPTManagement } from '../Operator/GPTManagement';
+import { AIContentGenerator } from '../Brand/AIContentGenerator';
+import { Users, Building2, FileText, Settings, Plus, Search, Filter, CreditCard as Edit, Trash2, LayoutGrid as Layout, Menu, Globe, Newspaper, MapPin, Plane, Link, Key, X, Lock, BookOpen, Mic, Bot, Wand2 } from 'lucide-react'
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
 export function AdminDashboard() {
@@ -19,6 +21,7 @@ export function AdminDashboard() {
   const [activeSection, setActiveSection] = useState('dashboard');
   const [showWebsiteSubmenu, setShowWebsiteSubmenu] = useState(false);
   const [showContentSubmenu, setShowContentSubmenu] = useState(false);
+  const [showAIToolsSubmenu, setShowAIToolsSubmenu] = useState(false);
   const [showBrandForm, setShowBrandForm] = useState(false);
   const [editingBrand, setEditingBrand] = useState<any>(null);
   const [brands, setBrands] = useState<any[]>([]);
@@ -42,6 +45,9 @@ export function AdminDashboard() {
     }
     if (['admin-news', 'destinations', 'trips', 'trip-catalog', 'wordpress-catalog'].includes(activeSection)) {
       setShowContentSubmenu(true);
+    }
+    if (['gpt-management', 'ai-content-generator'].includes(activeSection)) {
+      setShowAIToolsSubmenu(true);
     }
   }, [activeSection]);
 
@@ -190,6 +196,11 @@ export function AdminDashboard() {
     { id: 'wordpress-catalog', label: 'WordPress Catalogus', icon: Globe },
   ];
 
+  const aiToolsItems = [
+    { id: 'gpt-management', label: 'GPT Management', icon: Bot },
+    { id: 'ai-content-generator', label: 'AI Content Generator', icon: Wand2 },
+  ];
+
   const handleTravelStudioClick = () => {
     window.open('https://travelstudio.travelstudio-accept.bookunited.com/login', '_blank');
   };
@@ -249,6 +260,47 @@ export function AdminDashboard() {
                 {showWebsiteSubmenu && (
                   <ul className="mt-2 ml-6 space-y-1">
                     {websiteItems.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <li key={item.id}>
+                          <button
+                            onClick={() => setActiveSection(item.id)}
+                            className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors text-sm ${
+                              activeSection === item.id
+                                ? 'bg-slate-700 text-white'
+                                : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                            }`}
+                          >
+                            <Icon size={16} />
+                            <span>{item.label}</span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </li>
+
+              {/* AI Tools Menu */}
+              <li>
+                <button
+                  onClick={() => setShowAIToolsSubmenu(!showAIToolsSubmenu)}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
+                    ['gpt-management', 'ai-content-generator'].includes(activeSection)
+                      ? 'bg-slate-700 text-white'
+                      : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3">
+                    <Bot size={20} />
+                    <span>AI Tools</span>
+                  </div>
+                  {showAIToolsSubmenu ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </button>
+
+                {showAIToolsSubmenu && (
+                  <ul className="mt-2 ml-6 space-y-1">
+                    {aiToolsItems.map((item) => {
                       const Icon = item.icon;
                       return (
                         <li key={item.id}>
@@ -426,6 +478,47 @@ export function AdminDashboard() {
               )}
             </li>
 
+            {/* AI Tools Menu */}
+            <li>
+              <button
+                onClick={() => setShowAIToolsSubmenu(!showAIToolsSubmenu)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
+                  ['gpt-management', 'ai-content-generator'].includes(activeSection)
+                    ? 'bg-slate-700 text-white'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-700'
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <Bot size={20} />
+                  <span>AI Tools</span>
+                </div>
+                {showAIToolsSubmenu ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+
+              {showAIToolsSubmenu && (
+                <ul className="mt-2 ml-6 space-y-1">
+                  {aiToolsItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <li key={item.id}>
+                        <button
+                          onClick={() => setActiveSection(item.id)}
+                          className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors text-sm ${
+                            activeSection === item.id
+                              ? 'bg-slate-700 text-white'
+                              : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                          }`}
+                        >
+                          <Icon size={16} />
+                          <span>{item.label}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </li>
+
             {/* Travel Studio Link */}
             <li>
               <button
@@ -497,6 +590,8 @@ export function AdminDashboard() {
                 {activeSection === 'podcast' && 'Podcast Beheer'}
                 {activeSection === 'deeplink-tester' && 'Deeplink Tester'}
                 {activeSection === 'template-manager' && 'Template Manager'}
+                {activeSection === 'gpt-management' && 'GPT Management'}
+                {activeSection === 'ai-content-generator' && 'AI Content Generator'}
                 {activeSection === 'settings' && 'Settings'}
                 {activeSection === 'travel-journal' && 'Travel Journaal'}
               </h1>
@@ -510,6 +605,8 @@ export function AdminDashboard() {
                 {activeSection === 'podcast' && 'Plan en beheer podcast afleveringen, vragen en host notities'}
                 {activeSection === 'deeplink-tester' && 'Test external builder integration'}
                 {activeSection === 'template-manager' && 'Maak en beheer pagina templates voor brands'}
+                {activeSection === 'gpt-management' && 'Configureer custom GPTs en content generatie instellingen'}
+                {activeSection === 'ai-content-generator' && 'Genereer AI content voor bestemmingen, reizen en nieuws'}
                 {activeSection === 'settings' && 'Systeeminstellingen en configuratie'}
                 {activeSection === 'travel-journal' && 'Houd een dagboek bij van je reizen en deel je ervaringen'}
               </p>
@@ -538,6 +635,8 @@ export function AdminDashboard() {
           {activeSection === 'podcast' && <PodcastManagement />}
           {activeSection === 'deeplink-tester' && <DeeplinkTester />}
           {activeSection === 'template-manager' && <TemplateManager />}
+          {activeSection === 'gpt-management' && <GPTManagement />}
+          {activeSection === 'ai-content-generator' && <AIContentGenerator />}
           {activeSection === 'settings' && (
             <div className="max-w-6xl mx-auto">
               <div className="bg-white rounded-lg shadow-md p-6">
