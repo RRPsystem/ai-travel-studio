@@ -12,6 +12,7 @@ interface Topic {
   interviewer_id: string | null;
   leading_id: string | null;
   sidekick_id: string | null;
+  guest_id: string | null;
   show_visuals: boolean;
   visuals_url: string | null;
 }
@@ -67,6 +68,7 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
   const [newTopicInterviewer, setNewTopicInterviewer] = useState<string | null>(null);
   const [newTopicLeading, setNewTopicLeading] = useState<string | null>(null);
   const [newTopicSidekick, setNewTopicSidekick] = useState<string | null>(null);
+  const [newTopicGuest, setNewTopicGuest] = useState<string | null>(null);
   const [newTopicShowVisuals, setNewTopicShowVisuals] = useState(false);
   const [newTopicVisualsUrl, setNewTopicVisualsUrl] = useState('');
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
@@ -230,6 +232,7 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
             interviewer_id: newTopicInterviewer || null,
             leading_id: newTopicLeading || null,
             sidekick_id: newTopicSidekick || null,
+            guest_id: newTopicGuest || null,
             show_visuals: newTopicShowVisuals,
             visuals_url: newTopicVisualsUrl.trim() || null
           })
@@ -249,6 +252,7 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
             interviewer_id: newTopicInterviewer || null,
             leading_id: newTopicLeading || null,
             sidekick_id: newTopicSidekick || null,
+            guest_id: newTopicGuest || null,
             show_visuals: newTopicShowVisuals,
             visuals_url: newTopicVisualsUrl.trim() || null
           });
@@ -262,6 +266,7 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
       setNewTopicInterviewer(null);
       setNewTopicLeading(null);
       setNewTopicSidekick(null);
+      setNewTopicGuest(null);
       setNewTopicShowVisuals(false);
       setShowTopicForm(false);
       setEditingTopicId(null);
@@ -278,6 +283,7 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
     setNewTopicInterviewer(topic.interviewer_id);
     setNewTopicLeading(topic.leading_id);
     setNewTopicSidekick(topic.sidekick_id);
+    setNewTopicGuest(topic.guest_id);
     setNewTopicShowVisuals(topic.show_visuals);
     setNewTopicVisualsUrl(topic.visuals_url || '');
     setEditingTopicId(topic.id);
@@ -291,6 +297,7 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
     setNewTopicInterviewer(null);
     setNewTopicLeading(null);
     setNewTopicSidekick(null);
+    setNewTopicGuest(null);
     setNewTopicShowVisuals(false);
     setNewTopicVisualsUrl('');
     setEditingTopicId(null);
@@ -506,7 +513,9 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
         interviewer_id: null,
         leading_id: null,
         sidekick_id: null,
-        show_visuals: false
+        guest_id: null,
+        show_visuals: false,
+        visuals_url: null
       },
       questions: questionsWithoutTopic
     });
@@ -666,6 +675,21 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
                   <option value="">Geen sidekick</option>
                   {hosts.map(host => (
                     <option key={host.id} value={host.id}>{host.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Gast (optioneel)
+                </label>
+                <select
+                  value={newTopicGuest || ''}
+                  onChange={(e) => setNewTopicGuest(e.target.value || null)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Geen gast</option>
+                  {guests.map(guest => (
+                    <option key={guest.id} value={guest.id}>{guest.name}</option>
                   ))}
                 </select>
               </div>
@@ -962,7 +986,7 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
                   {topic.description && (
                     <p className="text-sm text-gray-600 mt-1">{topic.description}</p>
                   )}
-                  {topic.id !== 'no-topic' && (topic.interviewer_id || topic.leading_id || topic.sidekick_id || topic.show_visuals) && (
+                  {topic.id !== 'no-topic' && (topic.interviewer_id || topic.leading_id || topic.sidekick_id || topic.guest_id || topic.show_visuals) && (
                     <div className="mt-2 flex flex-wrap gap-2 text-xs">
                       {topic.interviewer_id && (
                         <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded flex items-center gap-1">
@@ -980,6 +1004,12 @@ export default function QuestionBoard({ episodeId, onOpenDiscussion, onStatsUpda
                         <span className="px-2 py-1 bg-orange-100 text-orange-800 rounded flex items-center gap-1">
                           <UsersIcon size={12} />
                           Sidekick: {getHostName(topic.sidekick_id)}
+                        </span>
+                      )}
+                      {topic.guest_id && (
+                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded flex items-center gap-1">
+                          <User size={12} />
+                          Gast: {getGuestName(topic.guest_id)}
                         </span>
                       )}
                       {topic.show_visuals && (
