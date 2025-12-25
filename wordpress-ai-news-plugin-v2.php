@@ -132,15 +132,60 @@ class AI_News_Plugin {
         register_setting('ai_news_settings', 'ai_news_api_url');
         register_setting('ai_news_settings', 'ai_news_brand_id');
         register_setting('ai_news_settings', 'ai_news_brand_name');
+        register_setting('ai_news_settings', 'ai_news_openai_api_key');
         register_setting('ai_news_settings', 'ai_news_cache_duration');
     }
 
     public function settings_page() {
         ?>
         <div class="wrap">
-            <h1>AI News Integration Settings</h1>
+            <h1>🚀 AI News Integration Settings</h1>
 
             <?php settings_errors('ai_news_settings'); ?>
+
+            <style>
+                .ai-news-setup-box {
+                    background: #f0f8ff;
+                    border: 2px solid #2271b1;
+                    border-radius: 8px;
+                    padding: 20px;
+                    margin: 20px 0;
+                    max-width: 800px;
+                }
+                .ai-news-setup-box h2 {
+                    margin-top: 0;
+                    color: #2271b1;
+                }
+                .ai-news-code-field {
+                    background: white;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    padding: 12px;
+                    margin: 8px 0;
+                    font-family: monospace;
+                    font-size: 13px;
+                }
+                .ai-news-instruction {
+                    background: #fff9e6;
+                    border-left: 4px solid #f0b429;
+                    padding: 12px;
+                    margin: 15px 0;
+                }
+                .ai-news-success-box {
+                    background: #e7f7e7;
+                    border: 2px solid #4caf50;
+                    border-radius: 8px;
+                    padding: 15px;
+                    margin: 15px 0;
+                }
+            </style>
+
+            <div class="ai-news-setup-box">
+                <h2>📋 Setup Instructies</h2>
+                <p><strong>Stap 1:</strong> Ga naar je Bolt Brand Settings en klik op "Kopieer Setup Code"</p>
+                <p><strong>Stap 2:</strong> Plak de gegevens hieronder in de velden</p>
+                <p><strong>Stap 3:</strong> Klik op "Instellingen Opslaan"</p>
+            </div>
 
             <div class="card" style="max-width: 800px; margin-top: 20px;">
                 <h2>Automatische Configuratie (Aanbevolen)</h2>
@@ -179,7 +224,16 @@ class AI_News_Plugin {
 
             <hr style="margin: 40px 0;">
 
-            <h2>Handmatige Configuratie</h2>
+            <h2>⚙️ Handmatige Configuratie</h2>
+
+            <?php if (!empty(get_option('ai_news_brand_id')) && !empty(get_option('ai_news_api_url'))): ?>
+                <div class="ai-news-success-box">
+                    <h3 style="margin-top: 0;">✅ Plugin is geconfigureerd!</h3>
+                    <p><strong>Brand:</strong> <?php echo esc_html(get_option('ai_news_brand_name', 'Onbekend')); ?></p>
+                    <p><strong>Brand ID:</strong> <code><?php echo esc_html(get_option('ai_news_brand_id')); ?></code></p>
+                </div>
+            <?php endif; ?>
+
             <form method="post" action="options.php">
                 <?php
                 settings_fields('ai_news_settings');
@@ -188,7 +242,7 @@ class AI_News_Plugin {
                 <table class="form-table">
                     <tr>
                         <th scope="row">
-                            <label for="ai_news_api_url">Supabase API URL</label>
+                            <label for="ai_news_api_url">Supabase Function URL *</label>
                         </th>
                         <td>
                             <input type="text"
@@ -196,13 +250,14 @@ class AI_News_Plugin {
                                    name="ai_news_api_url"
                                    value="<?php echo esc_attr(get_option('ai_news_api_url')); ?>"
                                    class="regular-text"
-                                   placeholder="https://your-project.supabase.co/functions/v1/wordpress-news">
-                            <p class="description">Volledig pad naar de wordpress-news Edge Function</p>
+                                   placeholder="https://your-project.supabase.co/functions/v1/wordpress-news"
+                                   required>
+                            <p class="description">📍 Plak hier de "Supabase Function URL" uit Bolt</p>
                         </td>
                     </tr>
                     <tr>
                         <th scope="row">
-                            <label for="ai_news_brand_id">Brand ID</label>
+                            <label for="ai_news_brand_id">Brand ID *</label>
                         </th>
                         <td>
                             <input type="text"
@@ -210,13 +265,28 @@ class AI_News_Plugin {
                                    name="ai_news_brand_id"
                                    value="<?php echo esc_attr(get_option('ai_news_brand_id')); ?>"
                                    class="regular-text"
-                                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
-                            <p class="description">Uw unieke Brand ID uit de database</p>
+                                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                   required>
+                            <p class="description">🆔 Plak hier de "Brand ID" uit Bolt</p>
                             <?php if (get_option('ai_news_brand_name')): ?>
-                                <p class="description" style="color: green;">
+                                <p class="description" style="color: green; font-weight: bold;">
                                     ✓ Gekoppeld aan: <strong><?php echo esc_html(get_option('ai_news_brand_name')); ?></strong>
                                 </p>
                             <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="ai_news_openai_api_key">OpenAI API Key</label>
+                        </th>
+                        <td>
+                            <input type="password"
+                                   id="ai_news_openai_api_key"
+                                   name="ai_news_openai_api_key"
+                                   value="<?php echo esc_attr(get_option('ai_news_openai_api_key')); ?>"
+                                   class="regular-text"
+                                   placeholder="sk-...">
+                            <p class="description">🔑 Optioneel: Gebruik je eigen OpenAI API key, of laat leeg om de centrale key te gebruiken</p>
                         </td>
                     </tr>
                     <tr>
@@ -229,11 +299,16 @@ class AI_News_Plugin {
                                    name="ai_news_cache_duration"
                                    value="<?php echo esc_attr(get_option('ai_news_cache_duration', 300)); ?>"
                                    class="small-text">
-                            <p class="description">Hoelang nieuws in cache blijft (standaard: 300 seconden / 5 minuten)</p>
+                            <p class="description">⏱️ Hoelang nieuws in cache blijft (standaard: 300 seconden / 5 minuten)</p>
                         </td>
                     </tr>
                 </table>
-                <?php submit_button('Instellingen Opslaan'); ?>
+
+                <div class="ai-news-instruction">
+                    <p><strong>💡 Tip:</strong> Gebruik de "Kopieer Setup Code" knop in Bolt (Brand Settings > WordPress Integratie) om alle gegevens in één keer te kopiëren.</p>
+                </div>
+
+                <?php submit_button('💾 Instellingen Opslaan'); ?>
             </form>
 
             <hr>

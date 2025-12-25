@@ -2,12 +2,13 @@
 /**
  * Plugin Name: AI News Integration
  * Plugin URI: https://yoursite.com
- * Description: Integreert AI-gegenereerde nieuwsberichten van Supabase in WordPress
- * Version: 1.0.0
+ * Description: Integreert AI-gegenereerde nieuwsberichten van Supabase in WordPress - Multisite Ready
+ * Version: 2.0.0
  * Author: Your Name
  * Author URI: https://yoursite.com
  * License: GPL v2 or later
  * Text Domain: ai-news
+ * Network: true
  */
 
 if (!defined('ABSPATH')) {
@@ -22,11 +23,99 @@ class AI_News_Plugin {
     public function __construct() {
         add_action('admin_menu', [$this, 'add_admin_menu']);
         add_action('admin_init', [$this, 'register_settings']);
+        add_action('admin_init', [$this, 'handle_auto_detect']);
 
         $this->api_url = get_option('ai_news_api_url', '');
         $this->brand_id = get_option('ai_news_brand_id', '');
 
         $this->register_shortcodes();
+
+        // Admin notices
+        add_action('admin_notices', [$this, 'admin_notices']);
+    }
+
+    public function admin_notices() {
+        // Only show on AI News settings page
+        if (!isset($_GET['page']) || $_GET['page'] !== 'ai-news-settings') {
+            return;
+        }
+
+        if (empty($this->api_url) || empty($this->brand_id)) {
+            ?>
+            <div class="notice notice-warning">
+                <p><strong>AI News Integration:</strong> Plugin is nog niet geconfigureerd. Vul hieronder de instellingen in of gebruik de Auto-Detect functie.</p>
+            </div>
+            <?php
+        }
+    }
+
+    public function handle_auto_detect() {
+        if (!isset($_POST['ai_news_auto_detect']) || !check_admin_referer('ai_news_auto_detect', 'ai_news_nonce')) {
+            return;
+        }
+
+        $api_base = get_option('ai_news_api_url', '');
+
+        if (empty($api_base)) {
+            add_settings_error(
+                'ai_news_settings',
+                'missing_api_url',
+                'Vul eerst de Supabase API URL in voordat je Auto-Detect gebruikt.',
+                'error'
+            );
+            return;
+        }
+
+        // Extract base URL from the API URL
+        $base_url = preg_replace('/\/functions\/v1\/.*$/', '', $api_base);
+
+        // Get current site domain
+        $site_url = get_site_url();
+        $domain = parse_url($site_url, PHP_URL_HOST);
+
+        // Try to find brand by domain
+        $detect_url = $base_url . '/functions/v1/get-brand-by-domain';
+        $response = wp_remote_post($detect_url, [
+            'timeout' => 15,
+            'headers' => [
+                'Content-Type' => 'application/json',
+            ],
+            'body' => json_encode([
+                'domain' => $domain
+            ])
+        ]);
+
+        if (is_wp_error($response)) {
+            add_settings_error(
+                'ai_news_settings',
+                'auto_detect_error',
+                'Fout bij auto-detectie: ' . $response->get_error_message(),
+                'error'
+            );
+            return;
+        }
+
+        $body = wp_remote_retrieve_body($response);
+        $data = json_decode($body, true);
+
+        if (isset($data['brand_id'])) {
+            update_option('ai_news_brand_id', $data['brand_id']);
+            update_option('ai_news_brand_name', $data['brand_name'] ?? '');
+
+            add_settings_error(
+                'ai_news_settings',
+                'auto_detect_success',
+                'Brand ID succesvol gevonden! Brand: ' . ($data['brand_name'] ?? 'Onbekend'),
+                'success'
+            );
+        } else {
+            add_settings_error(
+                'ai_news_settings',
+                'auto_detect_not_found',
+                'Geen brand gevonden voor domein: ' . $domain . '. Controleer of het domein is gekoppeld in het centrale systeem.',
+                'error'
+            );
+        }
     }
 
     public function add_admin_menu() {
@@ -42,13 +131,109 @@ class AI_News_Plugin {
     public function register_settings() {
         register_setting('ai_news_settings', 'ai_news_api_url');
         register_setting('ai_news_settings', 'ai_news_brand_id');
+        register_setting('ai_news_settings', 'ai_news_brand_name');
+        register_setting('ai_news_settings', 'ai_news_openai_api_key');
         register_setting('ai_news_settings', 'ai_news_cache_duration');
     }
 
     public function settings_page() {
         ?>
         <div class="wrap">
-            <h1>AI News Integration Settings</h1>
+            <h1>🚀 AI News Integration Settings</h1>
+
+            <?php settings_errors('ai_news_settings'); ?>
+
+            <style>
+                .ai-news-setup-box {
+                    background: #f0f8ff;
+                    border: 2px solid #2271b1;
+                    border-radius: 8px;
+                    padding: 20px;
+                    margin: 20px 0;
+                    max-width: 800px;
+                }
+                .ai-news-setup-box h2 {
+                    margin-top: 0;
+                    color: #2271b1;
+                }
+                .ai-news-code-field {
+                    background: white;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    padding: 12px;
+                    margin: 8px 0;
+                    font-family: monospace;
+                    font-size: 13px;
+                }
+                .ai-news-instruction {
+                    background: #fff9e6;
+                    border-left: 4px solid #f0b429;
+                    padding: 12px;
+                    margin: 15px 0;
+                }
+                .ai-news-success-box {
+                    background: #e7f7e7;
+                    border: 2px solid #4caf50;
+                    border-radius: 8px;
+                    padding: 15px;
+                    margin: 15px 0;
+                }
+            </style>
+
+            <div class="ai-news-setup-box">
+                <h2>📋 Setup Instructies</h2>
+                <p><strong>Stap 1:</strong> Ga naar je Bolt Brand Settings en klik op "Kopieer Setup Code"</p>
+                <p><strong>Stap 2:</strong> Plak de gegevens hieronder in de velden</p>
+                <p><strong>Stap 3:</strong> Klik op "Instellingen Opslaan"</p>
+            </div>
+
+            <div class="card" style="max-width: 800px; margin-top: 20px;">
+                <h2>Automatische Configuratie (Aanbevolen)</h2>
+                <p>Laat het systeem automatisch je Brand ID vinden op basis van je WordPress domein.</p>
+
+                <form method="post" action="">
+                    <?php wp_nonce_field('ai_news_auto_detect', 'ai_news_nonce'); ?>
+
+                    <table class="form-table">
+                        <tr>
+                            <th scope="row">Huidig Domein</th>
+                            <td>
+                                <strong><?php echo esc_html(parse_url(get_site_url(), PHP_URL_HOST)); ?></strong>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th scope="row">API Base URL</th>
+                            <td>
+                                <input type="text"
+                                       name="ai_news_api_url"
+                                       value="<?php echo esc_attr(get_option('ai_news_api_url')); ?>"
+                                       class="regular-text"
+                                       placeholder="https://your-project.supabase.co">
+                                <p class="description">Alleen de basis URL (zonder /functions/v1/...)</p>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <p>
+                        <button type="submit" name="ai_news_auto_detect" value="1" class="button button-primary">
+                            🔍 Auto-Detect Brand ID
+                        </button>
+                    </p>
+                </form>
+            </div>
+
+            <hr style="margin: 40px 0;">
+
+            <h2>⚙️ Handmatige Configuratie</h2>
+
+            <?php if (!empty(get_option('ai_news_brand_id')) && !empty(get_option('ai_news_api_url'))): ?>
+                <div class="ai-news-success-box">
+                    <h3 style="margin-top: 0;">✅ Plugin is geconfigureerd!</h3>
+                    <p><strong>Brand:</strong> <?php echo esc_html(get_option('ai_news_brand_name', 'Onbekend')); ?></p>
+                    <p><strong>Brand ID:</strong> <code><?php echo esc_html(get_option('ai_news_brand_id')); ?></code></p>
+                </div>
+            <?php endif; ?>
+
             <form method="post" action="options.php">
                 <?php
                 settings_fields('ai_news_settings');
@@ -57,7 +242,7 @@ class AI_News_Plugin {
                 <table class="form-table">
                     <tr>
                         <th scope="row">
-                            <label for="ai_news_api_url">Supabase API URL</label>
+                            <label for="ai_news_api_url">Supabase Function URL *</label>
                         </th>
                         <td>
                             <input type="text"
@@ -65,13 +250,14 @@ class AI_News_Plugin {
                                    name="ai_news_api_url"
                                    value="<?php echo esc_attr(get_option('ai_news_api_url')); ?>"
                                    class="regular-text"
-                                   placeholder="https://your-project.supabase.co/functions/v1/wordpress-news">
-                            <p class="description">Volledig pad naar de wordpress-news Edge Function</p>
+                                   placeholder="https://your-project.supabase.co/functions/v1/wordpress-news"
+                                   required>
+                            <p class="description">📍 Plak hier de "Supabase Function URL" uit Bolt</p>
                         </td>
                     </tr>
                     <tr>
                         <th scope="row">
-                            <label for="ai_news_brand_id">Brand ID</label>
+                            <label for="ai_news_brand_id">Brand ID *</label>
                         </th>
                         <td>
                             <input type="text"
@@ -79,8 +265,28 @@ class AI_News_Plugin {
                                    name="ai_news_brand_id"
                                    value="<?php echo esc_attr(get_option('ai_news_brand_id')); ?>"
                                    class="regular-text"
-                                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx">
-                            <p class="description">Uw unieke Brand ID uit de database</p>
+                                   placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                   required>
+                            <p class="description">🆔 Plak hier de "Brand ID" uit Bolt</p>
+                            <?php if (get_option('ai_news_brand_name')): ?>
+                                <p class="description" style="color: green; font-weight: bold;">
+                                    ✓ Gekoppeld aan: <strong><?php echo esc_html(get_option('ai_news_brand_name')); ?></strong>
+                                </p>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">
+                            <label for="ai_news_openai_api_key">OpenAI API Key</label>
+                        </th>
+                        <td>
+                            <input type="password"
+                                   id="ai_news_openai_api_key"
+                                   name="ai_news_openai_api_key"
+                                   value="<?php echo esc_attr(get_option('ai_news_openai_api_key')); ?>"
+                                   class="regular-text"
+                                   placeholder="sk-...">
+                            <p class="description">🔑 Optioneel: Gebruik je eigen OpenAI API key, of laat leeg om de centrale key te gebruiken</p>
                         </td>
                     </tr>
                     <tr>
@@ -93,11 +299,16 @@ class AI_News_Plugin {
                                    name="ai_news_cache_duration"
                                    value="<?php echo esc_attr(get_option('ai_news_cache_duration', 300)); ?>"
                                    class="small-text">
-                            <p class="description">Hoelang nieuws in cache blijft (standaard: 300 seconden / 5 minuten)</p>
+                            <p class="description">⏱️ Hoelang nieuws in cache blijft (standaard: 300 seconden / 5 minuten)</p>
                         </td>
                     </tr>
                 </table>
-                <?php submit_button(); ?>
+
+                <div class="ai-news-instruction">
+                    <p><strong>💡 Tip:</strong> Gebruik de "Kopieer Setup Code" knop in Bolt (Brand Settings > WordPress Integratie) om alle gegevens in één keer te kopiëren.</p>
+                </div>
+
+                <?php submit_button('💾 Instellingen Opslaan'); ?>
             </form>
 
             <hr>
@@ -119,17 +330,20 @@ class AI_News_Plugin {
             <hr>
 
             <h2>Available Shortcodes</h2>
-            <ul>
-                <li><code>[ai-news-list limit="10"]</code> - Toon lijst van nieuwsberichten</li>
-                <li><code>[ai-news-grid limit="6" columns="3"]</code> - Toon nieuws in grid layout</li>
-                <li><code>[ai-news id="xxx"]</code> - Toon specifiek nieuwsbericht (volledig)</li>
-                <li><code>[ai-news-title id="xxx"]</code> - Toon alleen titel</li>
-                <li><code>[ai-news-excerpt id="xxx"]</code> - Toon alleen excerpt</li>
-                <li><code>[ai-news-content id="xxx"]</code> - Toon alleen content</li>
-                <li><code>[ai-news-image id="xxx"]</code> - Toon alleen featured image</li>
-                <li><code>[ai-news-date id="xxx"]</code> - Toon publicatiedatum</li>
-                <li><code>[ai-news-tags id="xxx"]</code> - Toon tags</li>
-            </ul>
+            <div style="background: #f9f9f9; padding: 15px; border-left: 4px solid #2271b1;">
+                <ul style="list-style: none; padding: 0;">
+                    <li style="margin: 10px 0;"><code>[ai-news-list limit="10"]</code> - Toon lijst van nieuwsberichten</li>
+                    <li style="margin: 10px 0;"><code>[ai-news-grid limit="6" columns="3"]</code> - Toon nieuws in grid layout</li>
+                    <li style="margin: 10px 0;"><code>[ai-news id="xxx"]</code> - Toon specifiek nieuwsbericht (volledig)</li>
+                    <li style="margin: 10px 0;"><code>[ai-news-title id="xxx"]</code> - Toon alleen titel</li>
+                    <li style="margin: 10px 0;"><code>[ai-news-excerpt id="xxx"]</code> - Toon alleen excerpt</li>
+                    <li style="margin: 10px 0;"><code>[ai-news-content id="xxx"]</code> - Toon alleen content</li>
+                    <li style="margin: 10px 0;"><code>[ai-news-closing id="xxx"]</code> - Toon alleen closing text (slot)</li>
+                    <li style="margin: 10px 0;"><code>[ai-news-image id="xxx"]</code> - Toon alleen featured image</li>
+                    <li style="margin: 10px 0;"><code>[ai-news-date id="xxx"]</code> - Toon publicatiedatum</li>
+                    <li style="margin: 10px 0;"><code>[ai-news-tags id="xxx"]</code> - Toon tags</li>
+                </ul>
+            </div>
         </div>
         <?php
     }
@@ -141,6 +355,7 @@ class AI_News_Plugin {
         add_shortcode('ai-news-title', [$this, 'shortcode_news_title']);
         add_shortcode('ai-news-excerpt', [$this, 'shortcode_news_excerpt']);
         add_shortcode('ai-news-content', [$this, 'shortcode_news_content']);
+        add_shortcode('ai-news-closing', [$this, 'shortcode_news_closing']);
         add_shortcode('ai-news-image', [$this, 'shortcode_news_image']);
         add_shortcode('ai-news-date', [$this, 'shortcode_news_date']);
         add_shortcode('ai-news-tags', [$this, 'shortcode_news_tags']);
@@ -372,6 +587,12 @@ class AI_News_Plugin {
                 }
                 ?>
             </div>
+
+            <?php if (!empty($news['closing_text'])): ?>
+                <div class="ai-news-closing">
+                    <?php echo wp_kses_post($news['closing_text']); ?>
+                </div>
+            <?php endif; ?>
         </article>
         <?php
         return ob_get_clean();
@@ -403,6 +624,12 @@ class AI_News_Plugin {
         }
 
         return '<div class="ai-news-content">' . wp_kses_post($content) . '</div>';
+    }
+
+    public function shortcode_news_closing($atts) {
+        $news = $this->get_news_by_id_or_slug($atts);
+        if (is_string($news)) return $news;
+        return '<div class="ai-news-closing">' . wp_kses_post($news['closing_text'] ?? '') . '</div>';
     }
 
     public function shortcode_news_image($atts) {
@@ -595,6 +822,14 @@ add_action('wp_enqueue_scripts', function() {
             border: 1px solid #e5e7eb;
             border-radius: 4px;
             color: #6b7280;
+        }
+
+        .ai-news-closing {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            font-style: italic;
+            color: #4b5563;
         }
     ');
 });
