@@ -117,7 +117,10 @@ export function BrandDashboard() {
         .eq('is_template', false);
       pagesCount += legacyPagesResult.count || 0;
 
-      if (brandResult.data) setBrandData(brandResult.data);
+      if (brandResult.data) {
+        setBrandData(brandResult.data);
+        setIsWordPressMode(brandResult.data.content_system === 'wordpress');
+      }
       setStats({
         pages: pagesCount,
         newsItems: newsResult.count || 0,
@@ -156,9 +159,6 @@ export function BrandDashboard() {
     try {
       const data = await db.getWebsites(effectiveBrandId);
       setWebsites(data || []);
-
-      const hasWordPress = (data || []).some(site => site.template_source_type === 'wordpress');
-      setIsWordPressMode(hasWordPress);
     } catch (error) {
       console.error('Error loading websites:', error);
       setWebsites([]);
