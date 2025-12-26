@@ -29,9 +29,15 @@ export default function WordPressTemplateChooser() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  console.log('🎯 WordPressTemplateChooser - brandId:', brandId);
+
   useEffect(() => {
+    console.log('🎯 useEffect triggered - brandId:', brandId);
     if (brandId) {
       loadData();
+    } else {
+      console.log('⚠️ No brandId available');
+      setLoading(false);
     }
   }, [brandId]);
 
