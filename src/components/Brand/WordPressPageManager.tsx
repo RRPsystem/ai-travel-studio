@@ -15,36 +15,36 @@ interface WordPressPage {
 }
 
 export default function WordPressPageManager() {
-  const { brandId } = useAuth();
+  const { effectiveBrandId } = useAuth();
   const [pages, setPages] = useState<WordPressPage[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (brandId) {
-      loadPages();
-    }
-  }, [brandId]);
-
   const loadPages = async () => {
-    if (!brandId) {
+    if (!effectiveBrandId) {
+      console.log('⚠️ No brandId available');
       setLoading(false);
       return;
     }
 
+    console.log('📄 Loading pages for brand:', effectiveBrandId);
     setLoading(true);
 
     try {
       const { data, error } = await supabase
         .from('wordpress_pages_cache')
         .select('*')
-        .eq('brand_id', brandId)
+        .eq('brand_id', effectiveBrandId)
         .order('title', { ascending: true });
 
+      console.log('📄 Query result:', { data, error });
+
       if (error) {
-        console.error('Error loading pages:', error);
+        console.error('❌ Error loading pages:', error);
+        alert(`Fout bij laden pagina's: ${error.message}`);
       } else {
+        console.log('✅ Pages loaded:', data?.length || 0);
         setPages(data || []);
 
         if (data && data.length > 0) {
@@ -52,11 +52,20 @@ export default function WordPressPageManager() {
         }
       }
     } catch (err) {
-      console.error('Error loading pages:', err);
+      console.error('❌ Exception loading pages:', err);
+      alert(`Onverwachte fout: ${err instanceof Error ? err.message : 'Onbekende fout'}`);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (effectiveBrandId) {
+      loadPages();
+    } else {
+      setLoading(false);
+    }
+  }, [effectiveBrandId]);
 
   const syncPages = async () => {
     setSyncing(true);
