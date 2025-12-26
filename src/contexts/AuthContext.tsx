@@ -115,7 +115,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const { user: fetchedUser } = await response.json();
-      console.log('🔐 User profile loaded:', { id: fetchedUser.id, role: fetchedUser.role, email: fetchedUser.email });
+      console.log('🔐 User profile loaded:', {
+        id: fetchedUser.id,
+        role: fetchedUser.role,
+        email: fetchedUser.email,
+        brand_id: fetchedUser.brand_id,
+        full_user: fetchedUser
+      });
 
       setUser(prevUser => {
         if (prevUser?.id === fetchedUser.id && prevUser?.role === fetchedUser.role) {
@@ -224,6 +230,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const effectiveBrandId = impersonationContext?.brandId || user?.brand_id || null;
   const effectiveAgentId = impersonationContext?.agentId || null;
+
+  console.log('🔐 AuthContext - effectiveBrandId:', effectiveBrandId, 'user.brand_id:', user?.brand_id, 'impersonation:', impersonationContext?.brandId);
 
   return (
     <AuthContext.Provider value={{
