@@ -1,5 +1,4 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
-import { withCORS } from '../_shared/cors.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -123,7 +122,7 @@ Deno.serve(async (req: Request) => {
       title: page.title.rendered || page.title,
       slug: page.slug,
       page_url: page.link,
-      edit_url: `${wpUrl}/wp-admin/post.php?post=${page.id}&action=edit`,
+      edit_url: `${wpUrl}/wp-admin/post.php?post=${page.id}&action=elementor`,
       status: page.status,
       last_synced_at: new Date().toISOString(),
     }));
