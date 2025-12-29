@@ -89,7 +89,7 @@ Deno.serve(async (req: Request) => {
       .select("*")
       .eq("session_token", sessionToken)
       .order("created_at", { ascending: true })
-      .limit(10);
+      .limit(20);
 
     let searchResults = "";
     if (googleApiKey && googleCseId) {
@@ -529,6 +529,33 @@ ${intake ? JSON.stringify(intake.intake_data, null, 2) : "Geen intake data besch
 ⚠️ KRITIEKE REGEL:
 De reis informatie hierboven bevat ALLE details die je nodig hebt! Als er gevraagd wordt naar hotels, accommodaties, activiteiten of specifieke locaties: GEBRUIK DE EXACTE NAMEN uit de reis informatie hierboven. Zeg NOOIT "die informatie staat niet in de beschikbare gegevens" als het wel hierboven staat!
 
+🗣️ CONVERSATIE CONTEXT & GEHEUGEN:
+Je bent in een doorlopend gesprek met de reiziger. Het is CRUCIAAL dat je:
+
+1. **ONTHOUD WAAR HET GESPREK OVER GAAT**: Als er net gevraagd werd over Swellendam, Johannesburg, een specifiek hotel of restaurant, blijf dan op dat onderwerp doorpraten tenzij de gebruiker expliciet van onderwerp wisselt.
+
+2. **GEBRUIK CONVERSATIE CONTEXT**:
+   - "Is er een restaurant?" → Je moet weten: waar zijn we? Over welke plek hadden we het net?
+   - "Hoe ver is het?" → Hoe ver is WAT? Kijk naar de vorige berichten!
+   - "En hoe zit het met...?" → "En" betekent: bouw voort op het vorige onderwerp
+   - "Nog meer tips?" → Geef meer tips over HETZELFDE onderwerp als net
+
+3. **WEES EEN NATUURLIJKE GESPREKSPARTNER**:
+   ❌ FOUT: "Over welke locatie wil je informatie?" (als je net over Swellendam sprak)
+   ✅ GOED: "In Swellendam zijn er prima restaurants zoals..."
+
+   ❌ FOUT: "Kun je specifieker zijn?" (terwijl de context duidelijk is)
+   ✅ GOED: "Voor Swellendam waar we net over spraken..."
+
+4. **IMPLICIETE REFERENTIES**:
+   - "daar" = de laatst genoemde plek
+   - "dat hotel" = het laatst genoemde hotel
+   - "die activiteit" = de laatst genoemde activiteit
+   - "en verder?" = vertel meer over hetzelfde onderwerp
+
+5. **CONVERSATIE FLOW**:
+   Bouw voort op eerdere berichten. Als iemand vraagt over Swellendam en daarna "is er een supermarkt?", snap dan dat ze bedoelen: "is er een supermarkt in Swellendam?"
+
 ⚡ BELANGRIJKE INSTRUCTIES voor het gebruik van reiziger informatie:
 
 1. FAVORIET ETEN: Als reizigers favoriet eten hebben vermeld (bijv. "Pizza", "Mac Donalds"), gebruik dit actief in je adviezen:
@@ -585,8 +612,22 @@ De reis informatie hierboven bevat ALLE details die je nodig hebt! Als er gevraa
 
 ${searchResults}${locationData}`;
 
+    let conversationContext = "";
+    if (conversationHistory && conversationHistory.length > 0) {
+      const recent = conversationHistory.slice(-3);
+      conversationContext = "\n\n💬 RECENTE CONVERSATIE CONTEXT (laatste 3 berichten):\n";
+      conversationContext += "Let op: dit is waar het gesprek over ging, gebruik deze context!\n\n";
+
+      recent.forEach((conv: any, idx: any) => {
+        const roleLabel = conv.role === 'user' ? '👤 Reiziger' : '🤖 TravelBRO';
+        conversationContext += `${roleLabel}: ${conv.message}\n`;
+      });
+
+      conversationContext += "\n⚠️ GEBRUIK DEZE CONTEXT: Als de nieuwe vraag aansluit bij bovenstaand gesprek, blijf dan op dat onderwerp!\n";
+    }
+
     const messages = [
-      { role: "system", content: systemPrompt },
+      { role: "system", content: systemPrompt + conversationContext },
     ];
 
     if (conversationHistory && conversationHistory.length > 0) {
@@ -617,10 +658,10 @@ ${searchResults}${locationData}`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: trip.gpt_model || "gpt-4o",
+        model: trip.gpt_model || "gpt-4o-mini",
         messages,
         max_tokens: 2000,
-        temperature: trip.gpt_temperature ?? 0.7,
+        temperature: trip.gpt_temperature ?? 0.8,
       }),
     });
 
@@ -638,6 +679,21 @@ ${searchResults}${locationData}`;
 
     const openaiData = await openaiResponse.json();
     const aiResponse = openaiData.choices[0].message.content;
+
+    await supabase.from("travel_conversations").insert([
+      {
+        session_token: sessionToken,
+        trip_id: tripId,
+        role: "user",
+        message: message,
+      },
+      {
+        session_token: sessionToken,
+        trip_id: tripId,
+        role: "assistant",
+        message: aiResponse,
+      },
+    ]);
 
     return new Response(
       JSON.stringify({ response: aiResponse }),
