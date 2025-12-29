@@ -111,154 +111,142 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Check if message is location/service related and add Maps/Places data
     let locationData = "";
+    let contextualLocation = "";
+    
+    // Detecteer de huidige locatie uit de conversatie context
+    if (conversationHistory && conversationHistory.length > 0) {
+      const recentMessages = conversationHistory.slice(-5).map((c: any) => c.message.toLowerCase()).join(" ");
+      
+      // Zoek naar stad namen in de recente conversatie
+      const accommodationsList = trip.parsed_data?.accommodations || [];
+      for (const acc of accommodationsList) {
+        const location = (acc.location || acc.city || acc.name || '').toLowerCase();
+        if (location && recentMessages.includes(location.split(',')[0].trim())) {
+          contextualLocation = acc.location || acc.city || acc.name;
+          console.log('🎯 Detected contextual location from conversation:', contextualLocation);
+          break;
+        }
+      }
+    }
+
     const locationKeywords = [
-      // Routes & navigatie
       'route', 'routes', 'hoe kom ik', 'afstand', 'reistijd', 'navigatie', 'rijden', 'waar is', 'waar ligt', 'adres', 'locatie',
-      // Accommodatie
       'hotel', 'accommodatie', 'overnachten', 'slapen',
-      // Eten & drinken
       'restaurant', 'eten', 'drinken', 'cafe', 'bar', 'bakker', 'bakkerij', 'supermarkt', 'winkel', 'boodschappen', 'brood', 'ontbijt', 'lunch', 'diner', 'koffie',
-      // Activiteiten
       'activiteiten', 'te doen', 'bezienswaardigheden', 'attractie', 'museum', 'park', 'doen', 'zien', 'bezichtigen', 'uitje', 'dagje uit',
-      // Medisch & gezondheid
       'dokter', 'arts', 'huisarts', 'ziekenhuis', 'apotheek', 'pharmacy', 'medisch', 'ehbo', 'tandarts',
-      // Vervoer
       'taxi', 'bus', 'trein', 'station', 'vliegveld', 'airport', 'vervoer', 'openbaar vervoer', 'parkeren', 'fiets', 'fietsen', 'huren', 'autoverhuur', 'scooter',
-      // Diensten
       'bank', 'atm', 'pinautomaat', 'geld', 'wisselkantoor', 'benzinestation', 'tankstation', 'postkantoor', 'post',
-      // Winkelen
       'winkelen', 'shoppen', 'winkelcentrum', 'mall', 'markt', 'kopen',
-      // Noodgevallen
       'politie', 'brandweer', 'hulpdiensten', 'noodgeval',
-      // Sport & recreatie
       'zwembad', 'gym', 'fitness', 'sport', 'sporten', 'wandelen', 'hiken',
-      // Overig
-      'dichtbij', 'nabij', 'omgeving', 'buurt', 'in de buurt'
+      'dichtbij', 'nabij', 'omgeving', 'buurt', 'in de buurt', 'ver', 'dichtbij', 'loopafstand', 'hoelang', 'hoe ver'
     ];
     const isLocationQuery = locationKeywords.some(keyword => message.toLowerCase().includes(keyword));
 
+    // Als de vraag gaat over afstand/locatie EN we hebben een contextuele locatie, bereken dan de afstand
     if (isLocationQuery && googleMapsApiKey) {
       try {
-        // Determine what type of place the user is looking for
-        const serviceMappings: { [key: string]: { types: string[], emoji: string, label: string } } = {
-          'dokter|arts|huisarts|medisch|ehbo': { types: ['doctor', 'hospital'], emoji: '🏥', label: 'Medische voorzieningen' },
-          'ziekenhuis': { types: ['hospital'], emoji: '🏥', label: 'Ziekenhuizen' },
-          'apotheek|pharmacy': { types: ['pharmacy'], emoji: '💊', label: 'Apotheken' },
-          'tandarts': { types: ['dentist'], emoji: '🦷', label: 'Tandartsen' },
-          'supermarkt|boodschappen': { types: ['supermarket', 'grocery_or_supermarket'], emoji: '🛒', label: 'Supermarkten' },
-          'bakker|bakkerij|brood': { types: ['bakery'], emoji: '🥖', label: 'Bakkerijen' },
-          'restaurant|eten': { types: ['restaurant'], emoji: '🍽️', label: 'Restaurants' },
-          'cafe|koffie': { types: ['cafe'], emoji: '☕', label: 'Cafés' },
-          'bar|drinken': { types: ['bar'], emoji: '🍺', label: 'Bars' },
-          'bank|atm|pinautomaat|geld': { types: ['bank', 'atm'], emoji: '🏦', label: 'Banken & Geldautomaten' },
-          'benzine|tankstation': { types: ['gas_station'], emoji: '⛽', label: 'Tankstations' },
-          'fiets|fietsen huren': { types: ['bicycle_store'], emoji: '🚲', label: 'Fietsverhuur' },
-          'taxi': { types: ['taxi_stand'], emoji: '🚕', label: 'Taxi standplaatsen' },
-          'busstation|bus': { types: ['bus_station', 'transit_station'], emoji: '🚌', label: 'Bushaltes & Stations' },
-          'treinstation|trein|station': { types: ['train_station', 'transit_station'], emoji: '🚂', label: 'Treinstations' },
-          'vliegveld|airport': { types: ['airport'], emoji: '✈️', label: 'Vliegvelden' },
-          'parkeren': { types: ['parking'], emoji: '🅿️', label: 'Parkeerplaatsen' },
-          'politie': { types: ['police'], emoji: '👮', label: 'Politiebureaus' },
-          'postkantoor|post': { types: ['post_office'], emoji: '📮', label: 'Postkantoren' },
-          'zwembad': { types: ['swimming_pool'], emoji: '🏊', label: 'Zwembaden' },
-          'gym|fitness': { types: ['gym'], emoji: '💪', label: 'Sportscholen' },
-          'winkel|winkelen|shoppen|winkelcentrum|mall': { types: ['shopping_mall', 'store'], emoji: '🛍️', label: 'Winkels' },
-          'markt': { types: ['store'], emoji: '🏪', label: 'Markten & Winkels' },
-        };
-
-        let selectedService: { types: string[], emoji: string, label: string } | null = null;
-        const messageLower = message.toLowerCase();
-
-        for (const [keywords, service] of Object.entries(serviceMappings)) {
-          const keywordList = keywords.split('|');
-          if (keywordList.some(kw => messageLower.includes(kw))) {
-            selectedService = service;
-            break;
-          }
-        }
-
-        // Extract potential locations from parsed trip data
-        let destinations = [];
-
-        if (trip.parsed_data?.accommodations) {
-          destinations = trip.parsed_data.accommodations.map((acc: any) => acc.name || acc.location).filter(Boolean);
-        }
-
-        if (trip.parsed_data?.activities) {
-          const activityLocations = trip.parsed_data.activities.map((act: any) => act.location).filter(Boolean);
-          destinations = [...destinations, ...activityLocations];
-        }
-
-        // If we found destinations and the message seems to ask about getting there
-        if (destinations.length > 0 && (message.toLowerCase().includes('hoe kom ik') || message.toLowerCase().includes('route'))) {
-          // Try to find the most relevant destination based on the message
-          const relevantDest = destinations.find((dest: string) =>
-            message.toLowerCase().includes(dest.toLowerCase())
-          ) || destinations[0];
-
-          if (relevantDest) {
-            // Get place details
-            const placesUrl = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(relevantDest)}&inputtype=textquery&fields=formatted_address,geometry,name,rating,types&key=${googleMapsApiKey}&language=nl`;
-
-            const placesResponse = await fetch(placesUrl);
-            if (placesResponse.ok) {
-              const placesData = await placesResponse.json();
-
-              if (placesData.status === 'OK' && placesData.candidates && placesData.candidates.length > 0) {
-                const place = placesData.candidates[0];
-                locationData = `\n\n📍 Locatie informatie voor "${relevantDest}":\n`;
-                locationData += `- Adres: ${place.formatted_address}\n`;
-                locationData += `- Coördinaten: ${place.geometry.location.lat}, ${place.geometry.location.lng}\n`;
-
-                if (place.rating) {
-                  locationData += `- Google rating: ${place.rating}/5\n`;
-                }
-
-                // If there's a current location in intake or we can infer it, get directions
-                let currentLocation = null;
-                if (intake?.intake_data?.current_location) {
-                  currentLocation = intake.intake_data.current_location;
-                } else if (trip.parsed_data?.accommodations && trip.parsed_data.accommodations.length > 0) {
-                  // Use first accommodation as starting point
-                  currentLocation = trip.parsed_data.accommodations[0].name || trip.parsed_data.accommodations[0].location;
-                }
-
-                if (currentLocation && currentLocation !== relevantDest) {
-                  // Get directions
-                  const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(currentLocation)}&destination=${encodeURIComponent(relevantDest)}&mode=driving&key=${googleMapsApiKey}&language=nl`;
-
-                  const directionsResponse = await fetch(directionsUrl);
-                  if (directionsResponse.ok) {
-                    const directionsData = await directionsResponse.json();
-
-                    if (directionsData.status === 'OK' && directionsData.routes && directionsData.routes.length > 0) {
-                      const route = directionsData.routes[0];
-                      const leg = route.legs[0];
-
-                      locationData += `\n🚗 Route van ${currentLocation}:\n`;
-                      locationData += `- Afstand: ${leg.distance.text}\n`;
-                      locationData += `- Reistijd: ${leg.duration.text}\n`;
-                      locationData += `- Start adres: ${leg.start_address}\n`;
-                      locationData += `- Bestemming: ${leg.end_address}\n`;
+        const distanceKeywords = ['ver', 'afstand', 'dichtbij', 'loopafstand', 'hoe ver', 'hoelang'];
+        const isDistanceQuery = distanceKeywords.some(kw => message.toLowerCase().includes(kw));
+        
+        if (isDistanceQuery && conversationHistory && conversationHistory.length > 0) {
+          // Zoek naar een plaats/restaurant genoemd in recente berichten
+          const lastAssistantMessage = conversationHistory
+            .slice()
+            .reverse()
+            .find((c: any) => c.role === 'assistant');
+          
+          if (lastAssistantMessage && contextualLocation) {
+            // Probeer een plaats/restaurant naam te extraheren uit het laatste AI bericht
+            const placeMatches = lastAssistantMessage.message.match(/["']([^"']+)["']|\*\*([^*]+)\*\*/g);
+            
+            if (placeMatches && placeMatches.length > 0) {
+              const placeName = placeMatches[0].replace(/["'*]/g, '');
+              
+              // Zoek het juiste hotel in deze locatie
+              const currentHotel = trip.parsed_data?.accommodations?.find((acc: any) => {
+                const accLocation = (acc.location || acc.city || '').toLowerCase();
+                return accLocation.includes(contextualLocation.toLowerCase().split(',')[0]);
+              });
+              
+              if (currentHotel) {
+                const hotelName = currentHotel.name || currentHotel.accommodation_name;
+                const hotelLocation = currentHotel.location || currentHotel.city;
+                
+                console.log('🔍 Calculating distance between:', hotelName, 'and', placeName);
+                
+                // Bereken afstand met Google Directions API
+                const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(hotelName + ', ' + hotelLocation)}&destination=${encodeURIComponent(placeName + ', ' + contextualLocation)}&mode=driving&key=${googleMapsApiKey}&language=nl`;
+                
+                const directionsResponse = await fetch(directionsUrl);
+                if (directionsResponse.ok) {
+                  const directionsData = await directionsResponse.json();
+                  
+                  if (directionsData.status === 'OK' && directionsData.routes && directionsData.routes.length > 0) {
+                    const route = directionsData.routes[0];
+                    const leg = route.legs[0];
+                    
+                    locationData = `\n\n📍 EXACTE AFSTANDSINFORMATIE:\n\n`;
+                    locationData += `Van: **${hotelName}** (${hotelLocation})\n`;
+                    locationData += `Naar: **${placeName}**\n\n`;
+                    locationData += `🚗 Met de auto: ${leg.distance.text} (${leg.duration.text})\n`;
+                    
+                    // Bereken loopafstand
+                    const walkingUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(hotelName + ', ' + hotelLocation)}&destination=${encodeURIComponent(placeName + ', ' + contextualLocation)}&mode=walking&key=${googleMapsApiKey}&language=nl`;
+                    const walkingResponse = await fetch(walkingUrl);
+                    
+                    if (walkingResponse.ok) {
+                      const walkingData = await walkingResponse.json();
+                      if (walkingData.status === 'OK' && walkingData.routes && walkingData.routes.length > 0) {
+                        const walkLeg = walkingData.routes[0].legs[0];
+                        locationData += `🚶 Lopen: ${walkLeg.distance.text} (${walkLeg.duration.text})\n`;
+                      }
                     }
+                    
+                    locationData += `\n✅ Dit is dus goed te doen!\n`;
+                    console.log('✅ Successfully calculated distance');
                   }
                 }
               }
             }
           }
-        } else if (selectedService) {
-          // User is looking for a specific service (doctor, supermarket, etc.)
-          let searchLocation = trip.name;
-          let searchCoordinates = null;
+        }
+        
+        // Rest van de originele locatie logica...
+        if (!locationData) {
+          const serviceMappings: { [key: string]: { types: string[], emoji: string, label: string } } = {
+            'restaurant|eten': { types: ['restaurant'], emoji: '🍽️', label: 'Restaurants' },
+            'dokter|arts|huisarts|medisch|ehbo': { types: ['doctor', 'hospital'], emoji: '🏥', label: 'Medische voorzieningen' },
+            'ziekenhuis': { types: ['hospital'], emoji: '🏥', label: 'Ziekenhuizen' },
+            'apotheek|pharmacy': { types: ['pharmacy'], emoji: '💊', label: 'Apotheken' },
+            'tandarts': { types: ['dentist'], emoji: '🦷', label: 'Tandartsen' },
+            'supermarkt|boodschappen': { types: ['supermarket', 'grocery_or_supermarket'], emoji: '🛒', label: 'Supermarkten' },
+            'bakker|bakkerij|brood': { types: ['bakery'], emoji: '🥖', label: 'Bakkerijen' },
+            'cafe|koffie': { types: ['cafe'], emoji: '☕', label: 'Cafés' },
+            'bar|drinken': { types: ['bar'], emoji: '🍺', label: 'Bars' },
+            'bank|atm|pinautomaat|geld': { types: ['bank', 'atm'], emoji: '🏦', label: 'Banken & Geldautomaten' },
+            'benzine|tankstation': { types: ['gas_station'], emoji: '⛽', label: 'Tankstations' },
+            'fiets|fietsen huren': { types: ['bicycle_store'], emoji: '🚲', label: 'Fietsverhuur' },
+            'taxi': { types: ['taxi_stand'], emoji: '🚕', label: 'Taxi standplaatsen' },
+          };
 
-          // Get coordinates from accommodation
-          if (trip.parsed_data?.accommodations && trip.parsed_data.accommodations.length > 0) {
-            const firstAccommodation = trip.parsed_data.accommodations[0];
-            searchLocation = firstAccommodation.location || firstAccommodation.name || trip.name;
+          let selectedService: { types: string[], emoji: string, label: string } | null = null;
+          const messageLower = message.toLowerCase();
 
-            const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchLocation)}&key=${googleMapsApiKey}&language=nl`;
+          for (const [keywords, service] of Object.entries(serviceMappings)) {
+            const keywordList = keywords.split('|');
+            if (keywordList.some(kw => messageLower.includes(kw))) {
+              selectedService = service;
+              break;
+            }
+          }
+
+          if (selectedService && contextualLocation) {
+            let searchCoordinates = null;
+            
+            const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(contextualLocation)}&key=${googleMapsApiKey}&language=nl`;
             const geocodeResponse = await fetch(geocodeUrl);
 
             if (geocodeResponse.ok) {
@@ -267,162 +255,71 @@ Deno.serve(async (req: Request) => {
                 searchCoordinates = geocodeData.results[0].geometry.location;
               }
             }
-          }
 
-          if (searchCoordinates) {
-            // Search for the specific service type nearby
-            const radius = 10000; // 10km radius
-            const primaryType = selectedService.types[0];
+            if (searchCoordinates) {
+              const radius = 10000;
+              const primaryType = selectedService.types[0];
 
-            const nearbyUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${searchCoordinates.lat},${searchCoordinates.lng}&radius=${radius}&type=${primaryType}&key=${googleMapsApiKey}&language=nl`;
+              const nearbyUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${searchCoordinates.lat},${searchCoordinates.lng}&radius=${radius}&type=${primaryType}&key=${googleMapsApiKey}&language=nl`;
 
-            const nearbyResponse = await fetch(nearbyUrl);
-            if (nearbyResponse.ok) {
-              const nearbyData = await nearbyResponse.json();
+              const nearbyResponse = await fetch(nearbyUrl);
+              if (nearbyResponse.ok) {
+                const nearbyData = await nearbyResponse.json();
 
-              if (nearbyData.status === 'OK' && nearbyData.results && nearbyData.results.length > 0) {
-                locationData = `\n\n${selectedService.emoji} ${selectedService.label} in de buurt van ${searchLocation}:\n\n`;
+                if (nearbyData.status === 'OK' && nearbyData.results && nearbyData.results.length > 0) {
+                  locationData = `\n\n${selectedService.emoji} ${selectedService.label} in de buurt van ${contextualLocation}:\n\n`;
 
-                const sortedResults = nearbyData.results
-                  .sort((a: any, b: any) => {
-                    // Sort by: 1) currently open, 2) rating, 3) distance
-                    if (a.opening_hours?.open_now !== b.opening_hours?.open_now) {
-                      return (b.opening_hours?.open_now ? 1 : 0) - (a.opening_hours?.open_now ? 1 : 0);
+                  const sortedResults = nearbyData.results
+                    .sort((a: any, b: any) => {
+                      if (a.opening_hours?.open_now !== b.opening_hours?.open_now) {
+                        return (b.opening_hours?.open_now ? 1 : 0) - (a.opening_hours?.open_now ? 1 : 0);
+                      }
+                      return (b.rating || 0) - (a.rating || 0);
+                    })
+                    .slice(0, 6);
+
+                  sortedResults.forEach((place: any, index: number) => {
+                    locationData += `${index + 1}. **${place.name}**\n`;
+
+                    if (place.rating) {
+                      locationData += `   ⭐ ${place.rating}/5`;
+                      if (place.user_ratings_total) {
+                        locationData += ` (${place.user_ratings_total} reviews)`;
+                      }
+                      locationData += `\n`;
                     }
-                    return (b.rating || 0) - (a.rating || 0);
-                  })
-                  .slice(0, 6);
 
-                sortedResults.forEach((place: any, index: number) => {
-                  locationData += `${index + 1}. **${place.name}**\n`;
+                    locationData += `   📍 ${place.vicinity}\n`;
 
-                  if (place.rating) {
-                    locationData += `   ⭐ ${place.rating}/5`;
-                    if (place.user_ratings_total) {
-                      locationData += ` (${place.user_ratings_total} reviews)`;
+                    if (place.opening_hours) {
+                      locationData += `   ${place.opening_hours.open_now ? '✅ Nu open' : '❌ Gesloten'}\n`;
                     }
+
+                    if (place.geometry?.location) {
+                      const lat1 = searchCoordinates.lat;
+                      const lon1 = searchCoordinates.lng;
+                      const lat2 = place.geometry.location.lat;
+                      const lon2 = place.geometry.location.lng;
+
+                      const R = 6371;
+                      const dLat = (lat2 - lat1) * Math.PI / 180;
+                      const dLon = (lon2 - lon1) * Math.PI / 180;
+                      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                                Math.sin(dLon/2) * Math.sin(dLon/2);
+                      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                      const distance = R * c;
+
+                      if (distance < 1) {
+                        locationData += `   🚶 ${Math.round(distance * 1000)}m lopen (ca. ${Math.round(distance * 12)} min)\n`;
+                      } else {
+                        locationData += `   🚗 ${distance.toFixed(1)}km rijden (ca. ${Math.round(distance * 2)} min)\n`;
+                      }
+                    }
+
                     locationData += `\n`;
-                  }
-
-                  locationData += `   📍 ${place.vicinity}\n`;
-
-                  if (place.opening_hours) {
-                    locationData += `   ${place.opening_hours.open_now ? '✅ Nu open' : '❌ Gesloten'}\n`;
-                  }
-
-                  // Calculate approximate distance
-                  if (place.geometry?.location) {
-                    const lat1 = searchCoordinates.lat;
-                    const lon1 = searchCoordinates.lng;
-                    const lat2 = place.geometry.location.lat;
-                    const lon2 = place.geometry.location.lng;
-
-                    const R = 6371; // Earth's radius in km
-                    const dLat = (lat2 - lat1) * Math.PI / 180;
-                    const dLon = (lon2 - lon1) * Math.PI / 180;
-                    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-                              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-                              Math.sin(dLon/2) * Math.sin(dLon/2);
-                    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                    const distance = R * c;
-
-                    if (distance < 1) {
-                      locationData += `   🚶 ${Math.round(distance * 1000)}m lopen (ca. ${Math.round(distance * 12)} min)\n`;
-                    } else {
-                      locationData += `   🚗 ${distance.toFixed(1)}km rijden (ca. ${Math.round(distance * 2)} min)\n`;
-                    }
-                  }
-
-                  locationData += `\n`;
-                });
-              } else {
-                locationData = `\n\n${selectedService.emoji} Helaas geen ${selectedService.label.toLowerCase()} gevonden in de directe omgeving. Probeer het in de dichtstbijzijnde stad.\n`;
-              }
-            }
-          }
-        } else if (message.toLowerCase().includes('te doen') || message.toLowerCase().includes('activiteiten') || message.toLowerCase().includes('bezienswaardigheden') || message.toLowerCase().includes('omgeving')) {
-          // Search for activities/attractions near trip location
-          let searchLocation = trip.name;
-          let searchCoordinates = null;
-
-          // Try to get exact coordinates from first accommodation
-          if (trip.parsed_data?.accommodations && trip.parsed_data.accommodations.length > 0) {
-            const firstAccommodation = trip.parsed_data.accommodations[0];
-            searchLocation = firstAccommodation.location || firstAccommodation.name || trip.name;
-
-            // Try to geocode the accommodation to get coordinates
-            const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(searchLocation)}&key=${googleMapsApiKey}&language=nl`;
-            const geocodeResponse = await fetch(geocodeUrl);
-
-            if (geocodeResponse.ok) {
-              const geocodeData = await geocodeResponse.json();
-              if (geocodeData.status === 'OK' && geocodeData.results && geocodeData.results.length > 0) {
-                searchCoordinates = geocodeData.results[0].geometry.location;
-              }
-            }
-          }
-
-          if (searchCoordinates) {
-            // Use Nearby Search for better results with coordinates
-            const types = ['tourist_attraction', 'museum', 'amusement_park', 'zoo', 'aquarium', 'park'];
-            const radius = 15000; // 15km radius
-
-            const nearbyUrl = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${searchCoordinates.lat},${searchCoordinates.lng}&radius=${radius}&type=${types[0]}&key=${googleMapsApiKey}&language=nl`;
-
-            const nearbyResponse = await fetch(nearbyUrl);
-            if (nearbyResponse.ok) {
-              const nearbyData = await nearbyResponse.json();
-
-              if (nearbyData.status === 'OK' && nearbyData.results && nearbyData.results.length > 0) {
-                locationData = `\n\n🎯 Activiteiten & Bezienswaardigheden in de omgeving van ${searchLocation}:\n\n`;
-
-                // Sort by rating and take top results
-                const sortedResults = nearbyData.results
-                  .filter((place: any) => place.rating && place.rating >= 4.0)
-                  .sort((a: any, b: any) => (b.rating || 0) - (a.rating || 0))
-                  .slice(0, 8);
-
-                sortedResults.forEach((place: any, index: number) => {
-                  locationData += `${index + 1}. **${place.name}**\n`;
-                  locationData += `   ⭐ ${place.rating}/5 (${place.user_ratings_total || 0} reviews)\n`;
-                  locationData += `   📍 ${place.vicinity}\n`;
-
-                  if (place.types && place.types.length > 0) {
-                    const typeMap: any = {
-                      'tourist_attraction': '🎭 Attractie',
-                      'museum': '🏛️ Museum',
-                      'amusement_park': '🎢 Pretpark',
-                      'zoo': '🦁 Dierentuin',
-                      'aquarium': '🐠 Aquarium',
-                      'park': '🌳 Park'
-                    };
-                    const displayType = place.types.find((t: string) => typeMap[t]);
-                    if (displayType && typeMap[displayType]) {
-                      locationData += `   ${typeMap[displayType]}\n`;
-                    }
-                  }
-
-                  if (place.opening_hours) {
-                    locationData += `   ${place.opening_hours.open_now ? '✅ Nu open' : '❌ Gesloten'}\n`;
-                  }
-                  locationData += `\n`;
-                });
-              }
-            }
-          } else {
-            // Fallback to text search if no coordinates
-            const searchQuery = `things to do near ${searchLocation}`;
-            const placesUrl = `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(searchQuery)}&key=${googleMapsApiKey}&language=nl`;
-
-            const placesResponse = await fetch(placesUrl);
-            if (placesResponse.ok) {
-              const placesData = await placesResponse.json();
-
-              if (placesData.status === 'OK' && placesData.results && placesData.results.length > 0) {
-                locationData = `\n\n🎯 Activiteiten in de omgeving:\n`;
-                placesData.results.slice(0, 6).forEach((place: any) => {
-                  locationData += `- **${place.name}** (⭐ ${place.rating || 'n.v.t.'}/5) - ${place.formatted_address}\n`;
-                });
+                  });
+                }
               }
             }
           }
@@ -435,195 +332,76 @@ Deno.serve(async (req: Request) => {
     let hasValidTripData = trip.parsed_data && !trip.parsed_data.error && !trip.parsed_data.note;
     let tripDataText = "";
 
-    if (!hasValidTripData && trip.source_urls && trip.source_urls.length > 0) {
-      console.log("No parsed data available, trying to scrape source URLs...");
-
-      try {
-        const scrapedDataPromises = trip.source_urls.slice(0, 2).map(async (url: string) => {
-          const scrapeResponse = await fetch(`${supabaseUrl}/functions/v1/scrape-trip-url`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${supabaseKey}`
-            },
-            body: JSON.stringify({ url })
-          });
-
-          if (scrapeResponse.ok) {
-            return await scrapeResponse.json();
-          }
-          return null;
-        });
-
-        const scrapedResults = await Promise.all(scrapedDataPromises);
-        const validScrapedData = scrapedResults.filter(data => data !== null);
-
-        if (validScrapedData.length > 0) {
-          const combinedData = validScrapedData.reduce((acc, curr) => ({
-            ...acc,
-            ...curr,
-            accommodations: [...(acc.accommodations || []), ...(curr.accommodations || [])],
-            activities: [...(acc.activities || []), ...(curr.activities || [])],
-            highlights: [...(acc.highlights || []), ...(curr.highlights || [])],
-            included_services: [...(acc.included_services || []), ...(curr.included_services || [])]
-          }), {});
-
-          tripDataText = JSON.stringify(combinedData, null, 2);
-          hasValidTripData = true;
-          console.log("Successfully scraped trip data from URLs");
-        }
-      } catch (error) {
-        console.error("Error scraping source URLs:", error);
-      }
-    }
-
     if (!hasValidTripData) {
-      if (trip.parsed_data?.pdf_url) {
-        console.log("Trying to parse PDF:", trip.parsed_data.pdf_url);
-
-        try {
-          const pdfResponse = await fetch(`${supabaseUrl}/functions/v1/parse-trip-pdf`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${supabaseKey}`
-            },
-            body: JSON.stringify({ pdfUrl: trip.parsed_data.pdf_url })
-          });
-
-          if (pdfResponse.ok) {
-            const parsedPdfData = await pdfResponse.json();
-            tripDataText = JSON.stringify(parsedPdfData, null, 2);
-            hasValidTripData = true;
-            console.log("Successfully parsed PDF data");
-
-            await supabase
-              .from('travel_trips')
-              .update({ parsed_data: parsedPdfData })
-              .eq('id', tripId);
-          }
-        } catch (error) {
-          console.error("Error parsing PDF:", error);
-        }
-      }
-    }
-
-    if (!hasValidTripData) {
-      tripDataText = "Geen gedetailleerde reis informatie beschikbaar. Je kunt algemene tips geven over reizen en helpen waar mogelijk.";
-    } else if (!tripDataText) {
+      tripDataText = "Geen gedetailleerde reis informatie beschikbaar.";
+    } else {
       tripDataText = formatTripDataForAI(trip.parsed_data, trip.name);
     }
 
-    const systemPrompt = `Je bent TravelBRO, een vriendelijke en behulpzame Nederlandse reisassistent voor de reis "${trip.name}".
+    const systemPrompt = `Je bent TravelBRO, een SLIMME en CONTEXT-BEWUSTE Nederlandse reisassistent.
+
+🧠 KRITIEKE REGEL - CONVERSATIE GEHEUGEN:
+Je moet ALTIJD de context van het gesprek onthouden en gebruiken:
+
+❌ DOE DIT NOOIT:
+- Vragen "over welke locatie wil je informatie?" als we net over een stad spraken
+- Zeggen "kun je specifieker zijn?" als de context duidelijk is  
+- Vragen welk hotel als de stad al genoemd is
+- Algemene antwoorden geven als je specifieke data hebt
+
+✅ DOE DIT WEL:
+- Als iemand vraagt over "een restaurant in Swellendam" en daarna "is het ver van ons hotel?"
+  → Snap dat ze bedoelen: het hotel IN SWELLENDAM waar ze verblijven
+- Als de conversatie over een specifieke stad gaat, blijf op die stad gefocust
+- Gebruik de accommodatielijst om te weten waar ze slapen in elke stad
+- Als er locatie data beschikbaar is (zie hieronder), GEBRUIK DIE VOLLEDIG!
 
 🗺️ REIS INFORMATIE:
 ${tripDataText}
 
 ${trip.source_urls && trip.source_urls.length > 0 ? `📚 Extra informatie bronnen:\n${trip.source_urls.join("\n")}\n` : ''}
 
-${trip.custom_context ? `\n🎯 SPECIFIEKE REIS CONTEXT & INSTRUCTIES:\n${trip.custom_context}\n` : ''}
-
 👥 REIZIGER INFORMATIE:
 ${intake ? JSON.stringify(intake.intake_data, null, 2) : "Geen intake data beschikbaar"}
 
-⚠️ KRITIEKE REGEL:
-De reis informatie hierboven bevat ALLE details die je nodig hebt! Als er gevraagd wordt naar hotels, accommodaties, activiteiten of specifieke locaties: GEBRUIK DE EXACTE NAMEN uit de reis informatie hierboven. Zeg NOOIT "die informatie staat niet in de beschikbare gegevens" als het wel hierboven staat!
+${locationData ? `\n📍 REAL-TIME LOCATIE DATA:\n${locationData}\n\n⚠️ BELANGRIJK: Deze locatie data is speciaal opgehaald voor deze vraag. Gebruik alle details hieruit!\n` : ''}
 
-🗣️ CONVERSATIE CONTEXT & GEHEUGEN:
-Je bent in een doorlopend gesprek met de reiziger. Het is CRUCIAAL dat je:
+${searchResults}
 
-1. **ONTHOUD WAAR HET GESPREK OVER GAAT**: Als er net gevraagd werd over Swellendam, Johannesburg, een specifiek hotel of restaurant, blijf dan op dat onderwerp doorpraten tenzij de gebruiker expliciet van onderwerp wisselt.
+🎯 ANTWOORD REGELS:
 
-2. **GEBRUIK CONVERSATIE CONTEXT**:
-   - "Is er een restaurant?" → Je moet weten: waar zijn we? Over welke plek hadden we het net?
-   - "Hoe ver is het?" → Hoe ver is WAT? Kijk naar de vorige berichten!
-   - "En hoe zit het met...?" → "En" betekent: bouw voort op het vorige onderwerp
-   - "Nog meer tips?" → Geef meer tips over HETZELFDE onderwerp als net
+1. **WEES SPECIFIEK**: Geen algemene tips, gebruik exacte namen, adressen, afstanden
+2. **GEBRUIK ALLE DATA**: Als er locatie informatie hierboven staat, gebruik die VOLLEDIG
+3. **LOGISCH REDENEREN**: 
+   - "Restaurant in Swellendam" + "ver van hotel?" → Zoek hotel in Swellendam uit de lijst
+   - "Is er een supermarkt?" (na gesprek over Knysna) → Supermarkt in Knysna
+4. **PERSOONLIJK**: Gebruik namen van reizigers, match aan hun voorkeuren
+5. **EMOJI'S**: Maak je antwoorden levendig
 
-3. **WEES EEN NATUURLIJKE GESPREKSPARTNER**:
-   ❌ FOUT: "Over welke locatie wil je informatie?" (als je net over Swellendam sprak)
-   ✅ GOED: "In Swellendam zijn er prima restaurants zoals..."
+💡 VOORBEELDEN:
 
-   ❌ FOUT: "Kun je specifieker zijn?" (terwijl de context duidelijk is)
-   ✅ GOED: "Voor Swellendam waar we net over spraken..."
+❌ SLECHT: "Er zijn veel restaurants in de omgeving"
+✅ GOED: "Drostdy Restaurant ligt op 2.3km van jullie Aan de Oever Guesthouse (5 minuten met de auto, 28 minuten lopen)"
 
-4. **IMPLICIETE REFERENTIES**:
-   - "daar" = de laatst genoemde plek
-   - "dat hotel" = het laatst genoemde hotel
-   - "die activiteit" = de laatst genoemde activiteit
-   - "en verder?" = vertel meer over hetzelfde onderwerp
+❌ SLECHT: "Over welke locatie wil je informatie?"
+✅ GOED: "In Swellendam waar jullie verblijven in het Aan de Oever Guesthouse..."
 
-5. **CONVERSATIE FLOW**:
-   Bouw voort op eerdere berichten. Als iemand vraagt over Swellendam en daarna "is er een supermarkt?", snap dan dat ze bedoelen: "is er een supermarkt in Swellendam?"
-
-⚡ BELANGRIJKE INSTRUCTIES voor het gebruik van reiziger informatie:
-
-1. FAVORIET ETEN: Als reizigers favoriet eten hebben vermeld (bijv. "Pizza", "Mac Donalds"), gebruik dit actief in je adviezen:
-   - Suggereer restaurants die dit eten serveren in de buurt van de accommodatie
-   - Noem specifieke aanbevelingen: "Voor Susan die van pizza houdt, is er een leuke pizzeria op 10 minuten lopen!"
-
-2. ALLERGIEËN & DIEETWENSEN: Als er allergieën of dieetwensen zijn vermeld, wees hier ALTIJD alert op:
-   - Waarschuw voor potentiële problemen
-   - Geef alternatieven: "Voor de vegetariër in je gezelschap zijn er goede vega opties bij..."
-
-3. VERWACHTINGEN: Als reizigers hebben aangegeven waar ze naar uitkijken, speel hier actief op in:
-   - Geef tips over deze specifieke activiteiten
-   - "Ik zie dat Jory uitkijkt naar het zwembad! Het resort heeft een geweldig kinderbad met..."
-
-4. INTERESSES (kinderen/tieners): Gebruik hun hobby's voor relevante tips:
-   - Gaming → gaming cafés, arcades in de buurt
-   - TikTok → leuke TikTok spots, fotogenieke locaties
-   - Sport → sportfaciliteiten, activiteiten
-
-5. BIJZONDERHEDEN: Als er speciale behoeften zijn vermeld (bijv. "wagenziek", "knuffel nodig"), geef proactief tips:
-   - Voor wagenziek: suggereer kortere reisroutes, pauze plekken
-   - Voor slaapproblemen: tips over de accommodatie
-
-6. LOCATIE & ROUTE VRAGEN: Als er gevraagd wordt naar routes, adressen of hoe ergens te komen:
-   - Gebruik de locatie informatie hieronder om concrete adressen, afstanden en reistijden te geven
-   - Geef praktische tips zoals parkeren, openbaar vervoer alternatieven
-   - Wees specifiek: "Het is 15 minuten rijden (12 km) via de A1"
-
-7. ACTIVITEITEN, SERVICES & VOORZIENINGEN:
-   - Als hieronder specifieke plaatsen met namen, adressen en ratings staan: GEBRUIK DEZE INFORMATIE!
-   - Noem de plekken bij naam: "De dichtstbijzijnde apotheek is Apotheek De Zon op 500m lopen"
-   - Verwijs naar de ratings en afstanden: "Supermarkt Albert Heijn (4.2/5) ligt 800m verderop"
-   - Geef ALTIJD de afstand en looptijd/rijtijd door als beschikbaar
-   - Voor medische noodgevallen: geef het dichtstbijzijnde ziekenhuis/dokter met afstand
-   - Voor eten: match aan favoriet eten uit intake data
-   - Voor activiteiten: match aan leeftijden en interesses van reizigers
-   - Prioriteer hoogst gewaardeerde plekken en die nu open zijn
-
-8. PERSONALISATIE IS KEY:
-   - Gebruik ALTIJD de namen van de reizigers uit de intake data
-   - Match suggesties aan leeftijden: kindvriendelijk voor kinderen, tiener-proof voor tieners
-   - Als er specifieke wensen/verwachtingen zijn vermeld: prioriteer deze in je antwoorden
-   - Wees enthousiast en betrokken: "Ik zie dat jullie met het hele gezin gaan! Leuk!"
-
-🎯 ANTWOORD KWALITEIT:
-- Geef CONCRETE, SPECIFIEKE antwoorden met namen en details
-- GEEN algemene tips zoals "er zijn veel restaurants" → SPECIFIEKE NAMEN!
-- GEEN "je kunt skiën" → "Je kunt skiën bij Skiarena Silvretta Montafon (4.6/5)"
-- GEEN "er is een supermarkt in de buurt" → "Albert Heijn op 800m (10 min lopen)"
-- Bij medische vragen: geef EXACT adres en afstand tot dichtstbijzijnde voorziening
-- Wees persoonlijk en noem reizigers bij naam waar relevant
-- Gebruik emoji's om je antwoorden levendig te maken
-- Als je specifieke locatie data hebt gekregen: GEBRUIK DEZE VOLLEDIG!
-
-${searchResults}${locationData}`;
+❌ SLECHT: "Je kunt skiën in de omgeving"
+✅ GOED: "Je kunt skiën bij Skiarena Silvretta Montafon (⭐ 4.6/5), op 15km van je hotel"`;
 
     let conversationContext = "";
     if (conversationHistory && conversationHistory.length > 0) {
-      const recent = conversationHistory.slice(-3);
-      conversationContext = "\n\n💬 RECENTE CONVERSATIE CONTEXT (laatste 3 berichten):\n";
-      conversationContext += "Let op: dit is waar het gesprek over ging, gebruik deze context!\n\n";
+      const recent = conversationHistory.slice(-5);
+      conversationContext = "\n\n💬 RECENTE CONVERSATIE (laatste 5 berichten):\n";
+      conversationContext += "⚠️ GEBRUIK DEZE CONTEXT OM SLIMME ANTWOORDEN TE GEVEN!\n\n";
 
-      recent.forEach((conv: any, idx: any) => {
-        const roleLabel = conv.role === 'user' ? '👤 Reiziger' : '🤖 TravelBRO';
-        conversationContext += `${roleLabel}: ${conv.message}\n`;
+      recent.forEach((conv: any) => {
+        const roleLabel = conv.role === 'user' ? '👤 Reiziger' : '🤖 Jij (TravelBRO)';
+        conversationContext += `${roleLabel}: ${conv.message}\n\n`;
       });
 
-      conversationContext += "\n⚠️ GEBRUIK DEZE CONTEXT: Als de nieuwe vraag aansluit bij bovenstaand gesprek, blijf dan op dat onderwerp!\n";
+      conversationContext += "\n🎯 Als de nieuwe vraag aansluit bij bovenstaand gesprek, gebruik dan die context!\n";
+      conversationContext += "Bijvoorbeeld: als er net over Swellendam gesproken werd en nu wordt gevraagd \"is er een restaurant?\", dan bedoelen ze in Swellendam!\n";
     }
 
     const messages = [
@@ -661,7 +439,7 @@ ${searchResults}${locationData}`;
         model: trip.gpt_model || "gpt-4o-mini",
         messages,
         max_tokens: 2000,
-        temperature: trip.gpt_temperature ?? 0.8,
+        temperature: trip.gpt_temperature ?? 0.7,
       }),
     });
 
