@@ -82,34 +82,52 @@ Deno.serve(async (req: Request) => {
       .order("created_at", { ascending: true })
       .limit(20);
 
+    const tripContext = trip.custom_context || '';
+
+    const tripRouteMatch = tripContext.match(/Reisroute:\s*\n([^\n]+)/);
+    let routeStops: string[] = [];
+
+    if (tripRouteMatch) {
+      const routeLine = tripRouteMatch[1];
+      routeStops = routeLine
+        .split('→')
+        .map(stop => stop.trim().toLowerCase())
+        .filter(stop => stop.length > 0);
+      console.log('📍 Parsed route stops:', routeStops);
+    }
+
+    const hotelMappings: { [key: string]: string } = {
+      'johannesburg': 'City Lodge Johannesburg Airport',
+      'welgevonden game reserve': 'Welgevonden Game Reserve',
+      'tzaneen': 'Tamboti Lodge Guest House',
+      'graskop': 'Westlodge at Graskop',
+      'piet retief': 'Dusk to Dawn Guesthouse',
+      'st. lucia': 'Ndiza Lodge & Cabanas',
+      'kwazulu-natal': 'Rhino Ridge Safari Lodge',
+      'umhlanga': 'Tesorino',
+      'durban': 'Durban Hotel',
+      'port elizabeth': 'Port Elizabeth Airport',
+      'addo elephant national park': 'Addo Dung Beetle Guest Farm',
+      'addo': 'Addo Dung Beetle Guest Farm',
+      'knysna': 'Knysna Manor House',
+      'swellendam': 'Aan de Oever Guesthouse',
+      'hermanus': 'Whale Coast Ocean Villa',
+      'kaapstad': 'Cape Town Hotel'
+    };
+
     let contextualLocation = "";
     let currentHotel = "";
 
     if (conversationHistory && conversationHistory.length > 0) {
       const recentMessages = conversationHistory.slice(-5).map((c: any) => c.message.toLowerCase()).join(" ");
 
-      const cities = ['johannesburg', 'tzaneen', 'graskop', 'piet retief', 'st. lucia', 'kwazulu-natal', 'umhlanga', 'durban', 'addo', 'knysna', 'swellendam', 'hermanus', 'kaapstad'];
-      for (const city of cities) {
-        if (recentMessages.includes(city)) {
-          contextualLocation = city;
+      for (const stop of routeStops) {
+        if (recentMessages.includes(stop) || recentMessages.includes(stop.replace(' game reserve', '').replace(' national park', '').replace(' elephant', ''))) {
+          contextualLocation = stop;
           console.log('🎯 Detected contextual location:', contextualLocation);
           break;
         }
       }
-
-      const hotelMappings: { [key: string]: string } = {
-        'johannesburg': 'City Lodge Johannesburg Airport',
-        'tzaneen': 'Tamboti Lodge Guest House',
-        'graskop': 'Westlodge at Graskop',
-        'piet retief': 'Dusk to Dawn Guesthouse',
-        'st. lucia': 'Ndiza Lodge & Cabanas',
-        'kwazulu-natal': 'Rhino Ridge Safari Lodge',
-        'umhlanga': 'Tesorino',
-        'addo': 'Addo Dung Beetle Guest Farm',
-        'knysna': 'Knysna Manor House',
-        'swellendam': 'Aan de Oever Guesthouse',
-        'hermanus': 'Whale Coast Ocean Villa'
-      };
 
       if (contextualLocation && hotelMappings[contextualLocation]) {
         currentHotel = hotelMappings[contextualLocation];
@@ -137,44 +155,21 @@ Deno.serve(async (req: Request) => {
       try {
         const distanceKeywords = ['ver', 'afstand', 'dichtbij', 'loopafstand', 'hoe ver', 'hoelang', 'kunnen we', 'lopen'];
         const isDistanceQuery = distanceKeywords.some(kw => message.toLowerCase().includes(kw));
-        
+
         const routeKeywords = ['route', 'routebeschrijving', 'hoe komen we', 'hoe kom ik', 'navigatie'];
         const isRouteQuery = routeKeywords.some(kw => message.toLowerCase().includes(kw));
 
         if (isRouteQuery && contextualLocation && currentHotel) {
           console.log('🗺️ Route query detected');
 
-          const citySequence = {
-            'johannesburg': { next: 'tzaneen', prev: null },
-            'tzaneen': { next: 'graskop', prev: 'johannesburg' },
-            'graskop': { next: 'piet retief', prev: 'tzaneen' },
-            'piet retief': { next: 'st. lucia', prev: 'graskop' },
-            'st. lucia': { next: 'umhlanga', prev: 'piet retief' },
-            'umhlanga': { next: 'addo', prev: 'st. lucia' },
-            'addo': { next: 'knysna', prev: 'umhlanga' },
-            'knysna': { next: 'swellendam', prev: 'addo' },
-            'swellendam': { next: 'hermanus', prev: 'knysna' },
-            'hermanus': { next: 'kaapstad', prev: 'swellendam' },
-            'kaapstad': { next: null, prev: 'hermanus' }
-          };
+          const currentIndex = routeStops.indexOf(contextualLocation);
+          let fromCity = null;
+          let fromHotel = null;
 
-          const currentCity = citySequence[contextualLocation];
-          if (currentCity && currentCity.prev) {
-            const fromCity = currentCity.prev;
-            const fromHotelMappings: { [key: string]: string } = {
-              'johannesburg': 'City Lodge Johannesburg Airport',
-              'tzaneen': 'Tamboti Lodge Guest House',
-              'graskop': 'Westlodge at Graskop',
-              'piet retief': 'Dusk to Dawn Guesthouse',
-              'st. lucia': 'Ndiza Lodge & Cabanas',
-              'umhlanga': 'Tesorino',
-              'addo': 'Addo Dung Beetle Guest Farm',
-              'knysna': 'Knysna Manor House',
-              'swellendam': 'Aan de Oever Guesthouse',
-              'hermanus': 'Whale Coast Ocean Villa'
-            };
-
-            const fromHotel = fromHotelMappings[fromCity];
+          if (currentIndex > 0) {
+            fromCity = routeStops[currentIndex - 1];
+            fromHotel = hotelMappings[fromCity];
+            console.log(`🚗 Found previous stop: ${fromCity} (${fromHotel})`);
 
             if (fromHotel) {
               console.log(`🚗 Calculating route from ${fromCity} (${fromHotel}) to ${contextualLocation} (${currentHotel})`);
@@ -223,47 +218,47 @@ Deno.serve(async (req: Request) => {
             .slice()
             .reverse()
             .find((c: any) => c.role === 'assistant');
-          
+
           if (lastAssistantMessage) {
-            const placeMatches = lastAssistantMessage.message.match(/[\"']([^\"']+)[\"']|\\*\\*([^*]+)\\*\\*/g);
-            
+            const placeMatches = lastAssistantMessage.message.match(/["']([^"']+)["']|\\*\\*([^*]+)\\*\\*/g);
+
             if (placeMatches && placeMatches.length > 0) {
-              const placeName = placeMatches[0].replace(/[\"'*]/g, '');
-              
+              const placeName = placeMatches[0].replace(/["'*]/g, '');
+
               const hotelMatch = trip.custom_context?.match(new RegExp(`([^\\n]+)\\s+\\(ID:[^)]+\\)[^\\n]+${contextualLocation}[^\\n]+Swellendam`, 'i'));
               let hotelName = hotelMatch ? hotelMatch[1].trim() : null;
-              
+
               if (!hotelName && contextualLocation === 'swellendam') {
                 hotelName = 'Aan de Oever Guesthouse';
               }
-              
+
               if (hotelName) {
                 console.log('🔍 Calculating distance between:', hotelName, 'and', placeName);
-                
+
                 const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(hotelName + ', ' + contextualLocation + ', South Africa')}&destination=${encodeURIComponent(placeName + ', ' + contextualLocation + ', South Africa')}&mode=driving&key=${googleMapsApiKey}&language=nl`;
-                
+
                 const directionsResponse = await fetch(directionsUrl);
                 if (directionsResponse.ok) {
                   const directionsData = await directionsResponse.json();
-                  
+
                   if (directionsData.status === 'OK' && directionsData.routes && directionsData.routes.length > 0) {
                     const route = directionsData.routes[0];
                     const leg = route.legs[0];
-                    
+
                     locationData = `\n\n📍 EXACTE AFSTANDSINFORMATIE:\n\n`;
                     locationData += `Van: **${hotelName}** (jullie hotel in ${contextualLocation})\n`;
                     locationData += `Naar: **${placeName}**\n\n`;
                     locationData += `🚗 Met de auto: ${leg.distance.text} (${leg.duration.text})\n`;
-                    
+
                     const walkingUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(hotelName + ', ' + contextualLocation + ', South Africa')}&destination=${encodeURIComponent(placeName + ', ' + contextualLocation + ', South Africa')}&mode=walking&key=${googleMapsApiKey}&language=nl`;
                     const walkingResponse = await fetch(walkingUrl);
-                    
+
                     if (walkingResponse.ok) {
                       const walkingData = await walkingResponse.json();
                       if (walkingData.status === 'OK' && walkingData.routes && walkingData.routes.length > 0) {
                         const walkLeg = walkingData.routes[0].legs[0];
                         locationData += `🚶 Lopen: ${walkLeg.distance.text} (${walkLeg.duration.text})\n\n`;
-                        
+
                         const distanceKm = parseFloat(walkLeg.distance.text.replace(',', '.'));
                         if (distanceKm < 2) {
                           locationData += `✅ Dit is prima te lopen!\n`;
@@ -274,7 +269,7 @@ Deno.serve(async (req: Request) => {
                         }
                       }
                     }
-                    
+
                     console.log('✅ Successfully calculated distance');
                   }
                 }
@@ -282,7 +277,7 @@ Deno.serve(async (req: Request) => {
             }
           }
         }
-        
+
         if (!locationData && contextualLocation) {
           const serviceMappings: { [key: string]: { types: string[], emoji: string, label: string } } = {
             'restaurant|eten': { types: ['restaurant'], emoji: '🍽️', label: 'Restaurants' },
@@ -313,7 +308,7 @@ Deno.serve(async (req: Request) => {
 
           if (selectedService) {
             let searchCoordinates = null;
-            
+
             const geocodeUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(contextualLocation + ', South Africa')}&key=${googleMapsApiKey}&language=nl`;
             const geocodeResponse = await fetch(geocodeUrl);
 
@@ -397,9 +392,95 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const tripContext = trip.custom_context || '';
+    const routeOverview = routeStops.length > 0
+      ? `🗺️ ROUTE VOLGORDE:\n${routeStops.map((stop, i) => `${i + 1}. ${stop.toUpperCase()}`).join(' → ')}\n\n`
+      : '';
 
-    const systemPrompt = `Je bent TravelBRO, een PROFESSIONELE Nederlandse reisassistent die ALTIJD de volledige reisinformatie EN persoonlijke voorkeuren gebruikt.\n\n🚨 KRITIEKE REGEL #1 - GEBRUIK DE REISINFORMATIE!\nJe hebt COMPLETE reisinformatie gekregen. GEBRUIK DIE!\n\n🚨 KRITIEKE REGEL #2 - NOOIT VERDUIDELIJKINGSVRAGEN!\nAls iemand vraagt \"is er een restaurant in de buurt?\" of \"in de buurt van dit hotel?\" weet je ALTIJD de context!\n\n🚨 KRITIEKE REGEL #3 - NOOIT GENERIEKE ANTWOORDEN!\nGEEN algemene info over Zuid-Afrika. ALTIJD specifiek over de locatie waar ze het over hebben!\n\n🚨 KRITIEKE REGEL #4 - GEBRUIK INTAKE DATA!\nDe reizigers hebben persoonlijke voorkeuren ingevuld. GEBRUIK DIE in je antwoorden!\n\n🚨 KRITIEKE REGEL #5 - KIJK IN DE REISINFORMATIE!\nAls iemand vraagt \"hoe komen we naar X\" - kijk in de reisinformatie welke locatie VOOR X komt. Dat is het vertrekpunt!\n\n❌ ZEG NOOIT:\n- \"Die informatie heb ik niet\"\n- \"Kun je specifieker zijn?\"\n- \"Over welke locatie wil je informatie?\"\n- \"Welk hotel bedoel je?\"\n- \"Bij welk hotel zoek je een restaurant?\"\n- \"Kun je me vertellen bij welk hotel?\"\n- \"Stuur me even je vertrekpunt\" (JE WEET het vertrekpunt uit de reisvolgorde!)\n- \"Waar heb je precies informatie over nodig?\" (Ze hebben het NET gezegd!)\n- \"Het hangt af van welke bestemming je bedoelt\" (JE WEET de bestemming uit de context!)\n- Generieke lijstjes van verschillende steden (focus op ÉÉN stad!)\n\n✅ DOE DIT:\n- LEES de reisinformatie hieronder\n- GEBRUIK de exacte hotelnamen en details\n- BEGRIJP de context van het gesprek: \"daar\" = de laatst genoemde plaats\n- GEEF concrete, SPECIFIEKE antwoorden over die ene locatie\n- Als er real-time locatie data is, GEBRUIK DIE METEEN!\n- PERSONALISEER antwoorden met hun intake data (interesses, budget, reistijl)\n\n${contextualLocation && currentHotel ? `\n🎯 HUIDIGE CONTEXT:\n📍 Locatie: ${contextualLocation.toUpperCase()}\n🏨 Jullie hotel: ${currentHotel}\n\n⚠️ GEBRUIK DEZE CONTEXT!\n- \"daar\" = ${contextualLocation}\n- \"het hotel\" = ${currentHotel}\n- Als ze vragen \"is het daar leuk?\" bedoelen ze ${contextualLocation}!\n- Geef SPECIFIEKE info over ${contextualLocation}, NIET over heel Zuid-Afrika!\n` : ''}\n\n🗺️ COMPLETE REISINFORMATIE:\n${tripContext}\n\n${trip.source_urls && trip.source_urls.length > 0 ? `\n📚 Extra bronnen:\n${trip.source_urls.join("\n")}\n` : ''}\n\n👥 PERSOONLIJKE REIZIGER VOORKEUREN (GEBRUIK DIT!):\n${intake ? JSON.stringify(intake.intake_data, null, 2) : "Geen intake data beschikbaar"}\n\n⚠️ Gebruik deze voorkeuren om antwoorden te personaliseren:\n- Als ze van avontuur houden → suggereer actieve dingen\n- Als ze relaxed zijn → focus op ontspanning\n- Budget niveau → pas aanbevelingen aan\n- Interesses → gebruik dit bij suggesties\n\n${locationData ? `\n📍 REAL-TIME LOCATIE DATA:\n${locationData}\n\n⚠️ GEBRUIK DEZE LOCATIE DATA IN JE ANTWOORD!\n` : ''}\n\n🎯 ANTWOORD REGELS:\n\n1. **CONTEXT BEGRIP IS ALLES**:\n   - We praten over ${contextualLocation ? contextualLocation.toUpperCase() : 'een specifieke locatie'}\n   - Het hotel is ${currentHotel ? `**${currentHotel}**` : 'bekend uit de conversatie'}\n   - Als iemand zegt \"dit hotel\", \"het hotel\", \"in de buurt\" → ze bedoelen ${currentHotel || 'het hotel in de huidige context'}\n   - Als iemand vraagt \"restaurant in de buurt?\" → ze bedoelen in de buurt van ${currentHotel || 'hun hotel'}\n\n2. **GEBRUIK EXACTE DATA**:\n   - Hotelname: ALTIJD de volledige naam uit de reisinformatie\n   - Locatie: De exacte plaats (Johannesburg, Tzaneen, Graskop, etc.)\n   - Faciliteiten: Zwembad, wifi, etc. zoals vermeld\n   - Maaltijden: BED AND BREAKFAST, FULL BOARD, ROOM ONLY\n\n3. **WEES SPECIFIEK**:\n   - Geen algemene tips\n   - Gebruik namen, adressen, details\n   - Als er real-time locatie data beschikbaar is (hierboven), GEBRUIK DIE!\n   - Als er real-time data is, begin dan DIRECT met die restaurants\n\n4. **EMOJI'S**: Maak antwoorden levendig en prettig leesbaar\n\n📋 VOORBEELD CORRECTE ANTWOORDEN:\n\nSCENARIO 1: Restaurant vraag\nIemand vroeg net \"waar slapen we in Swellendam\" en jij antwoordde \"Aan de Oever Guesthouse\"\nVraag: \"wat is een leuk restaurant in de buurt van dit hotel?\"\n\n❌ FOUT: \"Kun je me vertellen bij welk hotel je een restaurant zoekt?\"\n❌ FOUT: \"Bij welk hotel wil je een restaurant?\"\n❌ FOUT: \"In de buurt van waar precies?\"\n\n✅ GOED: \"Hier zijn de beste restaurants in de buurt van jullie Aan de Oever Guesthouse in Swellendam:\" [+ lijst met real-time data]\n\nSCENARIO 2: \"Is het daar leuk?\" vraag\nIemand vroeg net \"waar slapen we in Tzaneen\" en jij antwoordde \"Tamboti Lodge\"\nVraag: \"is het daar leuk? of zitten we echt midden in the middle of nowhere?\"\n\n❌ FOUT: \"Het hangt af van welke bestemming je bedoelt, maar over het algemeen biedt Zuid-Afrika...\" [en dan een lijst van verschillende steden]\n❌ FOUT: Generieke info over meerdere steden geven\n❌ FOUT: Vragen welke plek ze bedoelen\n\n✅ GOED: \"Tzaneen is super! Het ligt in de prachtige Letaba-vallei met veel te doen. Je zit niet 'in the middle of nowhere' - het is een levendig gebied met [SPECIFIEKE dingen in Tzaneen]. Jullie Tamboti Lodge ligt [specifieke info over ligging]. Als ik naar jullie voorkeuren kijk [intake data gebruiken], zou ik zeker [gepersonaliseerde suggesties voor Tzaneen] aanraden!\"\n\nSCENARIO 3: Route vraag\nIemand vraagt: \"hoe komen we naar Tamboti Lodge met de auto?\"\nContext: In de reisinformatie staat de volgorde: Johannesburg → Tzaneen (Tamboti Lodge) → Graskop\n\n❌ FOUT: \"Stuur me even je vertrekpunt\"\n❌ FOUT: \"Waar vertrek je vandaan?\"\n❌ FOUT: \"Waar heb je precies informatie over nodig?\"\n\n✅ GOED: \"De route van Johannesburg naar Tamboti Lodge in Tzaneen is ongeveer [afstand] en duurt [tijd]. Je rijdt via [route details]. Tamboti Lodge ligt op [adres in Tzaneen]. Wil je dat ik specifieke tussenstops of bezienswaardigheden onderweg voor je opzoek?\"\n\nSCENARIO 4: Algemene vraag\nVraag: \"is er een supermarkt?\"\n\n❌ FOUT: \"In welke stad bedoel je?\"\n✅ GOED: \"In ${contextualLocation || 'jullie huidige locatie'} zijn er deze supermarkten:\" [+ lijst]\n\n🧠 CONVERSATIE GEHEUGEN:\n- Als de conversatie over een specifieke stad gaat, blijf op die stad gefocust\n- \"daar\", \"het\", \"die plek\" = de stad die net genoemd werd\n- Als iemand \"dit\", \"het hotel\", \"hier\" zegt, weet je ALTIJD welk hotel ze bedoelen\n- NOOIT vragen om verduidelijking als de context duidelijk is uit het gesprek\n- NOOIT generieke lijstjes van verschillende steden - focus op DE stad uit de context!`;
+    const systemPrompt = `Je bent TravelBRO, een PROFESSIONELE Nederlandse reisassistent die ALTIJD de volledige reisinformatie EN persoonlijke voorkeuren gebruikt.
+
+${routeOverview}⚠️ Bij route vragen: Als er REAL-TIME LOCATIE DATA met route-info beschikbaar is, gebruik die DIRECT! Nooit vragen om het vertrekpunt.
+
+🚨 KRITIEKE REGEL #1 - GEBRUIK DE REISINFORMATIE!
+Je hebt COMPLETE reisinformatie gekregen. GEBRUIK DIE!
+
+🚨 KRITIEKE REGEL #2 - NOOIT VERDUIDELIJKINGSVRAGEN!
+Als iemand vraagt "is er een restaurant in de buurt?" of "in de buurt van dit hotel?" weet je ALTIJD de context!
+
+🚨 KRITIEKE REGEL #3 - NOOIT GENERIEKE ANTWOORDEN!
+GEEN algemene info over Zuid-Afrika. ALTIJD specifiek over de locatie waar ze het over hebben!
+
+🚨 KRITIEKE REGEL #4 - GEBRUIK INTAKE DATA!
+De reizigers hebben persoonlijke voorkeuren ingevuld. GEBRUIK DIE in je antwoorden!
+
+🚨 KRITIEKE REGEL #5 - AUTOMATISCHE ROUTE HERKENNING!
+Als iemand vraagt "hoe komen we naar X" - de REAL-TIME LOCATIE DATA hierboven bevat AUTOMATISCH de complete route van de vorige stop! Als er real-time route data is: GEBRUIK DIE DIRECT in je antwoord!
+
+❌ ZEG NOOIT:
+- "Die informatie heb ik niet"
+- "Kun je specifieker zijn?"
+- "Over welke locatie wil je informatie?"
+- "Welk hotel bedoel je?"
+- "Bij welk hotel zoek je een restaurant?"
+- "Kun je me vertellen bij welk hotel?"
+- "Stuur me even je vertrekpunt" (JE WEET het vertrekpunt uit de reisvolgorde!)
+- "Waar heb je precies informatie over nodig?" (Ze hebben het NET gezegd!)
+- "Het hangt af van welke bestemming je bedoelt" (JE WEET de bestemming uit de context!)
+- Generieke lijstjes van verschillende steden (focus op ÉÉN stad!)
+
+✅ DOE DIT:
+- LEES de reisinformatie hieronder
+- GEBRUIK de exacte hotelnamen en details
+- BEGRIJP de context van het gesprek: "daar" = de laatst genoemde plaats
+- GEEF concrete, SPECIFIEKE antwoorden over die ene locatie
+- Als er real-time locatie data is, GEBRUIK DIE METEEN!
+- PERSONALISEER antwoorden met hun intake data (interesses, budget, reistijl)
+
+${contextualLocation && currentHotel ? `\n🎯 HUIDIGE CONTEXT:\n📍 Locatie: ${contextualLocation.toUpperCase()}\n🏨 Jullie hotel: ${currentHotel}\n\n⚠️ GEBRUIK DEZE CONTEXT!\n- "daar" = ${contextualLocation}\n- "het hotel" = ${currentHotel}\n- Als ze vragen "is het daar leuk?" bedoelen ze ${contextualLocation}!\n- Geef SPECIFIEKE info over ${contextualLocation}, NIET over heel Zuid-Afrika!\n` : ''}
+
+🗺️ COMPLETE REISINFORMATIE:
+${tripContext}
+
+${trip.source_urls && trip.source_urls.length > 0 ? `\n📚 Extra bronnen:\n${trip.source_urls.join("\n")}\n` : ''}
+
+👥 PERSOONLIJKE REIZIGER VOORKEUREN (GEBRUIK DIT!):
+${intake ? JSON.stringify(intake.intake_data, null, 2) : "Geen intake data beschikbaar"}
+
+⚠️ Gebruik deze voorkeuren om antwoorden te personaliseren:
+- Als ze van avontuur houden → suggereer actieve dingen
+- Als ze relaxed zijn → focus op ontspanning
+- Budget niveau → pas aanbevelingen aan
+- Interesses → gebruik dit bij suggesties
+
+${locationData ? `\n📍 REAL-TIME LOCATIE DATA:\n${locationData}\n\n⚠️ GEBRUIK DEZE LOCATIE DATA IN JE ANTWOORD!\n` : ''}
+
+🎯 ANTWOORD REGELS:
+
+1. **CONTEXT BEGRIP IS ALLES**:
+   - We praten over ${contextualLocation ? contextualLocation.toUpperCase() : 'een specifieke locatie'}
+   - Het hotel is ${currentHotel ? `**${currentHotel}**` : 'bekend uit de conversatie'}
+   - Als iemand zegt "dit hotel", "het hotel", "in de buurt" → ze bedoelen ${currentHotel || 'het hotel in de huidige context'}
+   - Als iemand vraagt "restaurant in de buurt?" → ze bedoelen in de buurt van ${currentHotel || 'hun hotel'}
+
+2. **GEBRUIK EXACTE DATA**:
+   - Hotelname: ALTIJD de volledige naam uit de reisinformatie
+   - Locatie: De exacte plaats (Johannesburg, Tzaneen, Graskop, etc.)
+   - Faciliteiten: Zwembad, wifi, etc. zoals vermeld
+   - Maaltijden: BED AND BREAKFAST, FULL BOARD, ROOM ONLY
+
+3. **WEES SPECIFIEK**:
+   - Geen algemene tips
+   - Gebruik namen, adressen, details
+   - Als er real-time locatie data beschikbaar is (hierboven), GEBRUIK DIE!
+   - Als er real-time data is, begin dan DIRECT met die restaurants
+
+4. **EMOJI'S**: Maak antwoorden levendig en prettig leesbaar
+
+🧠 CONVERSATIE GEHEUGEN:
+- Als de conversatie over een specifieke stad gaat, blijf op die stad gefocust
+- "daar", "het", "die plek" = de stad die net genoemd werd
+- Als iemand "dit", "het hotel", "hier" zegt, weet je ALTIJD welk hotel ze bedoelen
+- NOOIT vragen om verduidelijking als de context duidelijk is uit het gesprek
+- NOOIT generieke lijstjes van verschillende steden - focus op DE stad uit de context!`;
 
     let conversationContext = "";
     if (conversationHistory && conversationHistory.length > 0) {
