@@ -167,6 +167,94 @@ BELANGRIJK:
   return JSON.parse(content);
 }
 
+function convertToItinerary(parsedData: any, rawText: string, openaiApiKey: string): any[] {
+  if (!parsedData?.segments) return [];
+
+  const hotelSegments = parsedData.segments.filter((s: any) => s.kind === 'hotel');
+
+  return hotelSegments.map((hotel: any, index: number) => {
+    const startDate = new Date(hotel.start_datetime);
+    const dayNumber = index + 1;
+
+    return {
+      day: dayNumber,
+      date: startDate.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long' }),
+      location: hotel.location.city || hotel.location.name,
+      hotel: {
+        name: hotel.location.name,
+        address: hotel.location.address,
+        city: hotel.location.city,
+        country: hotel.location.country,
+        has_restaurant: extractRestaurantInfo(hotel, rawText),
+        amenities: extractAmenities(hotel, rawText)
+      },
+      activities: extractActivities(hotel, parsedData.segments)
+    };
+  });
+}
+
+function extractRestaurantInfo(hotel: any, rawText: string): boolean | null {
+  const hotelText = rawText.toLowerCase();
+  const hotelName = hotel.location.name.toLowerCase();
+
+  const restaurantKeywords = ['restaurant', 'dining', 'breakfast', 'dinner', 'lunch'];
+  const hotelSection = hotelText.indexOf(hotelName);
+
+  if (hotelSection === -1) return null;
+
+  const sectionText = hotelText.substring(hotelSection, hotelSection + 500);
+
+  return restaurantKeywords.some(keyword => sectionText.includes(keyword)) ? true : null;
+}
+
+function extractAmenities(hotel: any, rawText: string): string[] {
+  const amenities: string[] = [];
+  const hotelText = rawText.toLowerCase();
+  const hotelName = hotel.location.name.toLowerCase();
+
+  const hotelSection = hotelText.indexOf(hotelName);
+  if (hotelSection === -1) return amenities;
+
+  const sectionText = hotelText.substring(hotelSection, hotelSection + 1000);
+
+  const amenityMap: { [key: string]: string[] } = {
+    'zwembad': ['pool', 'swimming', 'zwembad'],
+    'restaurant': ['restaurant', 'dining'],
+    'bar': ['bar', 'lounge'],
+    'spa': ['spa', 'wellness', 'massage'],
+    'wifi': ['wifi', 'wi-fi', 'internet'],
+    'parking': ['parking', 'parkeren'],
+    'gym': ['gym', 'fitness'],
+  };
+
+  for (const [amenity, keywords] of Object.entries(amenityMap)) {
+    if (keywords.some(keyword => sectionText.includes(keyword))) {
+      amenities.push(amenity);
+    }
+  }
+
+  return amenities;
+}
+
+function extractActivities(hotel: any, allSegments: any[]): string[] {
+  const activities: string[] = [];
+
+  const hotelStart = new Date(hotel.start_datetime);
+  const hotelEnd = hotel.end_datetime ? new Date(hotel.end_datetime) : null;
+
+  allSegments.forEach(segment => {
+    if (segment.kind === 'activity') {
+      const activityDate = new Date(segment.start_datetime);
+
+      if (activityDate >= hotelStart && (!hotelEnd || activityDate < hotelEnd)) {
+        activities.push(segment.location.name);
+      }
+    }
+  });
+
+  return activities;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -266,10 +354,15 @@ Deno.serve(async (req: Request) => {
     console.log('Parsing with GPT (text length:', pdfText.length, ')');
     const parsedData = await parseWithGPT(pdfText, openaiApiKey);
 
+    const itinerary = convertToItinerary(parsedData, pdfText, openaiApiKey);
+
     console.log('Successfully parsed PDF');
 
     return new Response(
-      JSON.stringify(parsedData),
+      JSON.stringify({
+        ...parsedData,
+        itinerary
+      }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }

@@ -419,8 +419,14 @@ export function TravelBroSetup() {
           console.log('🤖 Parse response status:', parseResponse.status);
 
           if (parseResponse.ok) {
-            parsedData = await parseResponse.json();
-            console.log('📋 Parsed data:', parsedData);
+            const parseResult = await parseResponse.json();
+            console.log('📋 Parsed data:', parseResult);
+
+            parsedData = parseResult;
+
+            if (parseResult.itinerary) {
+              console.log('📅 Itinerary found, storing in metadata');
+            }
           } else {
             const errorText = await parseResponse.text();
             console.error('❌ PDF parsing failed:', errorText);
@@ -437,12 +443,16 @@ export function TravelBroSetup() {
         ? { travelers }
         : null;
 
+      const itinerary = parsedData?.itinerary;
+      const tripMetadata = itinerary ? { itinerary } : null;
+
       console.log('💾 Inserting into database...');
       console.log('💾 Data:', {
         brand_id: user?.brand_id,
         name: newTripName,
         pdf_url: pdfUrl,
         parsed_data: parsedData || {},
+        metadata: tripMetadata,
         source_urls: filteredUrls,
         intake_template: intakeTemplate,
         custom_context: customContext,
@@ -458,6 +468,7 @@ export function TravelBroSetup() {
           name: newTripName,
           pdf_url: pdfUrl,
           parsed_data: parsedData || {},
+          metadata: tripMetadata,
           source_urls: filteredUrls,
           intake_template: intakeTemplate,
           custom_context: customContext,
@@ -1539,12 +1550,16 @@ export function TravelBroSetup() {
                             ? { travelers: editTravelers }
                             : null;
 
+                          const itinerary = newParsedData?.itinerary;
+                          const tripMetadata = itinerary ? { itinerary } : selectedTrip.metadata;
+
                           const { error } = await db.supabase
                             .from('travel_trips')
                             .update({
                               name: editTripName,
                               pdf_url: newPdfUrl,
                               parsed_data: newParsedData || {},
+                              metadata: tripMetadata,
                               source_urls: filteredUrls,
                               intake_template: intakeTemplate,
                               custom_context: editCustomContext,
