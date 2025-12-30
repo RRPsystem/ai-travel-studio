@@ -87,6 +87,31 @@ Deno.serve(async (req: Request) => {
     let structuredItinerary: any[] = [];
     let routeStops: string[] = [];
     let hotelMappings: { [key: string]: string } = {};
+    let externalContent = '';
+
+    if (trip.source_urls && Array.isArray(trip.source_urls) && trip.source_urls.length > 0) {
+      console.log('🔗 Fetching external content from source URLs...');
+      for (const url of trip.source_urls.slice(0, 3)) {
+        try {
+          const response = await fetch(url, {
+            headers: { 'User-Agent': 'TravelBro/1.0' },
+            signal: AbortSignal.timeout(5000)
+          });
+
+          if (response.ok) {
+            const text = await response.text();
+            const cleanText = text
+              .replace(/<[^>]*>/g, ' ')
+              .replace(/\s+/g, ' ')
+              .substring(0, 2000);
+            externalContent += `\n\n📄 Extra info van ${url}:\n${cleanText}\n`;
+            console.log(`✅ Fetched ${cleanText.length} chars from ${url}`);
+          }
+        } catch (error) {
+          console.log(`⚠️ Could not fetch ${url}:`, error);
+        }
+      }
+    }
 
     if (trip.metadata && trip.metadata.itinerary && Array.isArray(trip.metadata.itinerary)) {
       console.log('✅ Using structured itinerary from metadata');
@@ -555,6 +580,8 @@ ${contextualLocation && currentHotel ? `\n🎯 HUIDIGE CONTEXT:\n📍 Locatie: $
 
 🗺️ COMPLETE REISINFORMATIE:
 ${tripContext}
+
+${externalContent ? `\n${externalContent}\n⚠️ GEBRUIK DEZE EXTERNE INFO IN JE ANTWOORDEN!\n` : ''}
 
 ${trip.source_urls && trip.source_urls.length > 0 ? `\n📚 Extra bronnen:\n${trip.source_urls.join("\n")}\n` : ''}
 
