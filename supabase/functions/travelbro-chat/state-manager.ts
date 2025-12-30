@@ -90,10 +90,16 @@ export class StateManager {
 
     const itinerary = tripData.metadata.itinerary;
 
+    // Check if a specific location is mentioned
     for (const day of itinerary) {
       const location = day.location.toLowerCase();
+      const hotelName = day.hotel?.name?.toLowerCase();
 
-      if (lowerMessage.includes(location) || lowerResponse.includes(location)) {
+      // Check both message and AI response for location/hotel mentions
+      const mentionsLocation = lowerMessage.includes(location) || lowerResponse.includes(location);
+      const mentionsHotel = hotelName && (lowerMessage.includes(hotelName) || lowerResponse.includes(hotelName));
+
+      if (mentionsLocation || mentionsHotel) {
         updates.current_destination = day.location;
 
         if (day.hotel?.name) {
@@ -108,11 +114,12 @@ export class StateManager {
       }
     }
 
+    // Update intent only if detected, don't clear it
     if (lowerMessage.includes('restaurant') || lowerMessage.includes('eten')) {
       updates.last_intent = 'restaurants';
     } else if (lowerMessage.includes('route') || lowerMessage.includes('afstand')) {
       updates.last_intent = 'route';
-    } else if (lowerMessage.includes('hotel') || lowerMessage.includes('overnachting')) {
+    } else if (lowerMessage.includes('hotel') || lowerMessage.includes('overnachting') || lowerMessage.includes('slapen')) {
       updates.last_intent = 'hotelinfo';
     } else if (lowerMessage.includes('activiteit') || lowerMessage.includes('doen')) {
       updates.last_intent = 'activiteiten';

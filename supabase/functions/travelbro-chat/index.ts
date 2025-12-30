@@ -263,12 +263,13 @@ ${toolData}
 
     const slotsUpdates = stateManager.extractSlotsFromMessage(message, aiResponse, trip);
 
-    // Always update at least the intent to maintain conversation flow
-    slotsUpdates.last_intent = intent as any;
-
-    if (Object.keys(slotsUpdates).length > 0) {
-      await stateManager.updateSlots(slotsUpdates);
+    // Only update intent if we detected a new one
+    if (!slotsUpdates.last_intent && intent !== 'algemeen') {
+      slotsUpdates.last_intent = intent as any;
     }
+
+    // Always update slots to preserve context or add new info
+    await stateManager.updateSlots(slotsUpdates);
 
     const slotsAfter = await stateManager.getSlots();
 
@@ -298,14 +299,19 @@ ${toolData}
     });
 
     return new Response(
-      JSON.stringify({ response: aiResponse }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      JSON.stringify({ message: aiResponse }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   } catch (error) {
-    console.error("Error in travelbro-chat:", error);
+    console.error("TravelBro error:", error);
     return new Response(
       JSON.stringify({ error: error.message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
     );
   }
 });
