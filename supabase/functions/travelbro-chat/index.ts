@@ -84,36 +84,57 @@ Deno.serve(async (req: Request) => {
 
     const tripContext = trip.custom_context || '';
 
-    const tripRouteMatch = tripContext.match(/Reisroute:\s*\n([^\n]+)/);
+    let structuredItinerary: any[] = [];
     let routeStops: string[] = [];
+    let hotelMappings: { [key: string]: string } = {};
 
-    if (tripRouteMatch) {
-      const routeLine = tripRouteMatch[1];
-      routeStops = routeLine
-        .split('→')
-        .map(stop => stop.trim().toLowerCase())
-        .filter(stop => stop.length > 0);
-      console.log('📍 Parsed route stops:', routeStops);
+    if (trip.metadata && trip.metadata.itinerary && Array.isArray(trip.metadata.itinerary)) {
+      console.log('✅ Using structured itinerary from metadata');
+      structuredItinerary = trip.metadata.itinerary;
+
+      const uniqueLocations = new Set<string>();
+      structuredItinerary.forEach((day: any) => {
+        const loc = day.location.toLowerCase();
+        uniqueLocations.add(loc);
+        if (day.hotel && day.hotel.name) {
+          hotelMappings[loc] = day.hotel.name;
+        }
+      });
+      routeStops = Array.from(uniqueLocations);
+      console.log('📍 Structured route:', routeStops);
+      console.log('🏨 Hotel mappings:', hotelMappings);
+    } else {
+      console.log('⚠️ No structured data, parsing custom_context');
+      const tripRouteMatch = tripContext.match(/Reisroute:\s*\n([^\n]+)/);
+
+      if (tripRouteMatch) {
+        const routeLine = tripRouteMatch[1];
+        routeStops = routeLine
+          .split('→')
+          .map(stop => stop.trim().toLowerCase())
+          .filter(stop => stop.length > 0);
+        console.log('📍 Parsed route stops:', routeStops);
+      }
+
+      hotelMappings = {
+        'johannesburg': 'City Lodge Johannesburg Airport',
+        'welgevonden game reserve': 'Welgevonden Game Reserve',
+        'tzaneen': 'Tamboti Lodge Guest House',
+        'graskop': 'Westlodge at Graskop',
+        'piet retief': 'Dusk to Dawn Guesthouse',
+        'st. lucia': 'Ndiza Lodge & Cabanas',
+        'kwazulu-natal': 'Rhino Ridge Safari Lodge',
+        'umhlanga': 'Tesorino',
+        'durban': 'Durban Hotel',
+        'port elizabeth': 'Port Elizabeth Airport',
+        'addo elephant national park': 'Addo Dung Beetle Guest Farm',
+        'addo': 'Addo Dung Beetle Guest Farm',
+        'knysna': 'Knysna Manor House',
+        'swellendam': 'Aan de Oever Guesthouse',
+        'hermanus': 'Whale Coast Ocean Villa',
+        'kaapstad': 'Cape Town Hotel'
+      };
     }
-
-    const hotelMappings: { [key: string]: string } = {
-      'johannesburg': 'City Lodge Johannesburg Airport',
-      'welgevonden game reserve': 'Welgevonden Game Reserve',
-      'tzaneen': 'Tamboti Lodge Guest House',
-      'graskop': 'Westlodge at Graskop',
-      'piet retief': 'Dusk to Dawn Guesthouse',
-      'st. lucia': 'Ndiza Lodge & Cabanas',
-      'kwazulu-natal': 'Rhino Ridge Safari Lodge',
-      'umhlanga': 'Tesorino',
-      'durban': 'Durban Hotel',
-      'port elizabeth': 'Port Elizabeth Airport',
-      'addo elephant national park': 'Addo Dung Beetle Guest Farm',
-      'addo': 'Addo Dung Beetle Guest Farm',
-      'knysna': 'Knysna Manor House',
-      'swellendam': 'Aan de Oever Guesthouse',
-      'hermanus': 'Whale Coast Ocean Villa',
-      'kaapstad': 'Cape Town Hotel'
-    };
 
     let contextualLocation = "";
     let currentHotel = "";
@@ -528,7 +549,9 @@ Jij: "4. Tzaneen Dam - perfect voor watersport"
 Reiziger: "is de dam ver van ons hotel?"
 Jij: "Tzaneen Dam ligt ongeveer 8 km van jullie hotel Tamboti Lodge Guest House. Met de auto is het 12 minuten rijden. Een heerlijk plekje voor een dagje uit!"
 
-${contextualLocation && currentHotel ? `\n🎯 HUIDIGE CONTEXT:\n📍 Locatie: ${contextualLocation.toUpperCase()}\n🏨 Jullie hotel: ${currentHotel}\n\n⚠️ GEBRUIK DEZE CONTEXT!\n- "daar" = ${contextualLocation}\n- "het hotel" = ${currentHotel}\n- Als ze vragen "is het daar leuk?" bedoelen ze ${contextualLocation}!\n- Geef SPECIFIEKE info over ${contextualLocation}, NIET over heel Zuid-Afrika!\n` : ''}
+${structuredItinerary.length > 0 ? `\n📅 GESTRUCTUREERD REISSCHEMA (GEBRUIK DIT!):\n\n${structuredItinerary.map(day => `Dag ${day.day} (${day.date}) - ${day.location}:\n  🏨 Hotel: ${day.hotel.name}${day.hotel.has_restaurant ? ' ✅ Heeft restaurant!' : ''}${day.hotel.amenities ? `\n  ✨ Faciliteiten: ${day.hotel.amenities.join(', ')}` : ''}\n  📍 Activiteiten: ${day.activities.join(', ')}`).join('\n\n')}\n\n⚠️ JE WEET PRECIES WELK HOTEL BIJ WELKE LOCATIE HOORT! GEBRUIK DIT!\n` : ''}
+
+${contextualLocation && currentHotel ? `\n🎯 HUIDIGE CONTEXT:\n📍 Locatie: ${contextualLocation.toUpperCase()}\n🏨 Jullie hotel: ${currentHotel}${structuredItinerary.find((d: any) => d.location.toLowerCase() === contextualLocation.toLowerCase())?.hotel?.has_restaurant ? ' ✅ Dit hotel HEEFT een restaurant!' : ''}\n\n⚠️ GEBRUIK DEZE CONTEXT!\n- "daar" = ${contextualLocation}\n- "het hotel" = ${currentHotel}\n- Als ze vragen "is het daar leuk?" bedoelen ze ${contextualLocation}!\n- Als ze vragen "heeft het hotel een restaurant?" zie je hierboven het antwoord!\n- Geef SPECIFIEKE info over ${contextualLocation}, NIET over heel Zuid-Afrika!\n` : ''}
 
 🗺️ COMPLETE REISINFORMATIE:
 ${tripContext}
