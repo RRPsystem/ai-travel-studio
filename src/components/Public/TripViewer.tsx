@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Lock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -12,10 +12,24 @@ export function TripViewer({ shareToken }: TripViewerProps) {
   const [password, setPassword] = useState('');
   const [passwordRequired, setPasswordRequired] = useState(false);
   const [passwordError, setPasswordError] = useState(false);
+  const [htmlContent, setHtmlContent] = useState<string | null>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   useEffect(() => {
     loadTrip();
   }, [shareToken]);
+
+  useEffect(() => {
+    // When HTML content is loaded, write it to the iframe
+    if (htmlContent && iframeRef.current) {
+      const iframeDoc = iframeRef.current.contentDocument;
+      if (iframeDoc) {
+        iframeDoc.open();
+        iframeDoc.write(htmlContent);
+        iframeDoc.close();
+      }
+    }
+  }, [htmlContent]);
 
   const loadTrip = async (enteredPassword?: string) => {
     setLoading(true);
@@ -50,11 +64,11 @@ export function TripViewer({ shareToken }: TripViewerProps) {
         }
       }
 
-      let htmlContent: string | null = null;
+      let html: string | null = null;
 
       // First try: Check if we have HTML content from direct upload/edit
       if (trip.content?.html) {
-        htmlContent = trip.content.html;
+        html = trip.content.html;
       }
       // Second try: If trip has a page_id, fetch the page HTML (from external builder)
       else if (trip.page_id) {
@@ -65,12 +79,12 @@ export function TripViewer({ shareToken }: TripViewerProps) {
           .maybeSingle();
 
         if (!pageError && page?.html) {
-          htmlContent = page.html;
+          html = page.html;
         }
       }
 
       // If still no HTML content, show error
-      if (!htmlContent) {
+      if (!html) {
         setError('Deze reis heeft nog geen inhoud');
         setLoading(false);
         return;
@@ -79,10 +93,9 @@ export function TripViewer({ shareToken }: TripViewerProps) {
       // Update view count (fire and forget - no await needed)
       supabase.rpc('increment_trip_views', { trip_token: shareToken });
 
-      // Render the complete HTML - exactly as it was created
-      document.open();
-      document.write(htmlContent);
-      document.close();
+      // Set HTML content to be rendered in iframe
+      setHtmlContent(html);
+      setLoading(false);
 
     } catch (err: any) {
       console.error('Error loading trip:', err);
@@ -98,24 +111,72 @@ export function TripViewer({ shareToken }: TripViewerProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Reis laden...</p>
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f9fafb',
+        margin: 0,
+        padding: 0
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{
+            width: '64px',
+            height: '64px',
+            border: '4px solid #ea580c',
+            borderTopColor: 'transparent',
+            borderRadius: '50%',
+            margin: '0 auto 16px',
+            animation: 'spin 1s linear infinite'
+          }}></div>
+          <p style={{ color: '#4b5563' }}>Reis laden...</p>
         </div>
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-6">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">❌</span>
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f9fafb',
+        margin: 0,
+        padding: 0
+      }}>
+        <div style={{ textAlign: 'center', maxWidth: '28rem', padding: '24px' }}>
+          <div style={{
+            width: '64px',
+            height: '64px',
+            backgroundColor: '#fee2e2',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto 16px'
+          }}>
+            <span style={{ fontSize: '32px' }}>❌</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Niet gevonden</h1>
-          <p className="text-gray-600">{error}</p>
+          <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#111827', marginBottom: '8px' }}>
+            Niet gevonden
+          </h1>
+          <p style={{ color: '#4b5563' }}>{error}</p>
         </div>
       </div>
     );
@@ -123,36 +184,61 @@ export function TripViewer({ shareToken }: TripViewerProps) {
 
   if (passwordRequired) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="max-w-md w-full mx-auto p-6">
-          <div className="bg-white rounded-lg shadow-lg p-8">
-            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Lock className="w-8 h-8 text-orange-600" />
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#f9fafb',
+        margin: 0,
+        padding: 0
+      }}>
+        <div style={{ maxWidth: '28rem', width: '100%', padding: '24px' }}>
+          <div style={{ backgroundColor: 'white', borderRadius: '8px', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', padding: '32px' }}>
+            <div style={{
+              width: '64px',
+              height: '64px',
+              backgroundColor: '#fed7aa',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px'
+            }}>
+              <Lock style={{ width: '32px', height: '32px', color: '#ea580c' }} />
             </div>
-            <h1 className="text-2xl font-bold text-gray-900 mb-2 text-center">
+            <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#111827', marginBottom: '8px', textAlign: 'center' }}>
               Beveiligde Reis
             </h1>
-            <p className="text-gray-600 text-center mb-6">
+            <p style={{ color: '#4b5563', textAlign: 'center', marginBottom: '24px' }}>
               Deze reis is beveiligd met een wachtwoord
             </p>
 
             <form onSubmit={handlePasswordSubmit}>
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '14px', fontWeight: '500', color: '#374151', marginBottom: '8px' }}>
                   Wachtwoord
                 </label>
                 <input
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className={`w-full px-4 py-2 border ${
-                    passwordError ? 'border-red-300' : 'border-gray-300'
-                  } rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent`}
+                  style={{
+                    width: '100%',
+                    padding: '8px 16px',
+                    border: passwordError ? '1px solid #fca5a5' : '1px solid #d1d5db',
+                    borderRadius: '8px',
+                    fontSize: '16px'
+                  }}
                   placeholder="Voer wachtwoord in"
                   autoFocus
                 />
                 {passwordError && (
-                  <p className="text-red-600 text-sm mt-1">
+                  <p style={{ color: '#dc2626', fontSize: '14px', marginTop: '4px' }}>
                     Onjuist wachtwoord
                   </p>
                 )}
@@ -160,7 +246,16 @@ export function TripViewer({ shareToken }: TripViewerProps) {
 
               <button
                 type="submit"
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white py-3 rounded-lg font-semibold transition-colors"
+                style={{
+                  width: '100%',
+                  backgroundColor: '#ea580c',
+                  color: 'white',
+                  padding: '12px',
+                  borderRadius: '8px',
+                  fontWeight: '600',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
               >
                 Openen
               </button>
@@ -168,6 +263,26 @@ export function TripViewer({ shareToken }: TripViewerProps) {
           </div>
         </div>
       </div>
+    );
+  }
+
+  // Render trip in fullscreen iframe (no React app chrome)
+  if (htmlContent) {
+    return (
+      <iframe
+        ref={iframeRef}
+        title="Trip Viewer"
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          border: 'none',
+          margin: 0,
+          padding: 0
+        }}
+      />
     );
   }
 
