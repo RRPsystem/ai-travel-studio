@@ -8,6 +8,7 @@ import { HelpBot } from '../shared/HelpBot';
 import { NewsApproval } from './NewsApproval';
 import { DestinationApproval } from './DestinationApproval';
 import { TripApproval } from './TripApproval';
+import { TripManager } from './TripManager';
 import { PageManagement } from './PageManagement';
 import { QuickStart } from './QuickStart';
 import { AgentManagement } from './AgentManagement';
@@ -210,6 +211,7 @@ export function BrandDashboard() {
   const contentItems = isWordPressMode ? [
     { id: 'nieuwsbeheer', label: 'Nieuwsbeheer', icon: Newspaper },
     { id: 'destinations', label: 'Bestemmingen', icon: MapPin },
+    { id: 'trips', label: 'Reizen', icon: Plane },
   ] : [
     { id: 'nieuwsbeheer', label: 'Nieuwsbeheer', icon: Newspaper },
     { id: 'destinations', label: 'Bestemmingen', icon: MapPin },
@@ -725,7 +727,7 @@ export function BrandDashboard() {
           )}
           {activeSection === 'trips' && (
             <div className="p-6">
-              <TripApproval />
+              <TripManager />
             </div>
           )}
           {activeSection === 'credits' && <div className="p-6"><CreditWallet /></div>}
