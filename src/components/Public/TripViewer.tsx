@@ -25,7 +25,7 @@ export function TripViewer({ shareToken }: TripViewerProps) {
     try {
       const { data: trip, error: fetchError } = await supabase
         .from('trips')
-        .select('id, title, content, share_settings')
+        .select('id, title, content, share_settings, page_id')
         .eq('share_token', shareToken)
         .maybeSingle();
 
@@ -50,8 +50,27 @@ export function TripViewer({ shareToken }: TripViewerProps) {
         }
       }
 
-      // Check if we have HTML content from the builder
-      if (!trip.content?.html) {
+      let htmlContent: string | null = null;
+
+      // First try: Check if we have HTML content from direct upload/edit
+      if (trip.content?.html) {
+        htmlContent = trip.content.html;
+      }
+      // Second try: If trip has a page_id, fetch the page HTML (from external builder)
+      else if (trip.page_id) {
+        const { data: page, error: pageError } = await supabase
+          .from('pages')
+          .select('html')
+          .eq('id', trip.page_id)
+          .maybeSingle();
+
+        if (!pageError && page?.html) {
+          htmlContent = page.html;
+        }
+      }
+
+      // If still no HTML content, show error
+      if (!htmlContent) {
         setError('Deze reis heeft nog geen inhoud');
         setLoading(false);
         return;
@@ -60,9 +79,9 @@ export function TripViewer({ shareToken }: TripViewerProps) {
       // Update view count (fire and forget - no await needed)
       supabase.rpc('increment_trip_views', { trip_token: shareToken });
 
-      // Render the complete HTML from the builder - exactly as it was created
+      // Render the complete HTML - exactly as it was created
       document.open();
-      document.write(trip.content.html);
+      document.write(htmlContent);
       document.close();
 
     } catch (err: any) {
