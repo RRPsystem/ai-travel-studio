@@ -86,7 +86,7 @@ Deno.serve(async (req: Request) => {
       });
 
       const { trip_id, page_id, title, description, destinations, duration_days, price_from,
-              images, tags, gpt_instructions, is_featured, featured_priority } = body;
+              images, tags, gpt_instructions, is_featured, featured_priority, is_published } = body;
 
       if (!trip_id) {
         return new Response(
@@ -97,7 +97,7 @@ Deno.serve(async (req: Request) => {
 
       const { data: existingTrip, error: fetchError } = await supabase
         .from("trips")
-        .select("id")
+        .select("id, share_token")
         .eq("id", trip_id)
         .maybeSingle();
 
@@ -108,6 +108,8 @@ Deno.serve(async (req: Request) => {
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
+      const shareToken = existingTrip?.share_token || crypto.randomUUID();
 
       const tripData = {
         title: title || "Untitled Trip",
@@ -121,6 +123,7 @@ Deno.serve(async (req: Request) => {
         is_featured: is_featured || false,
         featured_priority: featured_priority || null,
         page_id: page_id || null,
+        share_token: shareToken,
         updated_at: new Date().toISOString(),
       };
 
@@ -147,7 +150,7 @@ Deno.serve(async (req: Request) => {
           .upsert({
             trip_id: trip_id,
             brand_id: payload.brand_id,
-            is_published: false,
+            is_published: is_published !== undefined ? is_published : true,
             updated_at: new Date().toISOString(),
           }, {
             onConflict: "trip_id,brand_id"
@@ -157,7 +160,12 @@ Deno.serve(async (req: Request) => {
           console.error("[sync-from-builder] Error updating assignment:", assignmentError);
         }
 
-        // Genereer publieke URL met trips.id
+        console.log("[sync-from-builder] Assignment updated:", {
+          trip_id,
+          brand_id: payload.brand_id,
+          is_published: is_published !== undefined ? is_published : true,
+        });
+
         const { data: brandData } = await supabase
           .from("brands")
           .select("slug")
@@ -172,6 +180,12 @@ Deno.serve(async (req: Request) => {
             success: true,
             trip: updatedTrip,
             publicUrl: publicUrl,
+            verification: {
+              trip_id: trip_id,
+              share_token: shareToken,
+              is_published: is_published !== undefined ? is_published : true,
+              brand_id: payload.brand_id
+            },
             message: "Trip updated successfully"
           }),
           {
@@ -206,7 +220,7 @@ Deno.serve(async (req: Request) => {
           .insert({
             trip_id: trip_id,
             brand_id: payload.brand_id,
-            is_published: false,
+            is_published: is_published !== undefined ? is_published : true,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           });
@@ -215,7 +229,12 @@ Deno.serve(async (req: Request) => {
           console.error("[sync-from-builder] Error creating assignment:", assignmentError);
         }
 
-        // Genereer publieke URL met trips.id
+        console.log("[sync-from-builder] Assignment created:", {
+          trip_id,
+          brand_id: payload.brand_id,
+          is_published: is_published !== undefined ? is_published : true,
+        });
+
         const { data: brandData } = await supabase
           .from("brands")
           .select("slug")
@@ -230,6 +249,12 @@ Deno.serve(async (req: Request) => {
             success: true,
             trip: newTrip,
             publicUrl: publicUrl,
+            verification: {
+              trip_id: trip_id,
+              share_token: shareToken,
+              is_published: is_published !== undefined ? is_published : true,
+              brand_id: payload.brand_id
+            },
             message: "Trip created successfully"
           }),
           {
