@@ -95,30 +95,7 @@ async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
 }
 
 async function parseWithGPT(pdfText: string, openaiApiKey: string) {
-  const systemPrompt = `Je bent een expert reisdocument parser. Extraheer en structureer ALLE reis informatie uit de tekst.
-
-VERPLICHTE VELDEN:
-- trip_name: Naam van de reis
-- reservation_id: Hoofdreserveringsnummer (eerste boekingnummer dat je vindt)
-- departure_date: Vertrekdatum (ISO 8601: YYYY-MM-DD)
-- arrival_date: Aankomstdatum (ISO 8601: YYYY-MM-DD)
-- destination: { city, country, region }
-- segments: Array van reissegmenten
-- booking_refs: Alle boeknummers
-- emergency_contacts: Noodnummers
-
-Elk segment MOET:
-- kind: "flight" | "hotel" | "transfer" | "activity"
-- segment_ref: Boeknummer
-- start_datetime: ISO 8601
-- end_datetime: ISO 8601 (of null)
-- location: { name, address, city, country }
-- details: Extra info
-
-BELANGRIJK:
-- Alle datums in ISO 8601 format
-- Als info ontbreekt: gebruik null
-- Return ALLEEN valid JSON`;
+  const systemPrompt = `Je bent een expert reisdocument parser. Extraheer en structureer ALLE reis informatie uit de tekst.\n\nVERPLICHTE VELDEN:\n- trip_name: Naam van de reis\n- reservation_id: Hoofdreserveringsnummer (eerste boekingnummer dat je vindt)\n- departure_date: Vertrekdatum (ISO 8601: YYYY-MM-DD)\n- arrival_date: Aankomstdatum (ISO 8601: YYYY-MM-DD)\n- destination: { city, country, region }\n- segments: Array van reissegmenten\n- booking_refs: Alle boeknummers\n- emergency_contacts: Noodnummers\n\nElk segment MOET:\n- kind: "flight" | "hotel" | "transfer" | "activity"\n- segment_ref: Boeknummer\n- start_datetime: ISO 8601\n- end_datetime: ISO 8601 (of null)\n- location: { name, address, city, country }\n- details: Extra info\n\nBELANGRIJK:\n- Alle datums in ISO 8601 format\n- Als info ontbreekt: gebruik null\n- Return ALLEEN valid JSON`;
 
   const response = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
