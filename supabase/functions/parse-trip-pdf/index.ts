@@ -8,34 +8,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function extractTextFromPDF(pdfBuffer: ArrayBuffer): Promise<string> {
-  const uint8Array = new Uint8Array(pdfBuffer);
-  const textDecoder = new TextDecoder('utf-8');
-
-  let text = '';
-  let i = 0;
-
-  while (i < uint8Array.length) {
-    if (uint8Array[i] === 0x42 && uint8Array[i + 1] === 0x54) {
-      i += 2;
-      let content = '';
-      while (i < uint8Array.length && !(uint8Array[i] === 0x45 && uint8Array[i + 1] === 0x54)) {
-        if (uint8Array[i] >= 0x20 && uint8Array[i] <= 0x7E) {
-          content += String.fromCharCode(uint8Array[i]);
-        } else if (uint8Array[i] === 0x0A || uint8Array[i] === 0x0D) {
-          content += '\n';
-        }
-        i++;
-      }
-      text += content + ' ';
-    }
-    i++;
-  }
-
-  return text.trim();
-}
-
-async function parseWithGPT(pdfText: string, openaiApiKey: string) {
+async function parseWithGPTVision(pdfBase64: string, openaiApiKey: string) {
   const systemPrompt = `Je bent een expert reisdocument parser. Extraheer en structureer ALLE reis informatie uit de tekst.
 
 VERPLICHTE VELDEN:
@@ -70,8 +43,21 @@ BELANGRIJK:
     body: JSON.stringify({
       model: 'gpt-4o',
       messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Analyseer dit reisdocument en extraheer ALLE informatie:\n\n${pdfText.substring(0, 50000)}` }
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: systemPrompt + '\n\nAnalyseer dit reisdocument en extraheer ALLE informatie. Return ALLEEN valid JSON volgens het schema.'
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: `data:application/pdf;base64,${pdfBase64}`
+              }
+            }
+          ]
+        }
       ],
       response_format: {
         type: "json_schema",
@@ -154,6 +140,7 @@ BELANGRIJK:
         }
       },
       temperature: 0.1,
+      max_tokens: 4096
     }),
   });
 
@@ -167,7 +154,7 @@ BELANGRIJK:
   return JSON.parse(content);
 }
 
-function convertToItinerary(parsedData: any, rawText: string, openaiApiKey: string): any[] {
+function convertToItinerary(parsedData: any): any[] {
   if (!parsedData?.segments) return [];
 
   const hotelSegments = parsedData.segments.filter((s: any) => s.kind === 'hotel');
@@ -185,55 +172,12 @@ function convertToItinerary(parsedData: any, rawText: string, openaiApiKey: stri
         address: hotel.location.address,
         city: hotel.location.city,
         country: hotel.location.country,
-        has_restaurant: extractRestaurantInfo(hotel, rawText),
-        amenities: extractAmenities(hotel, rawText)
+        has_restaurant: hotel.details?.has_restaurant || null,
+        amenities: hotel.details?.amenities || []
       },
       activities: extractActivities(hotel, parsedData.segments)
     };
   });
-}
-
-function extractRestaurantInfo(hotel: any, rawText: string): boolean | null {
-  const hotelText = rawText.toLowerCase();
-  const hotelName = hotel.location.name.toLowerCase();
-
-  const restaurantKeywords = ['restaurant', 'dining', 'breakfast', 'dinner', 'lunch'];
-  const hotelSection = hotelText.indexOf(hotelName);
-
-  if (hotelSection === -1) return null;
-
-  const sectionText = hotelText.substring(hotelSection, hotelSection + 500);
-
-  return restaurantKeywords.some(keyword => sectionText.includes(keyword)) ? true : null;
-}
-
-function extractAmenities(hotel: any, rawText: string): string[] {
-  const amenities: string[] = [];
-  const hotelText = rawText.toLowerCase();
-  const hotelName = hotel.location.name.toLowerCase();
-
-  const hotelSection = hotelText.indexOf(hotelName);
-  if (hotelSection === -1) return amenities;
-
-  const sectionText = hotelText.substring(hotelSection, hotelSection + 1000);
-
-  const amenityMap: { [key: string]: string[] } = {
-    'zwembad': ['pool', 'swimming', 'zwembad'],
-    'restaurant': ['restaurant', 'dining'],
-    'bar': ['bar', 'lounge'],
-    'spa': ['spa', 'wellness', 'massage'],
-    'wifi': ['wifi', 'wi-fi', 'internet'],
-    'parking': ['parking', 'parkeren'],
-    'gym': ['gym', 'fitness'],
-  };
-
-  for (const [amenity, keywords] of Object.entries(amenityMap)) {
-    if (keywords.some(keyword => sectionText.includes(keyword))) {
-      amenities.push(amenity);
-    }
-  }
-
-  return amenities;
 }
 
 function extractActivities(hotel: any, allSegments: any[]): string[] {
@@ -344,17 +288,15 @@ Deno.serve(async (req: Request) => {
 
     const pdfBuffer = await pdfResponse.arrayBuffer();
 
-    console.log('Extracting text from PDF...');
-    const pdfText = await extractTextFromPDF(pdfBuffer);
+    console.log('Converting PDF to base64...');
+    const uint8Array = new Uint8Array(pdfBuffer);
+    const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
+    const pdfBase64 = btoa(binaryString);
 
-    if (!pdfText || pdfText.length < 100) {
-      throw new Error("Could not extract enough text from PDF");
-    }
+    console.log('Parsing with GPT-4o Vision (PDF size:', pdfBase64.length, 'bytes)');
+    const parsedData = await parseWithGPTVision(pdfBase64, openaiApiKey);
 
-    console.log('Parsing with GPT (text length:', pdfText.length, ')');
-    const parsedData = await parseWithGPT(pdfText, openaiApiKey);
-
-    const itinerary = convertToItinerary(parsedData, pdfText, openaiApiKey);
+    const itinerary = convertToItinerary(parsedData);
 
     console.log('Successfully parsed PDF');
 
