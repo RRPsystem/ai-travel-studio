@@ -84,16 +84,46 @@ Deno.serve(async (req: Request) => {
       console.log('🔧 Creating WhatsApp session BEFORE sending message');
       const cleanPhoneNumber = to.replace('whatsapp:', '').replace('+', '');
 
-      const { data: trip } = await supabase
+      const { data: trip, error: tripError } = await supabase
         .from('travel_trips')
         .select('brand_id')
         .eq('id', tripId)
-        .single();
+        .maybeSingle();
+
+      if (tripError) {
+        console.error('❌ Error fetching trip:', tripError);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Trip ophalen mislukt: ' + tripError.message
+          }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      if (!trip) {
+        console.error('❌ Trip not found with ID:', tripId);
+        return new Response(
+          JSON.stringify({
+            success: false,
+            error: 'Trip niet gevonden met ID: ' + tripId
+          }),
+          {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      }
+
+      console.log('✅ Trip found:', tripId, 'Brand:', trip.brand_id);
 
       const sessionData: any = {
         trip_id: tripId,
         phone_number: cleanPhoneNumber,
-        brand_id: trip?.brand_id || brandId,
+        brand_id: trip.brand_id,
         last_message_at: new Date().toISOString()
       };
 
