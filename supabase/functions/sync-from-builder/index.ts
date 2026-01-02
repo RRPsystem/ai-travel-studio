@@ -85,31 +85,21 @@ Deno.serve(async (req: Request) => {
         trip_data_keys: Object.keys(body),
       });
 
-      const { trip_id, page_id, title, description, destinations, duration_days, price_from,
+      const { id, page_id, title, description, destinations, duration_days, price_from,
               images, tags, gpt_instructions, is_featured, featured_priority, is_published } = body;
 
-      if (!trip_id) {
-        return new Response(
-          JSON.stringify({ error: "trip_id is required" }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      let tripId = id;
+      let existingTrip = null;
+
+      if (tripId) {
+        const { data: trip } = await supabase
+          .from("trips")
+          .select("id, share_token")
+          .eq("id", tripId)
+          .maybeSingle();
+
+        existingTrip = trip;
       }
-
-      const { data: existingTrip, error: fetchError } = await supabase
-        .from("trips")
-        .select("id, share_token")
-        .eq("id", trip_id)
-        .maybeSingle();
-
-      if (fetchError) {
-        console.error("[sync-from-builder] Error checking existing trip:", fetchError);
-        return new Response(
-          JSON.stringify({ error: "Database error checking trip" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const shareToken = existingTrip?.share_token || crypto.randomUUID();
 
       const tripData = {
         title: title || "Untitled Trip",
@@ -123,17 +113,16 @@ Deno.serve(async (req: Request) => {
         is_featured: is_featured || false,
         featured_priority: featured_priority || null,
         page_id: page_id || null,
-        share_token: shareToken,
         updated_at: new Date().toISOString(),
       };
 
       if (existingTrip) {
-        console.log("[sync-from-builder] Updating existing trip:", trip_id);
+        console.log("[sync-from-builder] Updating existing trip:", tripId);
 
         const { data: updatedTrip, error: updateError } = await supabase
           .from("trips")
           .update(tripData)
-          .eq("id", trip_id)
+          .eq("id", tripId)
           .select()
           .single();
 
@@ -148,7 +137,7 @@ Deno.serve(async (req: Request) => {
         const { error: assignmentError } = await supabase
           .from("trip_brand_assignments")
           .upsert({
-            trip_id: trip_id,
+            trip_id: updatedTrip.id,
             brand_id: payload.brand_id,
             is_published: is_published !== undefined ? is_published : true,
             updated_at: new Date().toISOString(),
@@ -161,7 +150,7 @@ Deno.serve(async (req: Request) => {
         }
 
         console.log("[sync-from-builder] Assignment updated:", {
-          trip_id,
+          trip_id: updatedTrip.id,
           brand_id: payload.brand_id,
           is_published: is_published !== undefined ? is_published : true,
         });
@@ -173,19 +162,13 @@ Deno.serve(async (req: Request) => {
           .maybeSingle();
 
         const brandSlug = brandData?.slug || "www";
-        const publicUrl = `https://${brandSlug}.ai-travelstudio.nl/trip/${trip_id}`;
+        const publicUrl = `https://${brandSlug}.ai-travelstudio.nl/trip/${updatedTrip.id}`;
 
         return new Response(
           JSON.stringify({
             success: true,
             trip: updatedTrip,
             publicUrl: publicUrl,
-            verification: {
-              trip_id: trip_id,
-              share_token: shareToken,
-              is_published: is_published !== undefined ? is_published : true,
-              brand_id: payload.brand_id
-            },
             message: "Trip updated successfully"
           }),
           {
@@ -194,16 +177,21 @@ Deno.serve(async (req: Request) => {
           }
         );
       } else {
-        console.log("[sync-from-builder] Creating new trip:", trip_id);
+        console.log("[sync-from-builder] Creating new trip (Supabase will generate UUID)");
+
+        const insertData: any = {
+          brand_id: payload.brand_id,
+          ...tripData,
+          created_at: new Date().toISOString(),
+        };
+
+        if (tripId) {
+          insertData.id = tripId;
+        }
 
         const { data: newTrip, error: insertError } = await supabase
           .from("trips")
-          .insert({
-            id: trip_id,
-            brand_id: payload.brand_id,
-            ...tripData,
-            created_at: new Date().toISOString(),
-          })
+          .insert(insertData)
           .select()
           .single();
 
@@ -218,7 +206,7 @@ Deno.serve(async (req: Request) => {
         const { error: assignmentError } = await supabase
           .from("trip_brand_assignments")
           .insert({
-            trip_id: trip_id,
+            trip_id: newTrip.id,
             brand_id: payload.brand_id,
             is_published: is_published !== undefined ? is_published : true,
             created_at: new Date().toISOString(),
@@ -230,7 +218,7 @@ Deno.serve(async (req: Request) => {
         }
 
         console.log("[sync-from-builder] Assignment created:", {
-          trip_id,
+          trip_id: newTrip.id,
           brand_id: payload.brand_id,
           is_published: is_published !== undefined ? is_published : true,
         });
@@ -242,19 +230,13 @@ Deno.serve(async (req: Request) => {
           .maybeSingle();
 
         const brandSlug = brandData?.slug || "www";
-        const publicUrl = `https://${brandSlug}.ai-travelstudio.nl/trip/${trip_id}`;
+        const publicUrl = `https://${brandSlug}.ai-travelstudio.nl/trip/${newTrip.id}`;
 
         return new Response(
           JSON.stringify({
             success: true,
             trip: newTrip,
             publicUrl: publicUrl,
-            verification: {
-              trip_id: trip_id,
-              share_token: shareToken,
-              is_published: is_published !== undefined ? is_published : true,
-              brand_id: payload.brand_id
-            },
             message: "Trip created successfully"
           }),
           {

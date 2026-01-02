@@ -90,12 +90,12 @@ Deno.serve(async (req: Request) => {
     const brandId = domainData.brand_id;
     console.log("[VIEWER] Found brandId:", brandId);
 
-    // Check for trip share route: /trip/:token
+    // Check for trip share route: /trip/:id_or_token
     const tripMatch = pathname.match(/^\/trip\/([a-f0-9-]+)$/i);
     if (tripMatch) {
-      const shareToken = tripMatch[1];
-      console.log("[VIEWER] Trip share route detected:", shareToken);
-      return await renderTrip(supabase, shareToken, brandId);
+      const idOrToken = tripMatch[1];
+      console.log("[VIEWER] Trip route detected:", idOrToken);
+      return await renderTrip(supabase, idOrToken, brandId);
     }
 
     let page = null;
@@ -357,14 +357,34 @@ function buildMenuHtml(menuPages: any[]): string {
     .join("\n    ");
 }
 
-async function renderTrip(supabase: any, shareToken: string, brandId: string) {
-  console.log("[VIEWER] Loading trip with token:", shareToken);
+async function renderTrip(supabase: any, idOrToken: string, brandId: string) {
+  console.log("[VIEWER] Loading trip with ID or token:", idOrToken);
 
-  const { data: trip, error: tripError } = await supabase
+  let trip = null;
+  let tripError = null;
+
+  const { data: tripById } = await supabase
     .from("trips")
     .select("*, brands!inner(name, primary_color, secondary_color)")
-    .eq("share_token", shareToken)
+    .eq("id", idOrToken)
     .maybeSingle();
+
+  if (tripById) {
+    trip = tripById;
+    console.log("[VIEWER] Found trip by ID");
+  } else {
+    const { data: tripByToken, error } = await supabase
+      .from("trips")
+      .select("*, brands!inner(name, primary_color, secondary_color)")
+      .eq("share_token", idOrToken)
+      .maybeSingle();
+
+    trip = tripByToken;
+    tripError = error;
+    if (tripByToken) {
+      console.log("[VIEWER] Found trip by share_token");
+    }
+  }
 
   if (tripError || !trip) {
     console.error("[VIEWER] Trip not found:", tripError);
@@ -378,7 +398,7 @@ async function renderTrip(supabase: any, shareToken: string, brandId: string) {
   }
 
   // Increment views and get updated count
-  const { data: viewData } = await supabase.rpc("increment_trip_views", { trip_token: shareToken }).catch((err: any) => {
+  const { data: viewData } = await supabase.rpc("increment_trip_views", { trip_token: idOrToken }).catch((err: any) => {
     console.error("[VIEWER] Failed to increment views:", err);
     return { data: null };
   });
