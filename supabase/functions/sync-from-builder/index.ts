@@ -188,6 +188,7 @@ Deno.serve(async (req: Request) => {
 
         if (tripId) {
           insertData.id = tripId;
+          insertData.share_token = tripId;
         }
 
         const { data: newTrip, error: insertError } = await supabase
@@ -202,6 +203,16 @@ Deno.serve(async (req: Request) => {
             JSON.stringify({ error: "Failed to create trip", details: insertError.message }),
             { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
+        }
+
+        if (!tripId && newTrip.share_token !== newTrip.id) {
+          console.log("[sync-from-builder] Setting share_token to match trip ID");
+          await supabase
+            .from("trips")
+            .update({ share_token: newTrip.id })
+            .eq("id", newTrip.id);
+
+          newTrip.share_token = newTrip.id;
         }
 
         const { error: assignmentError } = await supabase
