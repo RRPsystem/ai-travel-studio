@@ -85,18 +85,18 @@ export function TripViewer({ shareToken }: TripViewerProps) {
       else if (trip.page_id) {
         const { data: page, error: pageError } = await supabase
           .from('pages')
-          .select('html')
+          .select('body_html')
           .eq('id', trip.page_id)
           .maybeSingle();
 
-        if (!pageError && page?.html) {
-          html = page.html;
+        if (!pageError && page?.body_html) {
+          html = page.body_html;
         }
       }
 
       // If still no HTML content, show error
       if (!html) {
-        setError('Deze reis heeft nog geen inhoud');
+        setError('Deze reis is aangemaakt maar heeft nog geen inhoud. De reisorganisatie moet de reis eerst afmaken via de builder.');
         setLoading(false);
         return;
       }
