@@ -113,6 +113,7 @@ Deno.serve(async (req: Request) => {
         is_featured: is_featured || false,
         featured_priority: featured_priority || null,
         page_id: page_id || null,
+        status: is_published !== false ? 'published' : 'draft',
         updated_at: new Date().toISOString(),
       };
 

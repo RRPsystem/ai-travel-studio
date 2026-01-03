@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   BookOpen, FileText, Package, Globe, Plus, Eye, Copy,
-  ExternalLink, Trash2, Edit, Share2, Filter
+  ExternalLink, Trash2, Edit, Share2, Filter, CheckCircle, XCircle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -20,7 +20,7 @@ interface Trip {
   description: string;
   price: number;
   duration_days: number;
-  status: string;
+  status: 'draft' | 'published' | 'archived';
   created_at: string;
   share_settings: {
     password_protected: boolean;
@@ -106,6 +106,28 @@ export function TripManager() {
 
   const openShareUrl = (shareUrl: string) => {
     window.open(shareUrl, '_blank');
+  };
+
+  const togglePublishStatus = async (tripId: string, currentStatus: string, title: string) => {
+    const newStatus = currentStatus === 'published' ? 'draft' : 'published';
+    const action = newStatus === 'published' ? 'publiceren' : 'depubliceren';
+
+    if (!confirm(`Weet je zeker dat je "${title}" wilt ${action}?`)) return;
+
+    try {
+      const { error } = await supabase
+        .from('trips')
+        .update({ status: newStatus })
+        .eq('id', tripId);
+
+      if (error) throw error;
+
+      alert(`✅ Reis ${newStatus === 'published' ? 'gepubliceerd' : 'gedepubliceerd'}`);
+      loadTrips();
+    } catch (err) {
+      console.error('Error updating trip status:', err);
+      alert('❌ Fout bij wijzigen status');
+    }
   };
 
   const deleteTrip = async (tripId: string, title: string) => {
@@ -254,9 +276,18 @@ export function TripManager() {
               <div className="p-4">
                 <div className="flex items-start justify-between mb-3">
                   <h3 className="font-semibold text-gray-900 flex-1">{trip.title}</h3>
-                  <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
-                    {trip.type_label}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span className={`text-xs px-2 py-1 rounded ${
+                      trip.status === 'published'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {trip.status === 'published' ? '✓ Live' : 'Concept'}
+                    </span>
+                    <span className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded">
+                      {trip.type_label}
+                    </span>
+                  </div>
                 </div>
 
                 {trip.description && (
@@ -321,38 +352,60 @@ export function TripManager() {
                 )}
 
                 {/* Actions */}
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={async () => {
-                      if (!user?.brand_id || !user?.id) {
-                        alert('Geen gebruiker gevonden');
-                        return;
-                      }
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={async () => {
+                        if (!user?.brand_id || !user?.id) {
+                          alert('Geen gebruiker gevonden');
+                          return;
+                        }
 
-                      try {
-                        const returnUrl = `${window.location.origin}#/brand/content/trips`;
-                        const deeplink = await openTripBuilder(user.brand_id, user.id, {
-                          tripType: activeTab,
-                          tripId: trip.id,
-                          returnUrl
-                        });
-                        window.open(deeplink, '_blank');
-                      } catch (error) {
-                        console.error('Error opening trip builder:', error);
-                        alert('Fout bij openen van de builder');
-                      }
-                    }}
-                    className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm transition-colors"
-                  >
-                    <Edit size={14} />
-                    <span>Bewerk</span>
-                  </button>
+                        try {
+                          const returnUrl = `${window.location.origin}#/brand/content/trips`;
+                          const deeplink = await openTripBuilder(user.brand_id, user.id, {
+                            tripType: activeTab,
+                            tripId: trip.id,
+                            returnUrl
+                          });
+                          window.open(deeplink, '_blank');
+                        } catch (error) {
+                          console.error('Error opening trip builder:', error);
+                          alert('Fout bij openen van de builder');
+                        }
+                      }}
+                      className="flex-1 flex items-center justify-center space-x-1 px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm transition-colors"
+                    >
+                      <Edit size={14} />
+                      <span>Bewerk</span>
+                    </button>
+                    <button
+                      onClick={() => deleteTrip(trip.id, trip.title)}
+                      className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
+                      title="Verwijder"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                   <button
-                    onClick={() => deleteTrip(trip.id, trip.title)}
-                    className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors"
-                    title="Verwijder"
+                    onClick={() => togglePublishStatus(trip.id, trip.status, trip.title)}
+                    className={`w-full flex items-center justify-center space-x-1 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      trip.status === 'published'
+                        ? 'bg-orange-50 hover:bg-orange-100 text-orange-700'
+                        : 'bg-green-50 hover:bg-green-100 text-green-700'
+                    }`}
                   >
-                    <Trash2 size={14} />
+                    {trip.status === 'published' ? (
+                      <>
+                        <XCircle size={14} />
+                        <span>Depubliceer</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle size={14} />
+                        <span>Publiceer</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
