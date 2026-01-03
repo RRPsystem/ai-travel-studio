@@ -264,9 +264,28 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { pdfUrl } = await req.json();
+    console.log('🟢 parse-trip-pdf called, method:', req.method);
+
+    const bodyText = await req.text();
+    console.log('📦 Request body:', bodyText.substring(0, 200));
+
+    let pdfUrl: string;
+    try {
+      const body = JSON.parse(bodyText);
+      pdfUrl = body.pdfUrl;
+    } catch (parseError) {
+      console.error('❌ JSON parse error:', parseError);
+      return new Response(
+        JSON.stringify({ error: "Invalid JSON in request body" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
     if (!pdfUrl) {
+      console.log('❌ No pdfUrl provided');
       return new Response(
         JSON.stringify({ error: "PDF URL is required" }),
         {
@@ -275,17 +294,27 @@ Deno.serve(async (req: Request) => {
         }
       );
     }
+
+    console.log('✅ PDF URL:', pdfUrl);
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     const supabase = createClient(supabaseUrl!, supabaseServiceKey!);
 
+    console.log('🔐 Checking authentication...');
     const authHeader = req.headers.get('Authorization');
     let userId: string | null = null;
 
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.substring(7);
-      const { data: { user } } = await supabase.auth.getUser(token);
+      const { data: { user }, error: authError } = await supabase.auth.getUser(token);
+      if (authError) {
+        console.error('❌ Auth error:', authError.message);
+      }
       userId = user?.id || null;
+      console.log('👤 User ID:', userId || 'NOT FOUND');
+    } else {
+      console.log('❌ No Authorization header');
     }
 
     if (!userId) {
@@ -298,6 +327,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    console.log('🔑 Getting OpenAI API key...');
     const { data: apiSettings, error: apiError } = await supabase
       .from("api_settings")
       .select("api_key")
@@ -305,7 +335,12 @@ Deno.serve(async (req: Request) => {
       .eq("service_name", "OpenAI API")
       .maybeSingle();
 
-    if (apiError || !apiSettings?.api_key) {
+    if (apiError) {
+      console.error('❌ API settings error:', apiError.message);
+    }
+
+    if (!apiSettings?.api_key) {
+      console.log('❌ No OpenAI API key found');
       return new Response(
         JSON.stringify({ error: "OpenAI API key not configured" }),
         {
@@ -315,8 +350,10 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    console.log('✅ OpenAI key found');
     const openaiApiKey = apiSettings.api_key;
 
+    console.log('💳 Deducting credits...');
     const creditResult = await deductCredits(
       supabase,
       userId,
@@ -326,6 +363,7 @@ Deno.serve(async (req: Request) => {
     );
 
     if (!creditResult.success) {
+      console.log('❌ Credit deduction failed:', creditResult.error);
       return new Response(
         JSON.stringify({ error: creditResult.error || 'Failed to deduct credits' }),
         {
@@ -335,27 +373,36 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    console.log('Downloading PDF from:', pdfUrl);
+    console.log('✅ Credits deducted');
+    console.log('📥 Downloading PDF from:', pdfUrl);
+
     const pdfResponse = await fetch(pdfUrl);
     if (!pdfResponse.ok) {
-      throw new Error("Failed to download PDF");
+      console.error('❌ PDF download failed:', pdfResponse.status, pdfResponse.statusText);
+      throw new Error(`Failed to download PDF: ${pdfResponse.status} ${pdfResponse.statusText}`);
     }
 
+    console.log('✅ PDF downloaded');
     const pdfBuffer = await pdfResponse.arrayBuffer();
+    console.log('📦 PDF size:', pdfBuffer.byteLength, 'bytes');
 
-    console.log('Extracting text from PDF...');
+    console.log('📄 Extracting text from PDF...');
     const pdfText = await extractTextFromPDF(pdfBuffer);
+    console.log('✅ Extracted text length:', pdfText.length, 'chars');
 
     if (!pdfText || pdfText.length < 100) {
+      console.log('❌ Not enough text extracted');
       throw new Error("Could not extract enough text from PDF. Please make sure the PDF contains readable text.");
     }
 
-    console.log('Parsing with GPT-4o (text length:', pdfText.length, 'chars)');
+    console.log('🤖 Parsing with GPT-4o...');
     const parsedData = await parseWithGPT(pdfText, openaiApiKey);
+    console.log('✅ GPT parsing complete');
 
     const itinerary = convertToItinerary(parsedData);
+    console.log('✅ Itinerary created with', itinerary.length, 'entries');
 
-    console.log('Successfully parsed PDF');
+    console.log('🎉 Successfully parsed PDF');
 
     return new Response(
       JSON.stringify({
@@ -367,10 +414,14 @@ Deno.serve(async (req: Request) => {
       }
     );
   } catch (error) {
-    console.error("Error parsing PDF:", error);
+    console.error("❌ ERROR parsing PDF:", error);
+    console.error("❌ Error stack:", error.stack);
 
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({
+        error: error.message || 'Unknown error occurred',
+        details: error.stack?.substring(0, 500)
+      }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
