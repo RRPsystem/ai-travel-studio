@@ -95,6 +95,11 @@ Deno.serve(async (req: Request) => {
       if (lower.includes('doen') || lower.includes('activiteit') || lower.includes('bezienswaardigheid') || lower.includes('tips')) {
         return 'activiteiten';
       }
+      if (lower.includes('weer') || lower.includes('temperatuur') || lower.includes('klimaat') ||
+          lower.includes('nieuws') || lower.includes('actueel') || lower.includes('wat is') ||
+          lower.includes('zoek') || lower.includes('informatie over')) {
+        return 'websearch';
+      }
       return 'algemeen';
     };
 
@@ -161,6 +166,30 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    if (intent === 'websearch' && googleSearchApiKey && googleSearchEngineId) {
+      const location = slotsBefore.current_destination || slotsBefore.current_hotel || trip.metadata?.destination?.city;
+
+      console.log(`🔍 Performing web search for: ${message} ${location ? `in ${location}` : ''}`);
+      const searchTool = new WebSearchTool(googleSearchApiKey, googleSearchEngineId);
+      const searchResults = await searchTool.search(message, location);
+
+      if (searchResults.length > 0) {
+        toolData += "\n\n🔍 ACTUELE INFORMATIE VAN INTERNET:\n";
+        searchResults.slice(0, 3).forEach((result, i) => {
+          toolData += `\n${i + 1}. **${result.title}**\n`;
+          toolData += `   ${result.snippet}\n`;
+          toolData += `   [Bron: ${result.displayLink}](${result.link})\n`;
+        });
+
+        toolsCalled.push({
+          tool_name: 'google_search',
+          params: { query: message, location },
+          response_summary: `Found ${searchResults.length} results`,
+          success: true
+        });
+      }
+    }
+
     let itineraryContext = "";
     if (trip.metadata?.itinerary && Array.isArray(trip.metadata.itinerary)) {
       itineraryContext = "\n\n📅 REISSCHEMA:\n";
@@ -174,7 +203,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const systemPrompt = `Je bent TravelBro, een persoonlijke AI reisassistent.
+    const systemPrompt = `Je bent TravelBro, een persoonlijke AI reisassistent met toegang tot real-time internet informatie.
 
 🎯 ANTI-IRRITATIE REGEL (BELANGRIJK!):
 - Als de user vraagt over "daar", "het hotel", "in de buurt" en je weet uit HUIDIGE CONTEXT waar ze over praten → GEEF DIRECT ANTWOORD
@@ -201,16 +230,18 @@ ${toolData}
 
 🎯 ANTWOORD REGELS:
 1. Gebruik context uit HUIDIGE CONTEXT en REISSCHEMA
-2. Noem bronnen bij feiten ("Volgens jullie reisschema...")
-3. Als je iets niet weet → zeg dat eerlijk
-4. Geen verzonnen details (check-in tijden, kamertypes, etc.)
-5. Gebruik emojis voor leesbaarheid
-6. Bij restaurants/routes: gebruik REAL-TIME data als beschikbaar
+2. Noem bronnen bij feiten ("Volgens jullie reisschema..." of "Volgens [bron]...")
+3. Bij actuele informatie (weer, nieuws): gebruik de ACTUELE INFORMATIE VAN INTERNET als beschikbaar
+4. Als je iets niet weet EN geen internet data beschikbaar is → zeg dat eerlijk
+5. Geen verzonnen details (check-in tijden, kamertypes, etc.)
+6. Gebruik emojis voor leesbaarheid
+7. Bij restaurants/routes/weer: gebruik REAL-TIME data als beschikbaar
 
 🚫 VERBODEN:
 - Vragen "welke bestemming bedoel je?" als context duidelijk is
 - Details verzinnen die niet in de bronnen staan
-- Generieke lijstjes zonder context`;
+- Generieke lijstjes zonder context
+- Zeggen "ik heb geen toegang tot internet" - je hebt dat WEL via de ACTUELE INFORMATIE sectie`;
 
     const messages: any[] = [
       { role: "system", content: systemPrompt }
@@ -263,12 +294,10 @@ ${toolData}
 
     const slotsUpdates = stateManager.extractSlotsFromMessage(message, aiResponse, trip);
 
-    // Only update intent if we detected a new one
     if (!slotsUpdates.last_intent && intent !== 'algemeen') {
       slotsUpdates.last_intent = intent as any;
     }
 
-    // Always update slots to preserve context or add new info
     await stateManager.updateSlots(slotsUpdates);
 
     const slotsAfter = await stateManager.getSlots();

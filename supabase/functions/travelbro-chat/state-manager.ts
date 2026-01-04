@@ -10,7 +10,7 @@ export interface ConversationSlots {
   current_hotel: string | null;
   current_day: number | null;
   current_country: string | null;
-  last_intent: 'restaurants' | 'route' | 'hotelinfo' | 'activiteiten' | 'algemeen' | null;
+  last_intent: 'restaurants' | 'route' | 'hotelinfo' | 'activiteiten' | 'websearch' | 'algemeen' | null;
   metadata: Record<string, any>;
 }
 
@@ -90,12 +90,10 @@ export class StateManager {
 
     const itinerary = tripData.metadata.itinerary;
 
-    // Check if a specific location is mentioned
     for (const day of itinerary) {
       const location = day.location.toLowerCase();
       const hotelName = day.hotel?.name?.toLowerCase();
 
-      // Check both message and AI response for location/hotel mentions
       const mentionsLocation = lowerMessage.includes(location) || lowerResponse.includes(location);
       const mentionsHotel = hotelName && (lowerMessage.includes(hotelName) || lowerResponse.includes(hotelName));
 
@@ -114,7 +112,6 @@ export class StateManager {
       }
     }
 
-    // Update intent only if detected, don't clear it
     if (lowerMessage.includes('restaurant') || lowerMessage.includes('eten')) {
       updates.last_intent = 'restaurants';
     } else if (lowerMessage.includes('route') || lowerMessage.includes('afstand')) {
