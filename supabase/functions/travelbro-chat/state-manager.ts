@@ -1,8 +1,3 @@
-/**
- * Conversation State Management
- * Manages slots (current_destination, current_hotel, etc.)
- */
-
 import { SupabaseClient } from "npm:@supabase/supabase-js@2";
 
 export interface ConversationSlots {
