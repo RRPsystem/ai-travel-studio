@@ -20,6 +20,7 @@ export default async function handler(req, res) {
       method: req.method,
       headers: {
         'user-agent': req.headers['user-agent'] || 'Mozilla/5.0',
+        'x-forwarded-host': host,
       },
     });
 
