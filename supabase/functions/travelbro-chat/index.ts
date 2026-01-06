@@ -3,6 +3,8 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { StateManager } from "./state-manager.ts";
 import { GooglePlacesTool, GoogleDirectionsTool, WebSearchTool } from "./tools.ts";
 import { ObservabilityLogger, ToolCall, RAGChunk } from "./observability.ts";
+import { VisionTool } from "./vision-tool.ts";
+import { ResponseFormatter } from "./response-formatter.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,12 +24,34 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  try {
-    const { tripId, sessionToken, message } = await req.json();
+  const startTime = Date.now();
 
-    if (!tripId || !sessionToken || !message) {
+  try {
+    const {
+      tripId,
+      sessionToken,
+      message,
+      imageBase64,
+      imageUrl,
+      audioBase64,
+      userLocation,
+      deviceType = 'web',
+      preferVoiceResponse = false,
+    } = await req.json();
+
+    if (!tripId || !sessionToken) {
       return new Response(
-        JSON.stringify({ error: "Missing required fields" }),
+        JSON.stringify({ error: "Missing required fields: tripId and sessionToken" }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    if (!message && !imageBase64 && !imageUrl && !audioBase64) {
+      return new Response(
+        JSON.stringify({ error: "At least one content field required: message, imageBase64, imageUrl, or audioBase64" }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -88,6 +112,66 @@ Deno.serve(async (req: Request) => {
         }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    let processedImageUrl: string | null = null;
+    let conversationId: string | null = null;
+    let visionResponse: string | null = null;
+    let visionUsed = false;
+    let inputType = 'text';
+
+    if (imageBase64 || imageUrl) {
+      inputType = message ? 'multimodal' : 'image';
+
+      if (imageBase64) {
+        const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, '');
+        const buffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+        const fileName = `${tripId}/${crypto.randomUUID()}.jpg`;
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('travelbro-attachments')
+          .upload(fileName, buffer, {
+            contentType: 'image/jpeg',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error('Image upload failed:', uploadError);
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('travelbro-attachments')
+            .getPublicUrl(fileName);
+
+          processedImageUrl = publicUrl;
+        }
+      } else if (imageUrl) {
+        processedImageUrl = imageUrl;
+      }
+
+      if (processedImageUrl && openaiApiKey) {
+        const visionTool = new VisionTool(openaiApiKey, supabase, sessionToken, tripId);
+
+        if (visionTool.shouldAnalyze(message, true)) {
+          console.log('🔍 Vision analysis triggered');
+
+          const contextInfo = `Reis naar: ${trip.metadata?.destination?.city || 'onbekend'}`;
+
+          try {
+            const analysis = await visionTool.analyze(
+              processedImageUrl,
+              message || 'Wat zie je op deze foto?',
+              contextInfo
+            );
+
+            visionResponse = analysis.response;
+            visionUsed = true;
+
+            console.log(`✅ Vision analysis complete: ${analysis.categories.join(', ')}`);
+          } catch (error) {
+            console.error('Vision analysis failed:', error);
+          }
+        }
+      }
     }
 
     const { data: conversationHistory } = await supabase
@@ -226,7 +310,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const systemPrompt = `Je bent TravelBro, een persoonlijke AI reisassistent met toegang tot real-time internet informatie.\n\n🎯 ANTI-IRRITATIE REGEL (BELANGRIJK!):\n- Als de user vraagt over "daar", "het hotel", "in de buurt" en je weet uit HUIDIGE CONTEXT waar ze over praten → GEEF DIRECT ANTWOORD\n- Vraag NOOIT om verduidelijking als de context duidelijk is\n- Maximaal 1 vraag om verduidelijking als er echt meerdere opties zijn\n- Daarna altijd een best-effort antwoord geven\n\n${slotsBefore.current_destination || slotsBefore.current_hotel ? `\n🎯 HUIDIGE CONTEXT (gebruik dit!):\n${slotsBefore.current_destination ? `- Bestemming: ${slotsBefore.current_destination}` : ''}\n${slotsBefore.current_hotel ? `- Hotel: ${slotsBefore.current_hotel}` : ''}\n${slotsBefore.current_day ? `- Reisdag: ${slotsBefore.current_day}` : ''}\n${slotsBefore.last_intent ? `- Laatste onderwerp: ${slotsBefore.last_intent}` : ''}\n\n⚠️ Als user zegt "daar", "het hotel", "in de buurt" → ze bedoelen ${slotsBefore.current_destination || slotsBefore.current_hotel}!\n` : ''}\n\n📚 REIS INFORMATIE:\n${trip.custom_context || 'Geen extra context'}\n\n${itineraryContext}\n\n${toolData}\n\n🎯 ANTWOORD REGELS:\n1. Gebruik context uit HUIDIGE CONTEXT en REISSCHEMA\n2. Noem bronnen bij feiten ("Volgens jullie reisschema..." of "Volgens [bron]...")\n3. Bij actuele informatie (weer, nieuws): gebruik de ACTUELE INFORMATIE VAN INTERNET als beschikbaar\n4. Als je iets niet weet EN geen internet data beschikbaar is → zeg dat eerlijk\n5. Geen verzonnen details (check-in tijden, kamertypes, etc.)\n6. Gebruik emojis voor leesbaarheid\n7. Bij restaurants/routes/weer: gebruik REAL-TIME data als beschikbaar\n\n🚫 VERBODEN:\n- Vragen "welke bestemming bedoel je?" als context duidelijk is\n- Details verzinnen die niet in de bronnen staan\n- Generieke lijstjes zonder context\n- Zeggen "ik heb geen toegang tot internet" - je hebt dat WEL via de ACTUELE INFORMATIE sectie`;
+    const systemPrompt = `Je bent TravelBro, een persoonlijke AI reisassistent met toegang tot real-time internet informatie${visionUsed ? ' en vision analysis' : ''}.\n\n🎯 ANTI-IRRITATIE REGEL (BELANGRIJK!):\n- Als de user vraagt over "daar", "het hotel", "in de buurt" en je weet uit HUIDIGE CONTEXT waar ze over praten → GEEF DIRECT ANTWOORD\n- Vraag NOOIT om verduidelijking als de context duidelijk is\n- Maximaal 1 vraag om verduidelijking als er echt meerdere opties zijn\n- Daarna altijd een best-effort antwoord geven\n\n${slotsBefore.current_destination || slotsBefore.current_hotel ? `\n🎯 HUIDIGE CONTEXT (gebruik dit!):\n${slotsBefore.current_destination ? `- Bestemming: ${slotsBefore.current_destination}` : ''}\n${slotsBefore.current_hotel ? `- Hotel: ${slotsBefore.current_hotel}` : ''}\n${slotsBefore.current_day ? `- Reisdag: ${slotsBefore.current_day}` : ''}\n${slotsBefore.last_intent ? `- Laatste onderwerp: ${slotsBefore.last_intent}` : ''}\n\n⚠️ Als user zegt "daar", "het hotel", "in de buurt" → ze bedoelen ${slotsBefore.current_destination || slotsBefore.current_hotel}!\n` : ''}\n\n📚 REIS INFORMATIE:\n${trip.custom_context || 'Geen extra context'}\n\n${itineraryContext}\n\n${visionResponse ? `\n👁️ VISION ANALYSIS (wat ik zie op de foto):\n${visionResponse}\n\n` : ''}${toolData}\n\n🎯 ANTWOORD REGELS:\n1. Gebruik context uit HUIDIGE CONTEXT en REISSCHEMA\n2. Noem bronnen bij feiten ("Volgens jullie reisschema..." of "Volgens [bron]...")\n3. Bij actuele informatie (weer, nieuws): gebruik de ACTUELE INFORMATIE VAN INTERNET als beschikbaar\n4. ${visionResponse ? 'Bij foto\'s: gebruik de VISION ANALYSIS om te antwoorden\n5. ' : ''}Als je iets niet weet EN geen internet data beschikbaar is → zeg dat eerlijk\n${visionResponse ? '6' : '5'}. Geen verzonnen details (check-in tijden, kamertypes, etc.)\n${visionResponse ? '7' : '6'}. Gebruik emojis voor leesbaarheid\n${visionResponse ? '8' : '7'}. Bij restaurants/routes/weer: gebruik REAL-TIME data als beschikbaar\n\n🚫 VERBODEN:\n- Vragen "welke bestemming bedoel je?" als context duidelijk is\n- Details verzinnen die niet in de bronnen staan\n- Generieke lijstjes zonder context\n- Zeggen "ik heb geen toegang tot internet" - je hebt dat WEL via de ACTUELE INFORMATIE sectie${visionResponse ? '\n- Zeggen "ik kan de foto niet zien" - je hebt de VISION ANALYSIS' : ''}`;
 
     const messages: any[] = [
       { role: "system", content: systemPrompt }
@@ -296,16 +380,32 @@ Deno.serve(async (req: Request) => {
 
     const slotsAfter = await stateManager.getSlots();
 
+    const processingTime = Date.now() - startTime;
+
+    const formatter = new ResponseFormatter();
+    const formattedResponse = formatter.formatResponse({
+      aiResponse,
+      visionUsed,
+      toolsCalled,
+      processingTimeMs: processingTime,
+      tokensUsed,
+      costEur: totalCostEur,
+      currentLocation: userLocation,
+    });
+
     await supabase.from("travel_conversations").insert([
       {
         session_token: sessionToken,
         trip_id: tripId,
         role: "user",
-        message: message,
+        message: message || '[Foto verstuurd]',
         input_tokens: 0,
         output_tokens: 0,
         total_tokens: 0,
         openai_cost_eur: 0,
+        input_type: inputType,
+        has_attachments: !!(imageBase64 || imageUrl || audioBase64),
+        device_type: deviceType,
       },
       {
         session_token: sessionToken,
@@ -316,8 +416,23 @@ Deno.serve(async (req: Request) => {
         output_tokens: outputTokens,
         total_tokens: tokensUsed,
         openai_cost_eur: totalCostEur,
+        input_type: 'text',
+        vision_triggered: visionUsed,
+        response_format: formattedResponse,
+        processing_time_ms: processingTime,
+        device_type: deviceType,
       },
     ]);
+
+    if (processedImageUrl && conversationId) {
+      await supabase.from('travel_message_attachments').insert({
+        conversation_id: conversationId,
+        type: 'image',
+        file_path: processedImageUrl,
+        file_size_bytes: 0,
+        mime_type: 'image/jpeg',
+      });
+    }
 
     await logger.log({
       messageId: null,
@@ -330,7 +445,7 @@ Deno.serve(async (req: Request) => {
     });
 
     return new Response(
-      JSON.stringify({ message: aiResponse }),
+      JSON.stringify(formattedResponse),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
