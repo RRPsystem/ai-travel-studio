@@ -50,6 +50,14 @@ export class VisionTool {
       'op het menu',
       'wat is dit',
       'herken je',
+      'waar is dit',
+      'waar ben ik',
+      'welke plek',
+      'welke plaats',
+      'welke locatie',
+      'where is this',
+      'where am i',
+      'identify location',
     ];
 
     if (explicitTriggers.some(trigger => lower.includes(trigger))) {
@@ -153,7 +161,11 @@ INSTRUCTIES:
 1. Beschrijf wat je ziet in de afbeelding
 2. Als het een menu is: vertaal gerechten en prijs indien zichtbaar
 3. Als het een bord/sign is: vertaal de tekst
-4. Als het een locatie is: herken landmarks of interessante details
+4. Als het een locatie/landmark/gebouw is:
+   - Probeer het te identificeren (naam, wat het is)
+   - Vermeld de plaats/stad als je die herkent
+   - Geef interessante details over de locatie
+   - Als je het niet zeker weet, beschrijf dan wat je ziet
 5. Wees specifiek en nuttig voor de reiziger
 6. Gebruik emojis voor leesbaarheid
 
