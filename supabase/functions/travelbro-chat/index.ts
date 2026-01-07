@@ -92,17 +92,14 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Check if Bro should be auto-expired
     await supabase.rpc('check_bro_expiry', { trip_id: tripId });
 
-    // Reload trip to get updated status
     const { data: updatedTrip } = await supabase
       .from("travel_trips")
       .select("bro_status, stopped_reason")
       .eq("id", tripId)
       .single();
 
-    // Check if Bro is stopped or expired
     if (updatedTrip?.bro_status === 'stopped' || updatedTrip?.bro_status === 'expired') {
       return new Response(
         JSON.stringify({
@@ -363,9 +360,6 @@ Deno.serve(async (req: Request) => {
     const inputTokens = openaiData.usage?.prompt_tokens || 0;
     const outputTokens = openaiData.usage?.completion_tokens || 0;
 
-    // Calculate costs in EUR (GPT-4o pricing with 0.92 EUR/USD rate)
-    // Input: $2.50/1M tokens = €0.0000023 per token
-    // Output: $10.00/1M tokens = €0.0000092 per token
     const inputCostEur = inputTokens * 0.0000023;
     const outputCostEur = outputTokens * 0.0000092;
     const totalCostEur = inputCostEur + outputCostEur;
