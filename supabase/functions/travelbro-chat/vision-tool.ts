@@ -58,6 +58,9 @@ export class VisionTool {
       'where is this',
       'where am i',
       'identify location',
+      'kun je zien',
+      'kun je de foto',
+      'herkennen',
     ];
 
     if (explicitTriggers.some(trigger => lower.includes(trigger))) {
