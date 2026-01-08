@@ -4,7 +4,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
 async function sendWhatsAppMessage(
@@ -48,45 +48,87 @@ async function sendWhatsAppMessage(
 }
 
 async function transcribeAudio(audioUrl: string, openaiApiKey: string, twilioAccountSid: string, twilioAuthToken: string): Promise<string> {
-  try {
-    const authHeader = 'Basic ' + btoa(`${twilioAccountSid}:${twilioAuthToken}`);
-    const audioResponse = await fetch(audioUrl, {
-      headers: {
-        'Authorization': authHeader
-      }
-    });
+  const audioResponse = await fetch(audioUrl, {
+    headers: {
+      'Authorization': 'Basic ' + btoa(`${twilioAccountSid}:${twilioAuthToken}`),
+    },
+  });
 
-    if (!audioResponse.ok) {
-      throw new Error(`Failed to fetch audio: ${audioResponse.statusText}`);
-    }
-
-    const audioBlob = await audioResponse.blob();
-
-    const formData = new FormData();
-    formData.append('file', audioBlob, 'audio.ogg');
-    formData.append('model', 'whisper-1');
-    formData.append('language', 'nl');
-
-    const transcriptionResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-      },
-      body: formData,
-    });
-
-    if (!transcriptionResponse.ok) {
-      const error = await transcriptionResponse.text();
-      console.error('OpenAI API error:', error);
-      throw new Error('Failed to transcribe audio');
-    }
-
-    const result = await transcriptionResponse.json();
-    return result.text;
-  } catch (error) {
-    console.error('Error in transcribeAudio:', error);
-    throw error;
+  if (!audioResponse.ok) {
+    throw new Error('Failed to download audio');
   }
+
+  const audioBlob = await audioResponse.blob();
+
+  const formData = new FormData();
+  formData.append('file', audioBlob, 'audio.ogg');
+  formData.append('model', 'whisper-1');
+  formData.append('language', 'nl');
+
+  const whisperResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+    },
+    body: formData,
+  });
+
+  if (!whisperResponse.ok) {
+    const error = await whisperResponse.text();
+    console.error('Whisper API error:', error);
+    throw new Error('Failed to transcribe audio');
+  }
+
+  const result = await whisperResponse.json();
+  return result.text;
+}
+
+async function getOrCreateSession(supabase: any, tripId: string, brandId: string, phoneNumber: string) {
+  const { data: existingSession } = await supabase
+    .from('travel_whatsapp_sessions')
+    .select('*')
+    .eq('trip_id', tripId)
+    .eq('phone_number', phoneNumber)
+    .maybeSingle();
+
+  if (existingSession) {
+    await supabase
+      .from('travel_whatsapp_sessions')
+      .update({
+        last_message_at: new Date().toISOString(),
+        message_count: (existingSession.message_count || 0) + 1
+      })
+      .eq('id', existingSession.id);
+
+    return existingSession;
+  }
+
+  const sessionToken = Array.from(crypto.getRandomValues(new Uint8Array(24)))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+
+  const { data: newSession } = await supabase
+    .from('travel_whatsapp_sessions')
+    .insert({
+      trip_id: tripId,
+      brand_id: brandId,
+      phone_number: phoneNumber,
+      session_token: sessionToken,
+      message_count: 1,
+    })
+    .select()
+    .single();
+
+  await supabase
+    .from('travel_intakes')
+    .insert({
+      trip_id: tripId,
+      session_token: sessionToken,
+      travelers_count: 1,
+      intake_data: { source: 'whatsapp', phone_number: phoneNumber },
+    });
+
+  return newSession;
 }
 
 Deno.serve(async (req: Request) => {
@@ -98,306 +140,354 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    console.log('=== WHATSAPP WEBHOOK CALLED ===');
-    console.log('Request method:', req.method);
-    console.log('Request URL:', req.url);
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const openaiApiKey = Deno.env.get("OPENAI_API_KEY");
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const contentType = req.headers.get('content-type') || '';
+
+    if (contentType.includes('application/json')) {
+      const body = await req.json();
+
+      if (body.action === 'send') {
+        const { to, message, tripId } = body;
+
+        if (!to || !message || !tripId) {
+          return new Response(JSON.stringify({ error: 'Missing required fields' }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const { data: trip } = await supabase
+          .from('travel_trips')
+          .select('*, brand_id')
+          .eq('id', tripId)
+          .maybeSingle();
+
+        if (!trip) {
+          return new Response(JSON.stringify({ error: 'Trip not found' }), {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        let { data: apiSettings } = await supabase
+          .from('api_settings')
+          .select('twilio_account_sid, twilio_auth_token, twilio_whatsapp_number')
+          .eq('provider', 'Twilio')
+          .eq('brand_id', trip.brand_id)
+          .maybeSingle();
+
+        if (!apiSettings?.twilio_account_sid || !apiSettings?.twilio_auth_token) {
+          const { data: systemSettings } = await supabase
+            .from('api_settings')
+            .select('twilio_account_sid, twilio_auth_token, twilio_whatsapp_number')
+            .eq('provider', 'Twilio')
+            .is('brand_id', null)
+            .maybeSingle();
+
+          if (systemSettings?.twilio_account_sid && systemSettings?.twilio_auth_token) {
+            apiSettings = systemSettings;
+          } else {
+            return new Response(JSON.stringify({ error: 'Twilio niet geconfigureerd' }), {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        }
+
+        await sendWhatsAppMessage(
+          to,
+          message,
+          apiSettings.twilio_account_sid,
+          apiSettings.twilio_auth_token,
+          apiSettings.twilio_whatsapp_number || trip.whatsapp_number
+        );
+
+        await getOrCreateSession(supabase, tripId, trip.brand_id, to);
+
+        return new Response(JSON.stringify({ success: true }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+    }
 
     const formData = await req.formData();
-    const rawFrom = formData.get('From')?.toString() || '';
-    const from = rawFrom.replace('whatsapp:', '').replace('+', '');
-    const body = formData.get('Body')?.toString() || '';
+    const from = formData.get('From')?.toString().replace('whatsapp:', '') || '';
+    let body = formData.get('Body')?.toString() || '';
+    const to = formData.get('To')?.toString().replace('whatsapp:', '') || '';
     const numMedia = parseInt(formData.get('NumMedia')?.toString() || '0');
     const mediaUrl = numMedia > 0 ? formData.get('MediaUrl0')?.toString() : undefined;
     const mediaContentType = numMedia > 0 ? formData.get('MediaContentType0')?.toString() : undefined;
 
-    console.log('Received WhatsApp message:', {
-      rawFrom,
-      from,
-      body,
-      numMedia,
-      mediaContentType
-    });
+    console.log('WhatsApp message received:', { from, to, body, numMedia, mediaContentType });
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    if (!from) {
+      return new Response('Missing sender', { status: 400 });
+    }
 
-    const { data: systemTwilioSettings } = await supabase
-      .from('api_settings')
-      .select('twilio_account_sid, twilio_auth_token, twilio_whatsapp_number')
-      .eq('provider', 'system')
-      .eq('service_name', 'Twilio WhatsApp')
-      .maybeSingle();
-
-    if (!systemTwilioSettings?.twilio_account_sid || !systemTwilioSettings?.twilio_auth_token) {
-      console.error('System Twilio credentials not found');
+    if (!body) {
       return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-        headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
+        headers: { 'Content-Type': 'text/xml' },
       });
     }
 
-    console.log('🔍 Looking for session with phone number:', from);
-
-    const { data: sessionData, error: sessionError } = await supabase
-      .from('travel_whatsapp_sessions')
-      .select(`
-        *,
-        travel_trips (
-          id,
-          name,
-          parsed_data,
-          source_urls,
-          custom_context,
-          gpt_model,
-          gpt_temperature,
-          brand_id
-        )
-      `)
-      .eq('phone_number', from)
-      .order('created_at', { ascending: false })
-      .limit(1)
+    const { data: trip } = await supabase
+      .from('travel_trips')
+      .select('*')
+      .eq('whatsapp_number', to)
+      .eq('whatsapp_enabled', true)
+      .eq('is_active', true)
       .maybeSingle();
 
-    if (sessionError) {
-      console.error('❌ ERROR querying sessions:', sessionError);
-    }
-
-    console.log('🔍 Session query result:', sessionData ? 'FOUND' : 'NOT FOUND');
-
-    if (!sessionData) {
-      console.error('❌ NO ACTIVE SESSION FOUND FOR:', from);
-
-      const { data: allSessions, error: allError } = await supabase
-        .from('travel_whatsapp_sessions')
-        .select('id, phone_number, trip_id, created_at')
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      console.log('📋 Available sessions in database:');
-      if (allSessions && allSessions.length > 0) {
-        allSessions.forEach(s => {
-          console.log(`  - Phone: "${s.phone_number}" | Trip: ${s.trip_id} | Created: ${s.created_at}`);
-        });
-      } else {
-        console.log('  (No sessions found in database)');
-      }
-
-      await sendWhatsAppMessage(
-        from,
-        '❌ Ik kan geen actieve TravelBro sessie vinden voor dit nummer. Neem contact op met je reisagent om een nieuwe uitnodiging te ontvangen.',
-        systemTwilioSettings.twilio_account_sid,
-        systemTwilioSettings.twilio_auth_token,
-        systemTwilioSettings.twilio_whatsapp_number || '+14155238886'
-      );
-
-      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-        headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
-      });
-    }
-
-    console.log('✅ Session found:', sessionData.id);
-
-    const trip = sessionData.travel_trips;
     if (!trip) {
-      console.error('❌ NO TRIP FOUND for session:', sessionData.id);
+      console.log('No active trip found for WhatsApp number:', to);
       return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-        headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
+        headers: { 'Content-Type': 'text/xml' },
       });
     }
 
-    console.log('✅ Trip found:', trip.id, trip.name);
-
-    const brandId = trip.brand_id;
-
-    const { data: twilioSettings } = await supabase
+    let { data: apiSettings } = await supabase
       .from('api_settings')
       .select('twilio_account_sid, twilio_auth_token, twilio_whatsapp_number')
-      .eq('brand_id', brandId)
+      .eq('provider', 'Twilio')
+      .eq('brand_id', trip.brand_id)
       .maybeSingle();
 
-    const finalTwilioSettings = twilioSettings?.twilio_account_sid && twilioSettings?.twilio_auth_token
-      ? twilioSettings
-      : systemTwilioSettings;
-
-    const twilioAccountSid = finalTwilioSettings.twilio_account_sid;
-    const twilioAuthToken = finalTwilioSettings.twilio_auth_token;
-    const twilioWhatsAppNumber = finalTwilioSettings.twilio_whatsapp_number || '+14155238886';
-
-    let userMessage = body;
-    let processedImageUrl: string | null = null;
-
-    if (mediaContentType?.startsWith('image/')) {
-      console.log('📸 Processing image message...');
-      processedImageUrl = mediaUrl || null;
-      console.log('Image URL:', processedImageUrl);
-    }
-
-    if (mediaContentType?.startsWith('audio/')) {
-      console.log('🎤 Processing audio message...');
-      const { data: openaiSettings } = await supabase
+    if (!apiSettings?.twilio_account_sid || !apiSettings?.twilio_auth_token) {
+      const { data: systemSettings } = await supabase
         .from('api_settings')
-        .select('api_key')
-        .eq('provider', 'OpenAI')
-        .eq('service_name', 'OpenAI API')
+        .select('twilio_account_sid, twilio_auth_token, twilio_whatsapp_number')
+        .eq('provider', 'Twilio')
+        .is('brand_id', null)
         .maybeSingle();
 
-      if (!openaiSettings?.api_key) {
-        await sendWhatsAppMessage(
-          from,
-          'Sorry, ik kan audio berichten momenteel niet verwerken. Stuur alsjeblieft een tekstbericht.',
-          twilioAccountSid,
-          twilioAuthToken,
-          twilioWhatsAppNumber
-        );
+      if (systemSettings?.twilio_account_sid && systemSettings?.twilio_auth_token) {
+        apiSettings = systemSettings;
+      } else {
+        console.error('No Twilio credentials configured (brand-specific or system-wide)');
         return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-          headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
+          headers: { 'Content-Type': 'text/xml' },
         });
       }
+    }
 
+    const isVoiceMessage = mediaContentType?.includes('audio');
+
+    if (isVoiceMessage && mediaUrl && openaiApiKey) {
       try {
-        const transcription = await transcribeAudio(
-          mediaUrl!,
-          openaiSettings.api_key,
-          twilioAccountSid,
-          twilioAuthToken
+        console.log('Transcribing voice message...');
+        const transcribedText = await transcribeAudio(
+          mediaUrl,
+          openaiApiKey,
+          apiSettings.twilio_account_sid,
+          apiSettings.twilio_auth_token
         );
-        console.log('Transcription:', transcription);
-        userMessage = transcription;
+        body = `🎤 [Spraakbericht]: ${transcribedText}`;
+        console.log('Transcribed text:', body);
       } catch (error) {
         console.error('Failed to transcribe audio:', error);
-        await sendWhatsAppMessage(
-          from,
-          'Sorry, ik kon je audiobericht niet verstaan. Probeer het opnieuw of stuur een tekstbericht.',
-          twilioAccountSid,
-          twilioAuthToken,
-          twilioWhatsAppNumber
-        );
-        return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-          headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
-        });
+        body = '🎤 [Sorry, ik kon je spraakbericht niet verstaan. Kun je het opnieuw proberen of typen?]';
       }
     }
 
-    console.log('🤖 Calling TravelBro chat endpoint...');
+    const session = await getOrCreateSession(supabase, trip.id, trip.brand_id, from);
 
-    const travelbroChatRequest: any = {
-      tripId: trip.id,
-      sessionToken: sessionData.session_token,
-      deviceType: 'whatsapp',
-    };
-
-    if (userMessage) {
-      travelbroChatRequest.message = userMessage;
-    }
-
-    if (processedImageUrl) {
-      travelbroChatRequest.imageUrl = processedImageUrl;
-    }
-
-    const travelbroResponse = await fetch(`${supabaseUrl}/functions/v1/travelbro-chat`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseServiceKey}`,
-      },
-      body: JSON.stringify(travelbroChatRequest),
-    });
-
-    if (!travelbroResponse.ok) {
-      const error = await travelbroResponse.text();
-      console.error('TravelBro chat error:', error);
-
-      // Log error to database for debugging
-      await supabase.from('debug_logs').insert({
-        function_name: 'whatsapp-webhook -> travelbro-chat',
-        error_message: error,
-        request_payload: travelbroChatRequest,
-        response_status: travelbroResponse.status,
-        response_body: error
-      });
-
+    const isNewSession = !session.session_token;
+    if (isNewSession) {
       await sendWhatsAppMessage(
         from,
-        'Sorry, ik kan je bericht momenteel niet verwerken. Probeer het later opnieuw.',
-        twilioAccountSid,
-        twilioAuthToken,
-        twilioWhatsAppNumber
+        trip.whatsapp_welcome_message || 'Hoi! Ik ben je TravelBRO assistent. Stel me gerust je vragen over de reis!',
+        apiSettings.twilio_account_sid,
+        apiSettings.twilio_auth_token,
+        apiSettings.twilio_whatsapp_number || to
       );
 
       return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-        headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
+        headers: { 'Content-Type': 'text/xml' },
       });
     }
 
-    const travelbroResult = await travelbroResponse.json();
-    console.log('✅ TravelBro response received:', {
-      hasText: !!travelbroResult.text,
-      visionUsed: travelbroResult.vision_used,
-      displayCards: travelbroResult.display_cards?.length || 0
+    const { data: intake } = await supabase
+      .from('travel_intakes')
+      .select('*')
+      .eq('session_token', session.session_token)
+      .maybeSingle();
+
+    const { data: conversationHistory } = await supabase
+      .from('travel_conversations')
+      .select('*')
+      .eq('session_token', session.session_token)
+      .order('created_at', { ascending: true })
+      .limit(20);
+
+    const hasValidTripData = trip.parsed_data && !trip.parsed_data.error;
+    const tripDataText = hasValidTripData
+      ? JSON.stringify(trip.parsed_data, null, 2)
+      : "Geen gedetailleerde reis informatie beschikbaar uit het reisdocument. Je kunt wel algemene tips geven over de bestemming en helpen met vragen.";
+
+    const systemPrompt = `Je bent TravelBRO, een vriendelijke en behulpzame Nederlandse reisassistent voor de reis "${trip.name}".
+
+Reis informatie:
+${tripDataText}
+
+Extra bron URL's: ${trip.source_urls.join(', ') || 'Geen'}
+
+${intake?.intake_data ? `Reiziger informatie:
+${JSON.stringify(intake.intake_data, null, 2)}` : ''}
+
+Je taken:
+1. Beantwoord vragen over de reis (accommodatie, activiteiten, restaurants, tijden, etc.)
+2. Geef praktische tips en aanbevelingen
+3. Wees enthousiast maar realistisch
+4. Als je iets niet zeker weet, geef dat eerlijk toe
+5. Houd antwoorden kort en conversationeel (max 3-4 zinnen)
+
+SPECIAAL: Als iemand vraagt om een foto/afbeelding, antwoord dan met [IMAGE:url] waar url een werkende afbeelding URL is.
+Voorbeeld: "Hier is het zwembad! [IMAGE:https://example.com/pool.jpg]"
+
+SPECIAAL: Als iemand vraagt waar iets is (hotel, restaurant, attractie), geef dan de locatie met [LOCATION:lat,lng,naam].
+Voorbeeld: "Het hotel vind je hier: [LOCATION:52.3676,4.9041,Hotel Amsterdam]"
+
+Wees creatief maar realistisch met locaties en foto's. Gebruik alleen echte URLs die werken.`;
+
+    const messages: any[] = [
+      { role: "system", content: systemPrompt },
+    ];
+
+    if (conversationHistory && conversationHistory.length > 0) {
+      conversationHistory.forEach((conv: any) => {
+        messages.push({
+          role: conv.role,
+          content: conv.message,
+        });
+      });
+    }
+
+    messages.push({ role: "user", content: body });
+
+    await supabase
+      .from('travel_conversations')
+      .insert({
+        trip_id: trip.id,
+        session_token: session.session_token,
+        message: body,
+        role: 'user',
+      });
+
+    if (!openaiApiKey) {
+      throw new Error('OpenAI API key not configured');
+    }
+
+    const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${openaiApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages,
+        max_tokens: 500,
+        temperature: 0.9,
+      }),
     });
 
-    const aiMessage = travelbroResult.text || travelbroResult.message || 'Geen antwoord ontvangen';
+    if (!openaiResponse.ok) {
+      const error = await openaiResponse.text();
+      console.error("OpenAI API error:", error);
+      throw new Error('Failed to get AI response');
+    }
 
-    const displayCardsText = travelbroResult.display_cards && travelbroResult.display_cards.length > 0
-      ? '\n\n' + travelbroResult.display_cards.map((card: any) => {
-          if (card.type === 'restaurant') {
-            return `📍 ${card.title}\n${card.data.address || ''}\n${card.data.distance_meters ? `${card.data.distance_meters}m afstand` : ''}`;
-          }
-          if (card.type === 'route') {
-            return `🗺️ ${card.title}\n${card.data.distance_km} km • ${card.data.duration_minutes} min`;
-          }
-          return `ℹ️ ${card.title}`;
-        }).join('\n\n')
-      : '';
+    const openaiData = await openaiResponse.json();
+    let aiResponse = openaiData.choices[0].message.content;
 
-    const finalMessage = aiMessage + displayCardsText;
+    let imageUrl: string | undefined;
+    let locationData: { lat: number; lng: number; name: string } | undefined;
+
+    const imageMatch = aiResponse.match(/\[IMAGE:(https?:\/\/[^\]]+)\]/);
+    if (imageMatch) {
+      imageUrl = imageMatch[1];
+      aiResponse = aiResponse.replace(imageMatch[0], '').trim();
+    }
+
+    const locationMatch = aiResponse.match(/\[LOCATION:([^,]+),([^,]+),([^\]]+)\]/);
+    if (locationMatch) {
+      locationData = {
+        lat: parseFloat(locationMatch[1]),
+        lng: parseFloat(locationMatch[2]),
+        name: locationMatch[3].trim(),
+      };
+      aiResponse = aiResponse.replace(locationMatch[0], '').trim();
+    }
+
+    await supabase
+      .from('travel_conversations')
+      .insert({
+        trip_id: trip.id,
+        session_token: session.session_token,
+        message: aiResponse,
+        role: 'assistant',
+      });
+
+    const updatedHistory = [
+      ...(session.conversation_history || []).slice(-19),
+      { role: 'user', content: body, timestamp: new Date().toISOString() },
+      { role: 'assistant', content: aiResponse, timestamp: new Date().toISOString() }
+    ];
 
     await supabase
       .from('travel_whatsapp_sessions')
-      .update({ last_message_at: new Date().toISOString() })
-      .eq('id', sessionData.id);
+      .update({
+        conversation_history: updatedHistory,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', session.id);
 
-    const messageContentForLog = userMessage || (processedImageUrl ? '[Foto verstuurd]' : '[Media]');
+    if (imageUrl) {
+      await sendWhatsAppMessage(
+        from,
+        aiResponse || 'Hier is de foto!',
+        apiSettings.twilio_account_sid,
+        apiSettings.twilio_auth_token,
+        apiSettings.twilio_whatsapp_number || to,
+        imageUrl
+      );
+    } else if (locationData) {
+      const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${locationData.lat},${locationData.lng}`;
+      const locationMessage = aiResponse
+        ? `${aiResponse}\n\n📍 ${locationData.name}\n${googleMapsUrl}`
+        : `📍 ${locationData.name}\n${googleMapsUrl}`;
 
-    await supabase
-      .from('travel_whatsapp_messages')
-      .insert([
-        {
-          phone_number: from,
-          message: messageContentForLog,
-          direction: 'inbound',
-          whatsapp_number: twilioWhatsAppNumber,
-          media_url: processedImageUrl || null,
-        },
-        {
-          phone_number: twilioWhatsAppNumber,
-          message: finalMessage,
-          direction: 'outbound',
-          whatsapp_number: twilioWhatsAppNumber,
-          media_url: null,
-        }
-      ]);
-
-    console.log('📤 Sending WhatsApp message...');
-    await sendWhatsAppMessage(
-      from,
-      finalMessage,
-      twilioAccountSid,
-      twilioAuthToken,
-      twilioWhatsAppNumber
-    );
-
-    console.log('✅ Response sent successfully to:', from);
+      await sendWhatsAppMessage(
+        from,
+        locationMessage,
+        apiSettings.twilio_account_sid,
+        apiSettings.twilio_auth_token,
+        apiSettings.twilio_whatsapp_number || to
+      );
+    } else {
+      await sendWhatsAppMessage(
+        from,
+        aiResponse,
+        apiSettings.twilio_account_sid,
+        apiSettings.twilio_auth_token,
+        apiSettings.twilio_whatsapp_number || to
+      );
+    }
 
     return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-      headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
+      headers: { 'Content-Type': 'text/xml' },
     });
 
   } catch (error) {
-    console.error('Error in WhatsApp webhook:', error);
-    return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+    console.error('Error processing WhatsApp webhook:', error);
+    return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
