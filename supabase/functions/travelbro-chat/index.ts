@@ -162,24 +162,41 @@ Deno.serve(async (req: Request) => {
       } else if (imageUrl) {
         // Download image from Twilio with authentication
         try {
+          console.log('📥 Downloading image from URL:', imageUrl);
+
           const twilioAccountSid = apiSettings?.find(s => s.provider === 'system' && s.service_name === 'Twilio WhatsApp')?.twilio_account_sid;
           const twilioAuthToken = apiSettings?.find(s => s.provider === 'system' && s.service_name === 'Twilio WhatsApp')?.twilio_auth_token;
 
           const headers: Record<string, string> = {};
           if (twilioAccountSid && twilioAuthToken) {
-            headers['Authorization'] = 'Basic ' + btoa(`${twilioAccountSid}:${twilioAuthToken}`);
+            // Use TextEncoder to create base64 auth header
+            const credentials = `${twilioAccountSid}:${twilioAuthToken}`;
+            const encoder = new TextEncoder();
+            const data = encoder.encode(credentials);
+            const base64 = btoa(String.fromCharCode(...data));
+            headers['Authorization'] = `Basic ${base64}`;
+            console.log('🔐 Using Twilio authentication');
+          } else {
+            console.log('⚠️ No Twilio credentials found, attempting without auth');
           }
 
           const imageResponse = await fetch(imageUrl, { headers });
+          console.log('📡 Image fetch response status:', imageResponse.status);
 
           if (!imageResponse.ok) {
-            throw new Error(`Failed to fetch image: ${imageResponse.statusText}`);
+            const errorText = await imageResponse.text();
+            console.error('❌ Image fetch failed:', imageResponse.status, errorText);
+            throw new Error(`Failed to fetch image: ${imageResponse.status} ${errorText}`);
           }
 
+          console.log('✅ Image fetched successfully');
           const imageBlob = await imageResponse.blob();
+          console.log('📦 Image blob size:', imageBlob.size, 'type:', imageBlob.type);
+
           const buffer = new Uint8Array(await imageBlob.arrayBuffer());
           const fileName = `${tripId}/${crypto.randomUUID()}.jpg`;
 
+          console.log('⬆️ Uploading to storage:', fileName);
           const { data: uploadData, error: uploadError } = await supabase.storage
             .from('travelbro-attachments')
             .upload(fileName, buffer, {
@@ -188,18 +205,21 @@ Deno.serve(async (req: Request) => {
             });
 
           if (uploadError) {
-            console.error('Image upload failed:', uploadError);
+            console.error('❌ Storage upload failed:', uploadError);
             throw uploadError;
           }
 
+          console.log('✅ Image uploaded to storage');
           const { data: { publicUrl } } = supabase.storage
             .from('travelbro-attachments')
             .getPublicUrl(fileName);
 
+          console.log('🔗 Public URL:', publicUrl);
           processedImageUrl = publicUrl;
 
           // Store attachment record in database
-          const { data: attachmentData } = await supabase
+          console.log('💾 Storing attachment record in database');
+          const { data: attachmentData, error: attachmentError } = await supabase
             .from('travel_attachments')
             .insert({
               trip_id: tripId,
@@ -211,11 +231,26 @@ Deno.serve(async (req: Request) => {
             .select('id')
             .single();
 
-          if (attachmentData) {
+          if (attachmentError) {
+            console.error('⚠️ Failed to store attachment record:', attachmentError);
+          } else if (attachmentData) {
             attachmentId = attachmentData.id;
+            console.log('✅ Attachment record created:', attachmentId);
           }
         } catch (error) {
-          console.error('Failed to download and store image from URL:', error);
+          const errorMsg = error instanceof Error ? error.message : String(error);
+          console.error('❌ Failed to download and store image from URL:', errorMsg);
+          console.error('Error stack:', error instanceof Error ? error.stack : 'N/A');
+
+          // Log to debug table
+          await supabase.from('debug_logs').insert({
+            function_name: 'travelbro-chat:image-download',
+            error_message: errorMsg,
+            request_payload: { imageUrl, tripId, sessionToken },
+            response_status: null,
+            response_body: null
+          });
+
           // Continue without image
           processedImageUrl = null;
         }
