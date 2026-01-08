@@ -69,7 +69,7 @@ Deno.serve(async (req: Request) => {
     const { data: apiSettings } = await supabase
       .from('api_settings')
       .select('*')
-      .in('provider', ['OpenAI', 'Google', 'system'])
+      .in('provider', ['OpenAI', 'Google', 'Twilio', 'system'])
       .eq('is_active', true);
 
     const openaiApiKey = apiSettings?.find(s => s.provider === 'OpenAI')?.api_key || Deno.env.get('OPENAI_API_KEY');
@@ -164,8 +164,9 @@ Deno.serve(async (req: Request) => {
         try {
           console.log('📥 Downloading image from URL:', imageUrl);
 
-          const twilioAccountSid = apiSettings?.find(s => s.provider === 'system' && s.service_name === 'Twilio WhatsApp')?.twilio_account_sid;
-          const twilioAuthToken = apiSettings?.find(s => s.provider === 'system' && s.service_name === 'Twilio WhatsApp')?.twilio_auth_token;
+          const twilioSettings = apiSettings?.find(s => s.provider === 'Twilio');
+          const twilioAccountSid = twilioSettings?.twilio_account_sid;
+          const twilioAuthToken = twilioSettings?.twilio_auth_token;
 
           const headers: Record<string, string> = {};
           if (twilioAccountSid && twilioAuthToken) {
