@@ -5,6 +5,9 @@ import { useApp } from '../../contexts/AppContext';
 export function Header() {
   const { user, currentSite, isPreviewMode, setPreviewMode } = useApp();
 
+  const buildTime = import.meta.env.VITE_BUILD_TIME || new Date().toISOString();
+  const versionString = `v${buildTime.split('T')[0]} · ${new Date(buildTime).toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })}`;
+
   return (
     <header className="w-full bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
       <div className="flex items-center space-x-4">
@@ -18,6 +21,9 @@ export function Header() {
       </div>
 
       <div className="flex items-center space-x-4">
+        <div className="text-xs text-gray-400 font-mono">
+          {versionString}
+        </div>
         {currentSite && (
           <div className="flex items-center space-x-2">
             <button
