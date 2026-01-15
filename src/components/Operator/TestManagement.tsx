@@ -245,7 +245,7 @@ export default function TestManagement() {
   const resetRound = async () => {
     if (!activeRound) return;
 
-    if (!confirm('Weet je zeker dat je deze test ronde wilt resetten? Alle assignments en feedback worden verwijderd!')) {
+    if (!confirm('Weet je zeker dat je deze test ronde wilt resetten? Alle assignments en feedback worden verwijderd en de status wordt teruggezet!')) {
       return;
     }
 
@@ -267,11 +267,51 @@ export default function TestManagement() {
         .delete()
         .eq('round_id', activeRound.id);
 
+      await supabase
+        .from('test_rounds')
+        .update({
+          status: 'pending',
+          start_date: null,
+          end_date: null
+        })
+        .eq('id', activeRound.id);
+
       await loadTestData();
       alert('Test ronde gereset!');
     } catch (error) {
       console.error('Error resetting round:', error);
       alert('Er ging iets mis bij het resetten van de ronde');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createDemoTesters = async () => {
+    if (!confirm('Wil je 2 demo testers aanmaken (1 brand + 1 agent)?')) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-demo-testers`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create demo testers');
+      }
+
+      const data = await response.json();
+      await loadTestData();
+      alert(`Demo testers aangemaakt!\n\nBrand: ${data.brand.email}\nAgent: ${data.agent.email}\nWachtwoord: demo123`);
+    } catch (error) {
+      console.error('Error creating demo testers:', error);
+      alert('Er ging iets mis bij het aanmaken van demo testers');
     } finally {
       setLoading(false);
     }
@@ -636,8 +676,15 @@ export default function TestManagement() {
                 </div>
               ))}
               {testers.length === 0 && (
-                <div className="col-span-full text-center py-8 text-gray-500">
-                  Geen brand of agent gebruikers gevonden
+                <div className="col-span-full text-center py-8">
+                  <p className="text-gray-500 mb-4">Geen brand of agent gebruikers gevonden</p>
+                  <button
+                    onClick={createDemoTesters}
+                    disabled={loading}
+                    className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 transition-colors"
+                  >
+                    Maak Demo Testers Aan
+                  </button>
                 </div>
               )}
             </div>
