@@ -205,7 +205,7 @@ export default function TestManagement() {
       if (error) throw error;
 
       await loadTesters(activeRound.id);
-      alert(`Tester toegewezen aan ${relevantFeatures.length} features!`);
+      alert(`✓ Testomgeving geactiveerd!\n\n${relevantFeatures.length} features toegewezen aan deze gebruiker.\n\nDe gebruiker kan nu inloggen en de testvragen zien in hun dashboard.`);
     } catch (error) {
       console.error('Error assigning tester:', error);
       alert('Er ging iets mis bij het toewijzen van de tester');
@@ -587,8 +587,13 @@ export default function TestManagement() {
           <div className="p-6 border-b">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">Tester Management</h2>
-                <p className="text-sm text-gray-600 mt-1">Wijs gebruikers toe als testers voor deze ronde</p>
+                <h2 className="text-xl font-semibold text-gray-900">Activeer Testers</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  Selecteer bestaande gebruikers en activeer hun test omgeving
+                </p>
+                <p className="text-xs text-blue-600 mt-1">
+                  Na activering zien gebruikers hun testvragen in hun eigen dashboard
+                </p>
               </div>
               <button
                 onClick={() => setShowTesterManagement(false)}
@@ -621,11 +626,12 @@ export default function TestManagement() {
                       </div>
                       <div className="flex items-center gap-2 mt-1">
                         <span className={`text-xs px-2 py-0.5 rounded ${
-                          tester.role === 'brand'
-                            ? 'bg-purple-100 text-purple-700'
-                            : 'bg-blue-100 text-blue-700'
+                          tester.role === 'brand' ? 'bg-purple-100 text-purple-700' :
+                          tester.role === 'agent' ? 'bg-blue-100 text-blue-700' :
+                          tester.role === 'operator' ? 'bg-green-100 text-green-700' :
+                          'bg-gray-100 text-gray-700'
                         }`}>
-                          {tester.role === 'brand' ? 'Brand' : 'Agent'}
+                          {tester.role.charAt(0).toUpperCase() + tester.role.slice(1)}
                         </span>
                         {tester.assignmentCount > 0 && (
                           <span className="text-xs text-green-600 font-medium">
@@ -647,7 +653,7 @@ export default function TestManagement() {
                         ) : (
                           <UserPlus className="w-4 h-4" />
                         )}
-                        {saving === tester.id ? 'Bezig...' : 'Toewijzen'}
+                        {saving === tester.id ? 'Bezig...' : 'Activeer Testomgeving'}
                       </button>
                     ) : (
                       <>
@@ -677,14 +683,7 @@ export default function TestManagement() {
               ))}
               {testers.length === 0 && (
                 <div className="col-span-full text-center py-8">
-                  <p className="text-gray-500 mb-4">Geen brand of agent gebruikers gevonden</p>
-                  <button
-                    onClick={createDemoTesters}
-                    disabled={loading}
-                    className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400 transition-colors"
-                  >
-                    Maak Testers Aan
-                  </button>
+                  <p className="text-gray-500">Geen gebruikers gevonden</p>
                 </div>
               )}
             </div>
