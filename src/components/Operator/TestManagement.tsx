@@ -145,7 +145,7 @@ export default function TestManagement() {
       const { data: usersData } = await supabase
         .from('users')
         .select('id, email, role')
-        .in('role', ['brand', 'agent'])
+        .or('role.eq.brand,role.eq.agent')
         .order('email');
 
       if (!usersData) return;
@@ -239,6 +239,41 @@ export default function TestManagement() {
       alert('Er ging iets mis bij het verwijderen van de tester');
     } finally {
       setSaving(null);
+    }
+  };
+
+  const resetRound = async () => {
+    if (!activeRound) return;
+
+    if (!confirm('Weet je zeker dat je deze test ronde wilt resetten? Alle assignments en feedback worden verwijderd!')) {
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await supabase
+        .from('test_feedback')
+        .delete()
+        .eq('round_id', activeRound.id);
+
+      await supabase
+        .from('test_assignments')
+        .delete()
+        .eq('round_id', activeRound.id);
+
+      await supabase
+        .from('test_feature_status')
+        .delete()
+        .eq('round_id', activeRound.id);
+
+      await loadTestData();
+      alert('Test ronde gereset!');
+    } catch (error) {
+      console.error('Error resetting round:', error);
+      alert('Er ging iets mis bij het resetten van de ronde');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -405,13 +440,25 @@ export default function TestManagement() {
       <div className="bg-white rounded-lg shadow p-6">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Test Management</h1>
-          <button
-            onClick={loadTestData}
-            className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Vernieuwen
-          </button>
+          <div className="flex gap-2">
+            {activeRound && (
+              <button
+                onClick={resetRound}
+                disabled={loading}
+                className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Reset Ronde
+              </button>
+            )}
+            <button
+              onClick={loadTestData}
+              className="flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Vernieuwen
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-4 gap-4 mb-6">
