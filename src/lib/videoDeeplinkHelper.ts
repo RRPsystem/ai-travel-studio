@@ -44,8 +44,8 @@ export const generateVideoDeeplink = (
   mode: VideoDeeplinkMode | string = 'new',
   options: VideoDeeplinkOptions = {}
 ): string => {
-  // Base URL van de AI Travel Video standalone
-  const base = 'https://www.ai-travelvideo.nl/generator.html';
+  // Base URL van de AI Travel Video (website-builder project)
+  const base = 'https://www.ai-websitestudio.nl/generator.html';
 
   // Build query parameters
   const params = new URLSearchParams({
