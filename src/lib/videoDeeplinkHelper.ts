@@ -45,8 +45,8 @@ export const generateVideoDeeplink = (
   token: string,
   options: VideoDeeplinkOptions = {}
 ): string => {
-  // Base URL van de video generator op ai-websitestudio.nl
-  const base = 'https://www.ai-websitestudio.nl/generator.html';
+  // Base URL van de AI Travel Video standalone
+  const base = 'https://www.ai-travelvideo.nl/generator.html';
 
   // API endpoint en anon key van je Supabase project
   const apikey = import.meta.env.VITE_SUPABASE_ANON_KEY;
