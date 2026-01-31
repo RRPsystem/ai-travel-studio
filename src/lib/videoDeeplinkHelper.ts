@@ -40,22 +40,16 @@ export interface VideoDeeplinkOptions {
  * });
  */
 export const generateVideoDeeplink = (
-  mode: VideoDeeplinkMode,
   brandId: string,
-  token: string,
+  mode: VideoDeeplinkMode | string = 'new',
   options: VideoDeeplinkOptions = {}
 ): string => {
   // Base URL van de AI Travel Video standalone
   const base = 'https://www.ai-travelvideo.nl/generator.html';
 
-  // API endpoint en anon key van je Supabase project
-  const apikey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
   // Build query parameters
   const params = new URLSearchParams({
     brand_id: brandId,
-    token,
-    apikey,
     return_url: window.location.href
   });
 
@@ -75,7 +69,6 @@ export const generateVideoDeeplink = (
     }
     if (options.tripId) {
       params.append('trip_id', options.tripId);
-      // Add trip title if available
       params.append('title', options.tripId);
     }
   }
@@ -127,17 +120,15 @@ export const generateVideoJWT = async (
 /**
  * Open video generator in nieuwe tab
  *
- * @param mode - Video generator mode
  * @param brandId - UUID van de brand
- * @param token - JWT token
+ * @param mode - Video generator mode
  * @param options - Extra parameters
  */
 export const openVideoGenerator = (
-  mode: VideoDeeplinkMode,
   brandId: string,
-  token: string,
+  mode: VideoDeeplinkMode | string = 'new',
   options: VideoDeeplinkOptions = {}
 ): void => {
-  const deeplink = generateVideoDeeplink(mode, brandId, token, options);
+  const deeplink = generateVideoDeeplink(brandId, mode, options);
   window.open(deeplink, '_blank');
 };
