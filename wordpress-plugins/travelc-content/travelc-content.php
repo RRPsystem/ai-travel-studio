@@ -58,12 +58,14 @@ class TravelC_Content {
      * Admin Menu
      */
     public function add_admin_menu() {
-        add_options_page(
+        add_menu_page(
             'TravelC Content',
             'TravelC Content',
             'manage_options',
             'travelc-content',
-            array($this, 'settings_page')
+            array($this, 'settings_page'),
+            'dashicons-airplane',
+            30
         );
     }
     
