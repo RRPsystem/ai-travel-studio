@@ -11,6 +11,8 @@ interface Destination {
   country: string;
   continent?: string;
   intro_text?: string;
+  description?: string;
+  transportation?: string;
   featured_image?: string;
   climate?: string;
   best_time_to_visit?: string;
@@ -47,6 +49,8 @@ const emptyFormData = {
   country: '',
   continent: '',
   intro_text: '',
+  description: '',
+  transportation: '',
   featured_image: '',
   climate: '',
   best_time_to_visit: '',
@@ -133,6 +137,8 @@ export function DestinationManagement() {
       country: destination.country || '',
       continent: destination.continent || '',
       intro_text: destination.intro_text || '',
+      description: destination.description || '',
+      transportation: destination.transportation || '',
       featured_image: destination.featured_image || '',
       climate: destination.climate || '',
       best_time_to_visit: destination.best_time_to_visit || '',
@@ -175,7 +181,7 @@ export function DestinationManagement() {
           type: 'destination',
           brandId: SYSTEM_BRAND_ID,
           userId: user?.id,
-          fields: ['intro_text', 'climate', 'best_time_to_visit', 'currency', 'language', 'timezone', 'visa_info', 'highlights', 'regions', 'facts']
+          fields: ['intro_text', 'description', 'transportation', 'climate', 'best_time_to_visit', 'currency', 'language', 'timezone', 'visa_info', 'highlights', 'regions', 'facts']
         }
       };
       console.log('📤 Request body:', requestBody);
@@ -204,6 +210,8 @@ export function DestinationManagement() {
         setFormData(prev => ({
           ...prev,
           intro_text: data.content.intro_text || prev.intro_text,
+          description: data.content.description || prev.description,
+          transportation: data.content.transportation || prev.transportation,
           climate: data.content.climate || prev.climate,
           best_time_to_visit: data.content.best_time_to_visit || prev.best_time_to_visit,
           currency: data.content.currency || prev.currency,
@@ -239,6 +247,8 @@ export function DestinationManagement() {
         country: formData.country.trim() || formData.title.trim(),
         continent: formData.continent.trim(),
         intro_text: formData.intro_text.trim(),
+        description: formData.description.trim(),
+        transportation: formData.transportation.trim(),
         featured_image: formData.featured_image.trim(),
         climate: formData.climate.trim(),
         best_time_to_visit: formData.best_time_to_visit.trim(),
@@ -470,12 +480,34 @@ export function DestinationManagement() {
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Introductie</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Introductie (korte samenvatting)</label>
                     <textarea
                       value={formData.intro_text}
                       onChange={(e) => setFormData(prev => ({ ...prev, intro_text: e.target.value }))}
+                      rows={3}
+                      placeholder="Korte introductie van de bestemming..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Uitgebreide beschrijving</label>
+                    <textarea
+                      value={formData.description}
+                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                      rows={6}
+                      placeholder="Uitgebreide informatie over het land, cultuur, bezienswaardigheden..."
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">🚂 Vervoer & Rondreizen</label>
+                    <textarea
+                      value={formData.transportation}
+                      onChange={(e) => setFormData(prev => ({ ...prev, transportation: e.target.value }))}
                       rows={4}
-                      placeholder="Beschrijf de bestemming..."
+                      placeholder="Hoe reis je het beste door dit land? (bijv. Japan met de trein, Amerika met huurauto)"
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
                     />
                   </div>

@@ -47,11 +47,133 @@ class TravelC_Content {
         add_shortcode('travelc_destination', array($this, 'destination_shortcode'));
         add_shortcode('travelc_destinations_menu', array($this, 'destinations_menu_shortcode'));
         
+        // Individual field shortcodes for custom layouts
+        add_shortcode('travelc_field', array($this, 'field_shortcode'));
+        add_shortcode('travelc_destination_title', array($this, 'destination_title_shortcode'));
+        add_shortcode('travelc_destination_intro', array($this, 'destination_intro_shortcode'));
+        add_shortcode('travelc_destination_description', array($this, 'destination_description_shortcode'));
+        add_shortcode('travelc_destination_transportation', array($this, 'destination_transportation_shortcode'));
+        add_shortcode('travelc_destination_image', array($this, 'destination_image_shortcode'));
+        add_shortcode('travelc_destination_climate', array($this, 'destination_climate_shortcode'));
+        add_shortcode('travelc_destination_highlights', array($this, 'destination_highlights_shortcode'));
+        add_shortcode('travelc_destination_regions', array($this, 'destination_regions_shortcode'));
+        add_shortcode('travelc_destination_facts', array($this, 'destination_facts_shortcode'));
+        add_shortcode('travelc_destination_info', array($this, 'destination_info_shortcode'));
+        
         // REST API endpoints
         add_action('rest_api_init', array($this, 'register_rest_routes'));
         
         // Enqueue styles
         add_action('wp_enqueue_scripts', array($this, 'enqueue_styles'));
+        
+        // Rewrite rules for destination and news pages
+        add_action('init', array($this, 'add_rewrite_rules'));
+        add_filter('query_vars', array($this, 'add_query_vars'));
+        add_action('template_redirect', array($this, 'handle_virtual_pages'));
+        
+        // Flush rewrite rules on activation
+        register_activation_hook(__FILE__, array($this, 'activate'));
+    }
+    
+    /**
+     * Plugin activation - flush rewrite rules
+     */
+    public function activate() {
+        $this->add_rewrite_rules();
+        flush_rewrite_rules();
+    }
+    
+    /**
+     * Add rewrite rules for virtual pages
+     */
+    public function add_rewrite_rules() {
+        add_rewrite_rule(
+            '^bestemming/([^/]+)/?$',
+            'index.php?tcc_destination=$matches[1]',
+            'top'
+        );
+        add_rewrite_rule(
+            '^nieuws/([^/]+)/?$',
+            'index.php?tcc_news=$matches[1]',
+            'top'
+        );
+    }
+    
+    /**
+     * Add custom query vars
+     */
+    public function add_query_vars($vars) {
+        $vars[] = 'tcc_destination';
+        $vars[] = 'tcc_news';
+        return $vars;
+    }
+    
+    /**
+     * Handle virtual pages for destinations and news
+     */
+    public function handle_virtual_pages() {
+        $destination_slug = get_query_var('tcc_destination');
+        $news_slug = get_query_var('tcc_news');
+        
+        if ($destination_slug) {
+            $this->render_destination_page($destination_slug);
+            exit;
+        }
+        
+        if ($news_slug) {
+            $this->render_news_page($news_slug);
+            exit;
+        }
+    }
+    
+    /**
+     * Render destination page
+     */
+    private function render_destination_page($slug) {
+        $destination = $this->get_destination_by_slug($slug);
+        
+        if (!$destination) {
+            global $wp_query;
+            $wp_query->set_404();
+            status_header(404);
+            get_template_part(404);
+            return;
+        }
+        
+        // Get theme header
+        get_header();
+        
+        echo '<div class="tcc-destination-page">';
+        echo do_shortcode('[travelc_destination slug="' . esc_attr($slug) . '"]');
+        echo '</div>';
+        
+        // Get theme footer
+        get_footer();
+    }
+    
+    /**
+     * Render news page
+     */
+    private function render_news_page($slug) {
+        $news = $this->get_news_by_slug($slug);
+        
+        if (!$news) {
+            global $wp_query;
+            $wp_query->set_404();
+            status_header(404);
+            get_template_part(404);
+            return;
+        }
+        
+        // Get theme header
+        get_header();
+        
+        echo '<div class="tcc-news-page">';
+        echo do_shortcode('[travelc_news_single slug="' . esc_attr($slug) . '"]');
+        echo '</div>';
+        
+        // Get theme footer
+        get_footer();
     }
     
     /**
@@ -126,6 +248,8 @@ class TravelC_Content {
             <hr>
             
             <h2>Beschikbare Shortcodes</h2>
+            
+            <h3>📦 Complete weergaves</h3>
             <table class="widefat">
                 <thead>
                     <tr>
@@ -147,13 +271,82 @@ class TravelC_Content {
                     </tr>
                     <tr>
                         <td><code>[travelc_destination slug="peru"]</code></td>
-                        <td>Toont bestemmingspagina</td>
+                        <td>Toont complete bestemmingspagina</td>
                         <td>slug (verplicht)</td>
                     </tr>
                     <tr>
                         <td><code>[travelc_destinations_menu]</code></td>
                         <td>Toont mega menu met alle bestemmingen</td>
                         <td>group_by="continent"</td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <h3 style="margin-top: 20px;">🎨 Individuele velden (voor eigen layouts in Elementor)</h3>
+            <p><em>Gebruik deze shortcodes om zelf je pagina-layout te bepalen. Plaats ze waar je wilt in Elementor!</em></p>
+            <table class="widefat">
+                <thead>
+                    <tr>
+                        <th>Shortcode</th>
+                        <th>Beschrijving</th>
+                        <th>Parameters</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>[travelc_destination_title slug="italie"]</code></td>
+                        <td>Alleen de titel</td>
+                        <td>slug (verplicht)</td>
+                    </tr>
+                    <tr>
+                        <td><code>[travelc_destination_intro slug="italie"]</code></td>
+                        <td>Korte introductietekst</td>
+                        <td>slug (verplicht)</td>
+                    </tr>
+                    <tr>
+                        <td><code>[travelc_destination_description slug="italie"]</code></td>
+                        <td>Uitgebreide beschrijving over het land</td>
+                        <td>slug (verplicht)</td>
+                    </tr>
+                    <tr>
+                        <td><code>[travelc_destination_transportation slug="italie"]</code></td>
+                        <td>Vervoer & rondreizen (trein, huurauto, etc.)</td>
+                        <td>slug (verplicht)</td>
+                    </tr>
+                    <tr>
+                        <td><code>[travelc_destination_image slug="italie"]</code></td>
+                        <td>Featured afbeelding</td>
+                        <td>slug, class="mijn-class", alt="alt tekst"</td>
+                    </tr>
+                    <tr>
+                        <td><code>[travelc_destination_climate slug="italie"]</code></td>
+                        <td>Klimaat + beste reistijd</td>
+                        <td>slug (verplicht)</td>
+                    </tr>
+                    <tr>
+                        <td><code>[travelc_destination_highlights slug="italie"]</code></td>
+                        <td>Hoogtepunten</td>
+                        <td>slug, columns="3", style="cards|list"</td>
+                    </tr>
+                    <tr>
+                        <td><code>[travelc_destination_regions slug="italie"]</code></td>
+                        <td>Regio's</td>
+                        <td>slug, columns="3"</td>
+                    </tr>
+                    <tr>
+                        <td><code>[travelc_destination_facts slug="italie"]</code></td>
+                        <td>Weetjes/feiten</td>
+                        <td>slug, style="list|table"</td>
+                    </tr>
+                    <tr>
+                        <td><code>[travelc_destination_info slug="italie"]</code></td>
+                        <td>Praktische info (valuta, taal, etc.)</td>
+                        <td>slug, fields="currency,language,timezone,visa_info", style="list|icons"</td>
+                    </tr>
+                    <tr>
+                        <td><code>[travelc_field slug="italie" field="climate"]</code></td>
+                        <td>Elk willekeurig veld ophalen</td>
+                        <td>slug, field (title, country, continent, intro_text, climate, currency, language, timezone, visa_info, best_time_to_visit)</td>
                     </tr>
                 </tbody>
             </table>
@@ -254,6 +447,7 @@ class TravelC_Content {
         $result = $this->fetch_from_supabase('destination_brand_assignments', array(
             'brand_id' => 'eq.' . $this->brand_id,
             'status' => 'in.(accepted,mandatory)',
+            'is_published' => 'eq.true',
             'select' => 'id'
         ));
         
@@ -826,6 +1020,328 @@ class TravelC_Content {
             array(),
             TCC_VERSION
         );
+    }
+    
+    // ========================================
+    // INDIVIDUAL FIELD SHORTCODES
+    // For custom layouts in Elementor/WP
+    // ========================================
+    
+    /**
+     * Generic field shortcode - get any field from a destination
+     * Usage: [travelc_field slug="italie" field="title"]
+     * Available fields: title, country, continent, intro_text, featured_image, climate, 
+     *                   best_time_to_visit, currency, language, timezone, visa_info
+     */
+    public function field_shortcode($atts) {
+        $atts = shortcode_atts(array(
+            'slug' => '',
+            'field' => 'title',
+            'type' => 'destination' // or 'news'
+        ), $atts);
+        
+        if (empty($atts['slug'])) {
+            return '';
+        }
+        
+        if ($atts['type'] === 'news') {
+            $item = $this->get_news_by_slug($atts['slug']);
+        } else {
+            $item = $this->get_destination_by_slug($atts['slug']);
+        }
+        
+        if (!$item || !isset($item[$atts['field']])) {
+            return '';
+        }
+        
+        $value = $item[$atts['field']];
+        
+        // Handle arrays (like highlights, regions, facts)
+        if (is_array($value)) {
+            return wp_json_encode($value);
+        }
+        
+        return esc_html($value);
+    }
+    
+    /**
+     * Destination title shortcode
+     * Usage: [travelc_destination_title slug="italie"]
+     */
+    public function destination_title_shortcode($atts) {
+        $atts = shortcode_atts(array('slug' => ''), $atts);
+        if (empty($atts['slug'])) return '';
+        
+        $dest = $this->get_destination_by_slug($atts['slug']);
+        return $dest ? esc_html($dest['title']) : '';
+    }
+    
+    /**
+     * Destination intro text shortcode
+     * Usage: [travelc_destination_intro slug="italie"]
+     */
+    public function destination_intro_shortcode($atts) {
+        $atts = shortcode_atts(array('slug' => ''), $atts);
+        if (empty($atts['slug'])) return '';
+        
+        $dest = $this->get_destination_by_slug($atts['slug']);
+        return $dest ? wp_kses_post($dest['intro_text'] ?? '') : '';
+    }
+    
+    /**
+     * Destination description shortcode (uitgebreide tekst)
+     * Usage: [travelc_destination_description slug="italie"]
+     */
+    public function destination_description_shortcode($atts) {
+        $atts = shortcode_atts(array('slug' => ''), $atts);
+        if (empty($atts['slug'])) return '';
+        
+        $dest = $this->get_destination_by_slug($atts['slug']);
+        return $dest ? wp_kses_post($dest['description'] ?? '') : '';
+    }
+    
+    /**
+     * Destination transportation shortcode (vervoer tips)
+     * Usage: [travelc_destination_transportation slug="italie"]
+     */
+    public function destination_transportation_shortcode($atts) {
+        $atts = shortcode_atts(array('slug' => ''), $atts);
+        if (empty($atts['slug'])) return '';
+        
+        $dest = $this->get_destination_by_slug($atts['slug']);
+        if (!$dest || empty($dest['transportation'])) return '';
+        
+        return '<div class="tcc-transportation">' . wp_kses_post($dest['transportation']) . '</div>';
+    }
+    
+    /**
+     * Destination featured image shortcode
+     * Usage: [travelc_destination_image slug="italie" size="full" class="my-class"]
+     */
+    public function destination_image_shortcode($atts) {
+        $atts = shortcode_atts(array(
+            'slug' => '',
+            'size' => 'full',
+            'class' => 'tcc-destination-image',
+            'alt' => ''
+        ), $atts);
+        
+        if (empty($atts['slug'])) return '';
+        
+        $dest = $this->get_destination_by_slug($atts['slug']);
+        if (!$dest || empty($dest['featured_image'])) return '';
+        
+        $alt = $atts['alt'] ?: ($dest['title'] ?? 'Destination');
+        return '<img src="' . esc_url($dest['featured_image']) . '" alt="' . esc_attr($alt) . '" class="' . esc_attr($atts['class']) . '">';
+    }
+    
+    /**
+     * Destination climate shortcode
+     * Usage: [travelc_destination_climate slug="italie"]
+     */
+    public function destination_climate_shortcode($atts) {
+        $atts = shortcode_atts(array('slug' => ''), $atts);
+        if (empty($atts['slug'])) return '';
+        
+        $dest = $this->get_destination_by_slug($atts['slug']);
+        if (!$dest) return '';
+        
+        $climate = $dest['climate'] ?? '';
+        $best_time = $dest['best_time_to_visit'] ?? '';
+        
+        $output = '';
+        if ($climate) {
+            $output .= '<div class="tcc-climate">' . wp_kses_post($climate) . '</div>';
+        }
+        if ($best_time) {
+            $output .= '<div class="tcc-best-time"><strong>Beste reistijd:</strong> ' . esc_html($best_time) . '</div>';
+        }
+        
+        return $output;
+    }
+    
+    /**
+     * Destination highlights shortcode
+     * Usage: [travelc_destination_highlights slug="italie" columns="3"]
+     */
+    public function destination_highlights_shortcode($atts) {
+        $atts = shortcode_atts(array(
+            'slug' => '',
+            'columns' => '3',
+            'style' => 'cards' // cards, list, simple
+        ), $atts);
+        
+        if (empty($atts['slug'])) return '';
+        
+        $dest = $this->get_destination_by_slug($atts['slug']);
+        if (!$dest || empty($dest['highlights'])) return '';
+        
+        $highlights = $dest['highlights'];
+        if (is_string($highlights)) {
+            $highlights = json_decode($highlights, true);
+        }
+        if (!is_array($highlights) || empty($highlights)) return '';
+        
+        ob_start();
+        ?>
+        <div class="tcc-highlights tcc-columns-<?php echo esc_attr($atts['columns']); ?> tcc-style-<?php echo esc_attr($atts['style']); ?>">
+            <?php foreach ($highlights as $highlight): ?>
+                <div class="tcc-highlight-item">
+                    <?php if (!empty($highlight['title'])): ?>
+                        <h4 class="tcc-highlight-title"><?php echo esc_html($highlight['title']); ?></h4>
+                    <?php endif; ?>
+                    <?php if (!empty($highlight['description'])): ?>
+                        <p class="tcc-highlight-desc"><?php echo wp_kses_post($highlight['description']); ?></p>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+    
+    /**
+     * Destination regions shortcode
+     * Usage: [travelc_destination_regions slug="italie" columns="3"]
+     */
+    public function destination_regions_shortcode($atts) {
+        $atts = shortcode_atts(array(
+            'slug' => '',
+            'columns' => '3'
+        ), $atts);
+        
+        if (empty($atts['slug'])) return '';
+        
+        $dest = $this->get_destination_by_slug($atts['slug']);
+        if (!$dest || empty($dest['regions'])) return '';
+        
+        $regions = $dest['regions'];
+        if (is_string($regions)) {
+            $regions = json_decode($regions, true);
+        }
+        if (!is_array($regions) || empty($regions)) return '';
+        
+        ob_start();
+        ?>
+        <div class="tcc-regions tcc-columns-<?php echo esc_attr($atts['columns']); ?>">
+            <?php foreach ($regions as $region): ?>
+                <div class="tcc-region-item">
+                    <?php if (!empty($region['name'])): ?>
+                        <h4 class="tcc-region-name"><?php echo esc_html($region['name']); ?></h4>
+                    <?php endif; ?>
+                    <?php if (!empty($region['description'])): ?>
+                        <p class="tcc-region-desc"><?php echo wp_kses_post($region['description']); ?></p>
+                    <?php endif; ?>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+    
+    /**
+     * Destination facts shortcode
+     * Usage: [travelc_destination_facts slug="italie" style="list"]
+     */
+    public function destination_facts_shortcode($atts) {
+        $atts = shortcode_atts(array(
+            'slug' => '',
+            'style' => 'list' // list, table, cards
+        ), $atts);
+        
+        if (empty($atts['slug'])) return '';
+        
+        $dest = $this->get_destination_by_slug($atts['slug']);
+        if (!$dest || empty($dest['facts'])) return '';
+        
+        $facts = $dest['facts'];
+        if (is_string($facts)) {
+            $facts = json_decode($facts, true);
+        }
+        if (!is_array($facts) || empty($facts)) return '';
+        
+        ob_start();
+        ?>
+        <div class="tcc-facts tcc-style-<?php echo esc_attr($atts['style']); ?>">
+            <?php if ($atts['style'] === 'table'): ?>
+                <table class="tcc-facts-table">
+                    <?php foreach ($facts as $fact): ?>
+                        <tr>
+                            <th><?php echo esc_html($fact['label'] ?? ''); ?></th>
+                            <td><?php echo esc_html($fact['value'] ?? ''); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </table>
+            <?php else: ?>
+                <ul class="tcc-facts-list">
+                    <?php foreach ($facts as $fact): ?>
+                        <li>
+                            <strong><?php echo esc_html($fact['label'] ?? ''); ?>:</strong>
+                            <?php echo esc_html($fact['value'] ?? ''); ?>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            <?php endif; ?>
+        </div>
+        <?php
+        return ob_get_clean();
+    }
+    
+    /**
+     * Destination practical info shortcode (currency, language, timezone, visa)
+     * Usage: [travelc_destination_info slug="italie" fields="currency,language,timezone,visa_info"]
+     */
+    public function destination_info_shortcode($atts) {
+        $atts = shortcode_atts(array(
+            'slug' => '',
+            'fields' => 'currency,language,timezone,visa_info',
+            'style' => 'list' // list, icons, cards
+        ), $atts);
+        
+        if (empty($atts['slug'])) return '';
+        
+        $dest = $this->get_destination_by_slug($atts['slug']);
+        if (!$dest) return '';
+        
+        $fields = array_map('trim', explode(',', $atts['fields']));
+        
+        $labels = array(
+            'currency' => 'Valuta',
+            'language' => 'Taal',
+            'timezone' => 'Tijdzone',
+            'visa_info' => 'Visum',
+            'best_time_to_visit' => 'Beste reistijd',
+            'country' => 'Land',
+            'continent' => 'Continent'
+        );
+        
+        $icons = array(
+            'currency' => '💰',
+            'language' => '🗣️',
+            'timezone' => '🕐',
+            'visa_info' => '📋',
+            'best_time_to_visit' => '📅',
+            'country' => '🌍',
+            'continent' => '🗺️'
+        );
+        
+        ob_start();
+        ?>
+        <div class="tcc-info tcc-style-<?php echo esc_attr($atts['style']); ?>">
+            <?php foreach ($fields as $field): ?>
+                <?php if (!empty($dest[$field])): ?>
+                    <div class="tcc-info-item tcc-info-<?php echo esc_attr($field); ?>">
+                        <?php if ($atts['style'] === 'icons'): ?>
+                            <span class="tcc-info-icon"><?php echo $icons[$field] ?? '📌'; ?></span>
+                        <?php endif; ?>
+                        <span class="tcc-info-label"><?php echo esc_html($labels[$field] ?? ucfirst($field)); ?>:</span>
+                        <span class="tcc-info-value"><?php echo esc_html($dest[$field]); ?></span>
+                    </div>
+                <?php endif; ?>
+            <?php endforeach; ?>
+        </div>
+        <?php
+        return ob_get_clean();
     }
 }
 
