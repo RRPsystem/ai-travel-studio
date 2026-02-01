@@ -410,13 +410,24 @@ export function APISettings() {
 
     try {
       if (setting.provider === 'OpenAI') {
-        const response = await fetch('https://api.openai.com/v1/models', {
-          headers: {
-            'Authorization': `Bearer ${setting.api_key}`
+        // Use edge function to avoid CORS issues
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-openai`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${session?.access_token}`,
+            },
+            body: JSON.stringify({ apiKey: setting.api_key })
           }
-        });
+        );
 
-        if (response.ok) {
+        const data = await response.json();
+
+        if (data.success) {
           const { error: updateError } = await supabase
             .from('api_settings')
             .update({
@@ -431,9 +442,9 @@ export function APISettings() {
             prev.map(s => s.id === setting.id ? { ...s, test_status: 'success', last_tested: new Date().toISOString() } : s)
           );
 
-          alert('API key werkt correct!');
+          alert(`✅ ${data.message}`);
         } else {
-          throw new Error('API key is ongeldig of heeft onvoldoende rechten');
+          throw new Error(data.error || 'API key is ongeldig of heeft onvoldoende rechten');
         }
       } else if (setting.provider === 'Google' && setting.service_name === 'Google Maps API') {
         const { data: { session } } = await supabase.auth.getSession();
@@ -516,6 +527,58 @@ export function APISettings() {
           alert('Google Search API key werkt correct!');
         } else {
           throw new Error(data.error?.message || 'Google Search API key is ongeldig');
+        }
+      } else if (setting.provider === 'Unsplash') {
+        // Test Unsplash API
+        const response = await fetch(
+          `https://api.unsplash.com/photos/random?client_id=${setting.api_key}`
+        );
+
+        if (response.ok) {
+          const { error: updateError } = await supabase
+            .from('api_settings')
+            .update({
+              test_status: 'success',
+              last_tested: new Date().toISOString()
+            })
+            .eq('id', setting.id);
+
+          if (updateError) throw updateError;
+
+          setSettings(prev =>
+            prev.map(s => s.id === setting.id ? { ...s, test_status: 'success', last_tested: new Date().toISOString() } : s)
+          );
+
+          alert('✅ Unsplash API key werkt correct!');
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.errors?.[0] || 'Unsplash API key is ongeldig');
+        }
+      } else if (setting.provider === 'YouTube') {
+        // Test YouTube API
+        const response = await fetch(
+          `https://www.googleapis.com/youtube/v3/search?part=snippet&q=test&maxResults=1&key=${setting.api_key}`
+        );
+
+        if (response.ok) {
+          const { error: updateError } = await supabase
+            .from('api_settings')
+            .update({
+              test_status: 'success',
+              last_tested: new Date().toISOString()
+            })
+            .eq('id', setting.id);
+
+          if (updateError) throw updateError;
+
+          setSettings(prev =>
+            prev.map(s => s.id === setting.id ? { ...s, test_status: 'success', last_tested: new Date().toISOString() } : s)
+          );
+
+          alert('✅ YouTube API key werkt correct!');
+        } else {
+          const errorData = await response.json();
+          throw new Error(errorData.error?.message || 'YouTube API key is ongeldig');
         }
       } else {
         alert('Test functie nog niet geïmplementeerd voor deze provider');

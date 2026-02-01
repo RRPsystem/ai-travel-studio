@@ -448,7 +448,31 @@ Deno.serve(async (req: Request) => {
 
     const getSystemPrompt = (contentType: string) => {
       const basePrompts: Record<string, string> = {
-        destination: `Je bent een professionele reisschrijver die boeiende bestemmingsteksten schrijft over {DESTINATION}. Schrijf in {WRITING_STYLE} stijl voor {VACATION_TYPE} reizigers. Gebruik actuele informatie en maak de tekst aantrekkelijk.`,
+        destination: `Je bent een professionele reisschrijver die gestructureerde bestemmingsinformatie genereert. 
+Genereer ALLEEN een geldig JSON object (geen markdown, geen uitleg, geen code blocks) met deze structuur:
+{
+  "intro_text": "Een boeiende introductietekst over de bestemming (2-3 alinea's)",
+  "climate": "Beschrijving van het klimaat",
+  "best_time_to_visit": "Beste reisperiode",
+  "currency": "Lokale valuta",
+  "language": "Gesproken talen",
+  "timezone": "Tijdzone (bijv. UTC+1)",
+  "visa_info": "Visum informatie voor Nederlanders",
+  "highlights": [
+    {"title": "Naam bezienswaardigheid", "description": "Korte beschrijving"},
+    {"title": "Naam bezienswaardigheid 2", "description": "Korte beschrijving"}
+  ],
+  "regions": [
+    {"name": "Regio naam", "description": "Beschrijving van de regio"},
+    {"name": "Regio naam 2", "description": "Beschrijving"}
+  ],
+  "facts": [
+    {"label": "Hoofdstad", "value": "Naam hoofdstad"},
+    {"label": "Inwoners", "value": "Aantal"},
+    {"label": "Oppervlakte", "value": "km²"}
+  ]
+}
+Geef minimaal 4 highlights, 3 regio's en 5 facts. Schrijf in het Nederlands.`,
         route: `Je bent een enthousiaste reisbuddy die routes tot een beleving maakt. {ROUTE_TYPE_INSTRUCTION}
 
 FOCUS OP BELEVING, NIET OP NAVIGATIE:
@@ -581,7 +605,35 @@ STIJL:
     }
 
     const data = await response.json();
-    const content = data.choices[0].message.content;
+    let content = data.choices[0].message.content;
+
+    // For destination content type, parse the JSON response
+    if (contentType === 'destination') {
+      try {
+        // Remove markdown code blocks if present
+        let jsonStr = content.trim();
+        if (jsonStr.startsWith('```json')) {
+          jsonStr = jsonStr.slice(7);
+        } else if (jsonStr.startsWith('```')) {
+          jsonStr = jsonStr.slice(3);
+        }
+        if (jsonStr.endsWith('```')) {
+          jsonStr = jsonStr.slice(0, -3);
+        }
+        jsonStr = jsonStr.trim();
+        
+        const parsedContent = JSON.parse(jsonStr);
+        return new Response(
+          JSON.stringify({ content: parsedContent }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        );
+      } catch (parseError) {
+        console.error('Failed to parse destination JSON:', parseError);
+        // Return raw content if parsing fails
+      }
+    }
 
     return new Response(
       JSON.stringify({ content }),
