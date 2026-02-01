@@ -363,7 +363,7 @@ export function AdminDashboard() {
   }
 
   return (
-    <div className="relative min-h-screen bg-gray-50">
+    <div className="relative h-screen bg-gray-50 overflow-hidden">
       {/* Sidebar */}
       <div className="fixed left-0 top-0 bottom-0 w-64 bg-slate-800 text-white flex flex-col">
         <div className="p-4 border-b border-slate-700">
@@ -574,7 +574,7 @@ export function AdminDashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="ml-64 flex flex-col min-h-screen">
+      <div className="ml-64 flex flex-col h-screen">
         {/* Header */}
         <header className="bg-white border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
