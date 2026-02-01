@@ -562,7 +562,11 @@ STIJL:
     let temperatureToUse = options.temperature ?? 0.7;
     let maxTokensToUse = options.maxTokens || 2000;
 
-    if (gptModel && gptModel.system_prompt) {
+    // For destination content type, ALWAYS use the JSON prompt to ensure structured output
+    if (contentType === 'destination') {
+      console.log('[GPT] Using hardcoded JSON prompt for destination');
+      // systemPrompt is already set correctly from getSystemPrompt()
+    } else if (gptModel && gptModel.system_prompt) {
       console.log('[GPT] Using operator GPT instructions from database');
       systemPrompt = gptModel.system_prompt
         .replace('{WRITING_STYLE}', writingStyle)
@@ -570,17 +574,20 @@ STIJL:
         .replace('{DESTINATION}', options.destination || '')
         .replace('{ROUTE_TYPE_INSTRUCTION}', getRouteInstruction(options.routeType || ''))
         .replace('{TIME_BUDGET}', options.days || '');
-
-      if (gptModel.model) modelToUse = gptModel.model;
-      if (gptModel.temperature) temperatureToUse = gptModel.temperature;
-      if (gptModel.max_tokens) maxTokensToUse = gptModel.max_tokens;
-
-      console.log('[GPT] Model:', modelToUse);
-      console.log('[GPT] Temperature:', temperatureToUse);
-      console.log('[GPT] Max tokens:', maxTokensToUse);
     } else {
       console.log('[GPT] No operator instructions found, using fallback prompt');
     }
+
+    // Use model settings from database if available (except for destination which needs specific settings)
+    if (gptModel && contentType !== 'destination') {
+      if (gptModel.model) modelToUse = gptModel.model;
+      if (gptModel.temperature) temperatureToUse = gptModel.temperature;
+      if (gptModel.max_tokens) maxTokensToUse = gptModel.max_tokens;
+    }
+
+    console.log('[GPT] Model:', modelToUse);
+    console.log('[GPT] Temperature:', temperatureToUse);
+    console.log('[GPT] Max tokens:', maxTokensToUse);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
