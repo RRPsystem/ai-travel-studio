@@ -733,6 +733,108 @@ export function DestinationManagement() {
                   </div>
                 </div>
               </div>
+
+              {/* Regions - moved to left column */}
+              <div className="bg-white rounded-xl shadow-sm border p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Regio's</h3>
+                  <button
+                    onClick={handleAddRegion}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-lg hover:from-violet-600 hover:to-purple-700"
+                  >
+                    <Plus size={16} /> Toevoegen
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {formData.regions.map((r, i) => (
+                    <div key={i} className="p-3 bg-gray-50 rounded-lg">
+                      <div className="flex gap-2 mb-2">
+                        <input
+                          type="text"
+                          value={r.name}
+                          onChange={(e) => {
+                            const updated = [...formData.regions];
+                            updated[i].name = e.target.value;
+                            setFormData(prev => ({ ...prev, regions: updated }));
+                          }}
+                          placeholder="Regio naam"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                        <button
+                          onClick={() => setFormData(prev => ({ ...prev, regions: prev.regions.filter((_, idx) => idx !== i) }))}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                      <textarea
+                        value={r.description}
+                        onChange={(e) => {
+                          const updated = [...formData.regions];
+                          updated[i].description = e.target.value;
+                          setFormData(prev => ({ ...prev, regions: updated }));
+                        }}
+                        placeholder="Beschrijving"
+                        rows={2}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                    </div>
+                  ))}
+                  {formData.regions.length === 0 && (
+                    <p className="text-gray-500 text-sm italic text-center py-4">Nog geen regio's toegevoegd.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Facts - moved to left column */}
+              <div className="bg-white rounded-xl shadow-sm border p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">Weetjes</h3>
+                  <button
+                    onClick={handleAddFact}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-lg hover:from-violet-600 hover:to-purple-700"
+                  >
+                    <Plus size={16} /> Toevoegen
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {formData.facts.map((f, i) => (
+                    <div key={i} className="flex gap-2 p-2 bg-gray-50 rounded-lg">
+                      <input
+                        type="text"
+                        value={f.label}
+                        onChange={(e) => {
+                          const updated = [...formData.facts];
+                          updated[i].label = e.target.value;
+                          setFormData(prev => ({ ...prev, facts: updated }));
+                        }}
+                        placeholder="Label"
+                        className="w-1/3 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                      <input
+                        type="text"
+                        value={f.value}
+                        onChange={(e) => {
+                          const updated = [...formData.facts];
+                          updated[i].value = e.target.value;
+                          setFormData(prev => ({ ...prev, facts: updated }));
+                        }}
+                        placeholder="Waarde"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                      />
+                      <button
+                        onClick={() => setFormData(prev => ({ ...prev, facts: prev.facts.filter((_, idx) => idx !== i) }))}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  {formData.facts.length === 0 && (
+                    <p className="text-gray-500 text-sm italic text-center py-4">Nog geen weetjes toegevoegd.</p>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Right Column */}
@@ -814,108 +916,6 @@ export function DestinationManagement() {
                   ))}
                   {formData.highlights.length === 0 && (
                     <p className="text-gray-500 text-sm italic text-center py-4">Nog geen hoogtepunten. Klik op "Genereer met AI" of voeg handmatig toe.</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Regions */}
-              <div className="bg-white rounded-xl shadow-sm border p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Regio's</h3>
-                  <button
-                    onClick={handleAddRegion}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-lg hover:from-violet-600 hover:to-purple-700"
-                  >
-                    <Plus size={16} /> Toevoegen
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {formData.regions.map((r, i) => (
-                    <div key={i} className="p-3 bg-gray-50 rounded-lg">
-                      <div className="flex gap-2 mb-2">
-                        <input
-                          type="text"
-                          value={r.name}
-                          onChange={(e) => {
-                            const updated = [...formData.regions];
-                            updated[i].name = e.target.value;
-                            setFormData(prev => ({ ...prev, regions: updated }));
-                          }}
-                          placeholder="Regio naam"
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        />
-                        <button
-                          onClick={() => setFormData(prev => ({ ...prev, regions: prev.regions.filter((_, idx) => idx !== i) }))}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                      <textarea
-                        value={r.description}
-                        onChange={(e) => {
-                          const updated = [...formData.regions];
-                          updated[i].description = e.target.value;
-                          setFormData(prev => ({ ...prev, regions: updated }));
-                        }}
-                        placeholder="Beschrijving"
-                        rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      />
-                    </div>
-                  ))}
-                  {formData.regions.length === 0 && (
-                    <p className="text-gray-500 text-sm italic text-center py-4">Nog geen regio's toegevoegd.</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Facts */}
-              <div className="bg-white rounded-xl shadow-sm border p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Weetjes</h3>
-                  <button
-                    onClick={handleAddFact}
-                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gradient-to-r from-violet-500 to-purple-600 text-white rounded-lg hover:from-violet-600 hover:to-purple-700"
-                  >
-                    <Plus size={16} /> Toevoegen
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {formData.facts.map((f, i) => (
-                    <div key={i} className="flex gap-2 p-2 bg-gray-50 rounded-lg">
-                      <input
-                        type="text"
-                        value={f.label}
-                        onChange={(e) => {
-                          const updated = [...formData.facts];
-                          updated[i].label = e.target.value;
-                          setFormData(prev => ({ ...prev, facts: updated }));
-                        }}
-                        placeholder="Label"
-                        className="w-1/3 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      />
-                      <input
-                        type="text"
-                        value={f.value}
-                        onChange={(e) => {
-                          const updated = [...formData.facts];
-                          updated[i].value = e.target.value;
-                          setFormData(prev => ({ ...prev, facts: updated }));
-                        }}
-                        placeholder="Waarde"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                      />
-                      <button
-                        onClick={() => setFormData(prev => ({ ...prev, facts: prev.facts.filter((_, idx) => idx !== i) }))}
-                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  ))}
-                  {formData.facts.length === 0 && (
-                    <p className="text-gray-500 text-sm italic text-center py-4">Nog geen weetjes toegevoegd.</p>
                   )}
                 </div>
               </div>
