@@ -35,9 +35,14 @@ function tcc_register_dynamic_tags($dynamic_tags_manager) {
     require_once(__DIR__ . '/dynamic-tags/class-tcc-climate-tag.php');
     require_once(__DIR__ . '/dynamic-tags/class-tcc-field-tag.php');
     
+    // URL Tags
+    require_once(__DIR__ . '/dynamic-tags/class-tcc-video-tag.php');
+    
     // Image Tags
     require_once(__DIR__ . '/dynamic-tags/class-tcc-image-tag.php');
     require_once(__DIR__ . '/dynamic-tags/class-tcc-gallery-tag.php');
+    require_once(__DIR__ . '/dynamic-tags/class-tcc-map-tag.php');
+    require_once(__DIR__ . '/dynamic-tags/class-tcc-photo-tag.php');
     
     $dynamic_tags_manager->register(new TCC_Title_Tag());
     $dynamic_tags_manager->register(new TCC_Intro_Tag());
@@ -45,8 +50,11 @@ function tcc_register_dynamic_tags($dynamic_tags_manager) {
     $dynamic_tags_manager->register(new TCC_Transportation_Tag());
     $dynamic_tags_manager->register(new TCC_Climate_Tag());
     $dynamic_tags_manager->register(new TCC_Field_Tag());
+    $dynamic_tags_manager->register(new TCC_Video_Tag());
     $dynamic_tags_manager->register(new TCC_Image_Tag());
     $dynamic_tags_manager->register(new TCC_Gallery_Tag());
+    $dynamic_tags_manager->register(new TCC_Map_Tag());
+    $dynamic_tags_manager->register(new TCC_Photo_Tag());
 }
 add_action('elementor/dynamic_tags/register', 'tcc_register_dynamic_tags');
 

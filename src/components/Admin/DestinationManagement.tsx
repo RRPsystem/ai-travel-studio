@@ -15,6 +15,8 @@ interface Destination {
   transportation?: string;
   featured_image?: string;
   images?: string[];
+  video_url?: string;
+  map_image?: string;
   climate?: string;
   best_time_to_visit?: string;
   currency?: string;
@@ -54,6 +56,8 @@ const emptyFormData = {
   transportation: '',
   featured_image: '',
   images: [] as string[],
+  video_url: '',
+  map_image: '',
   climate: '',
   best_time_to_visit: '',
   currency: '',
@@ -143,6 +147,8 @@ export function DestinationManagement() {
       transportation: destination.transportation || '',
       featured_image: destination.featured_image || '',
       images: destination.images || [],
+      video_url: destination.video_url || '',
+      map_image: destination.map_image || '',
       climate: destination.climate || '',
       best_time_to_visit: destination.best_time_to_visit || '',
       currency: destination.currency || '',
@@ -254,6 +260,8 @@ export function DestinationManagement() {
         transportation: formData.transportation.trim(),
         featured_image: formData.featured_image.trim(),
         images: formData.images.filter(img => img.trim()),
+        video_url: formData.video_url.trim(),
+        map_image: formData.map_image.trim(),
         climate: formData.climate.trim(),
         best_time_to_visit: formData.best_time_to_visit.trim(),
         currency: formData.currency.trim(),
@@ -541,6 +549,34 @@ export function DestinationManagement() {
                     </div>
                     {formData.images.length === 0 && (
                       <p className="text-sm text-gray-500 mt-2">Nog geen foto's toegevoegd. Klik op "Foto toevoegen" om te beginnen.</p>
+                    )}
+                  </div>
+
+                  {/* Video URL */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">🎬 Video URL</label>
+                    <input
+                      type="url"
+                      value={formData.video_url}
+                      onChange={(e) => setFormData(prev => ({ ...prev, video_url: e.target.value }))}
+                      placeholder="YouTube URL of Travel Video Generator URL"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Bijv: https://youtube.com/watch?v=... of eigen video URL</p>
+                  </div>
+
+                  {/* Map Image */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">🗺️ Landkaart Afbeelding</label>
+                    <input
+                      type="url"
+                      value={formData.map_image}
+                      onChange={(e) => setFormData(prev => ({ ...prev, map_image: e.target.value }))}
+                      placeholder="URL naar landkaart afbeelding"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                    />
+                    {formData.map_image && (
+                      <img src={formData.map_image} alt="Landkaart preview" className="mt-2 h-32 object-contain rounded-lg border" />
                     )}
                   </div>
 
