@@ -436,9 +436,17 @@ export function DestinationManagement() {
               className="w-full px-4 py-3 text-lg border border-gray-300 rounded-lg focus:ring-2 focus:ring-violet-500 focus:border-transparent"
             />
             {formData.title && (
-              <p className="mt-2 text-sm text-gray-500">
-                Slug: <span className="font-mono bg-gray-100 px-2 py-0.5 rounded">{formData.slug}</span>
-              </p>
+              <div className="mt-2 flex items-center gap-2">
+                <label className="text-sm text-gray-500">Slug:</label>
+                <input
+                  type="text"
+                  value={formData.slug}
+                  onChange={(e) => setFormData(prev => ({ ...prev, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') }))}
+                  className="font-mono bg-gray-100 px-2 py-0.5 rounded border border-gray-300 focus:ring-2 focus:ring-violet-500 text-sm"
+                  placeholder="url-slug"
+                />
+                <span className="text-xs text-gray-400">(URL-vriendelijk, alleen kleine letters en streepjes)</span>
+              </div>
             )}
           </div>
 

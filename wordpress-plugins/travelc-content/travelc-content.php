@@ -3,7 +3,7 @@
  * Plugin Name: TravelC Content
  * Plugin URI: https://travelcstudio.com
  * Description: Synchroniseert nieuws en bestemmingen van TravelCStudio naar WordPress. Content wordt beheerd in TravelCStudio en automatisch getoond op WordPress sites van brands die de content hebben geactiveerd.
- * Version: 1.0.0
+ * Version: 1.0.21
  * Author: RRP System
  * Author URI: https://rrpsystem.com
  * License: GPL v2 or later
@@ -15,7 +15,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('TCC_VERSION', '1.0.0');
+define('TCC_VERSION', '1.0.21');
 define('TCC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TCC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -86,14 +86,191 @@ class TravelC_Content {
         
         // Flush rewrite rules on activation
         register_activation_hook(__FILE__, array($this, 'activate'));
+        
+        // Auto-sync destinations from TravelCStudio
+        add_action('init', array($this, 'register_land_post_type'));
+        add_action('admin_init', array($this, 'sync_destinations'));
+        
+        // Add sync button to admin
+        add_action('admin_notices', array($this, 'show_sync_notice'));
+        add_action('admin_post_tcc_sync_destinations', array($this, 'handle_manual_sync'));
     }
     
     /**
      * Plugin activation - flush rewrite rules
      */
     public function activate() {
+        $this->register_land_post_type();
         $this->add_rewrite_rules();
         flush_rewrite_rules();
+        update_option('tcc_flush_rewrite_rules', true);
+        // Trigger initial sync
+        $this->sync_destinations(true);
+    }
+    
+    /**
+     * Register 'land' custom post type
+     */
+    public function register_land_post_type() {
+        // Always register, even if exists - to ensure correct settings
+        register_post_type('land', array(
+            'labels' => array(
+                'name' => 'Landen',
+                'singular_name' => 'Land',
+                'add_new' => 'Nieuw land',
+                'add_new_item' => 'Nieuw land toevoegen',
+                'edit_item' => 'Land bewerken',
+                'view_item' => 'Land bekijken',
+                'all_items' => 'Alle landen',
+                'search_items' => 'Landen zoeken',
+                'not_found' => 'Geen landen gevonden',
+            ),
+            'public' => true,
+            'publicly_queryable' => true,
+            'show_ui' => true,
+            'show_in_menu' => true,
+            'query_var' => true,
+            'has_archive' => true,
+            'hierarchical' => false,
+            'rewrite' => array('slug' => 'land', 'with_front' => false),
+            'supports' => array('title', 'editor', 'thumbnail'),
+            'show_in_rest' => true,
+            'menu_icon' => 'dashicons-location-alt',
+        ));
+        
+        // Auto-flush permalinks if needed
+        if (get_option('tcc_flush_rewrite_rules', false)) {
+            flush_rewrite_rules();
+            delete_option('tcc_flush_rewrite_rules');
+        }
+    }
+    
+    /**
+     * Sync destinations from TravelCStudio to WordPress
+     */
+    public function sync_destinations($force = false) {
+        if (empty($this->brand_id)) {
+            return;
+        }
+        
+        // Only sync once per hour unless forced
+        $last_sync = get_option('tcc_last_sync', 0);
+        if (!$force && (time() - $last_sync) < 3600) {
+            return;
+        }
+        
+        // Get activated destinations for this brand
+        $destinations = $this->get_destinations();
+        
+        if (empty($destinations) || !is_array($destinations)) {
+            return;
+        }
+        
+        foreach ($destinations as $destination) {
+            $this->create_or_update_land_post($destination);
+        }
+        
+        // Remove posts for deactivated destinations
+        $this->cleanup_deactivated_destinations($destinations);
+        
+        update_option('tcc_last_sync', time());
+    }
+    
+    /**
+     * Create or update a WordPress post for a destination
+     */
+    private function create_or_update_land_post($destination) {
+        if (empty($destination['slug']) || empty($destination['title'])) {
+            return;
+        }
+        
+        // Check if post already exists
+        $existing = get_posts(array(
+            'post_type' => 'land',
+            'name' => $destination['slug'],
+            'posts_per_page' => 1,
+            'post_status' => array('publish', 'draft', 'pending'),
+        ));
+        
+        $post_data = array(
+            'post_type' => 'land',
+            'post_title' => $destination['title'],
+            'post_name' => $destination['slug'],
+            'post_status' => 'publish',
+            'post_content' => '', // Content comes from Dynamic Tags
+            'meta_input' => array(
+                '_tcc_destination_id' => $destination['id'],
+                '_tcc_destination_slug' => $destination['slug'],
+            ),
+        );
+        
+        if (!empty($existing)) {
+            $post_data['ID'] = $existing[0]->ID;
+            wp_update_post($post_data);
+        } else {
+            wp_insert_post($post_data);
+        }
+    }
+    
+    /**
+     * Remove posts for destinations that are no longer activated
+     */
+    private function cleanup_deactivated_destinations($active_destinations) {
+        $active_slugs = array_column($active_destinations, 'slug');
+        
+        $all_land_posts = get_posts(array(
+            'post_type' => 'land',
+            'posts_per_page' => -1,
+            'post_status' => 'publish',
+        ));
+        
+        foreach ($all_land_posts as $post) {
+            if (!in_array($post->post_name, $active_slugs)) {
+                // Move to draft instead of delete
+                wp_update_post(array(
+                    'ID' => $post->ID,
+                    'post_status' => 'draft',
+                ));
+            }
+        }
+    }
+    
+    /**
+     * Show sync notice in admin
+     */
+    public function show_sync_notice() {
+        $screen = get_current_screen();
+        if ($screen && $screen->id === 'toplevel_page_travelc-content') {
+            $last_sync = get_option('tcc_last_sync', 0);
+            $last_sync_text = $last_sync ? date('d-m-Y H:i', $last_sync) : 'Nog nooit';
+            ?>
+            <div class="notice notice-info">
+                <p>
+                    <strong>TravelC Sync:</strong> Laatste sync: <?php echo esc_html($last_sync_text); ?>
+                    <a href="<?php echo admin_url('admin-post.php?action=tcc_sync_destinations'); ?>" class="button button-secondary" style="margin-left: 10px;">
+                        🔄 Nu synchroniseren
+                    </a>
+                </p>
+            </div>
+            <?php
+        }
+    }
+    
+    /**
+     * Handle manual sync request
+     */
+    public function handle_manual_sync() {
+        if (!current_user_can('manage_options')) {
+            wp_die('Geen toegang');
+        }
+        
+        $this->sync_destinations(true);
+        
+        // Flush rewrite rules after sync
+        flush_rewrite_rules();
+        
+        wp_redirect(admin_url('admin.php?page=travelc-content&synced=1'));
+        exit;
     }
     
     /**
@@ -175,15 +352,59 @@ class TravelC_Content {
             return;
         }
         
-        // Get theme header
+        // Store destination data for use in templates
+        $this->current_destination = $destination;
+        
+        // Check if Elementor is active and has a template for this
+        if (did_action('elementor/loaded')) {
+            // Try to use Elementor's template system
+            $template_id = $this->get_elementor_template_for_destination();
+            if ($template_id) {
+                get_header();
+                echo \Elementor\Plugin::instance()->frontend->get_builder_content_for_display($template_id);
+                get_footer();
+                return;
+            }
+        }
+        
+        // Fallback: use shortcode
         get_header();
         
         echo '<div class="tcc-destination-page">';
         echo do_shortcode('[travelc_destination slug="' . esc_attr($slug) . '"]');
         echo '</div>';
         
-        // Get theme footer
         get_footer();
+    }
+    
+    /**
+     * Get Elementor template ID for destinations
+     */
+    private function get_elementor_template_for_destination() {
+        // Look for a saved template with specific name or setting
+        $template_id = get_option('tcc_elementor_destination_template', 0);
+        if ($template_id) {
+            return $template_id;
+        }
+        
+        // Try to find a template by name
+        $templates = get_posts(array(
+            'post_type' => 'elementor_library',
+            'posts_per_page' => 1,
+            'meta_query' => array(
+                array(
+                    'key' => '_elementor_template_type',
+                    'value' => 'single',
+                )
+            ),
+            's' => 'destination'
+        ));
+        
+        if (!empty($templates)) {
+            return $templates[0]->ID;
+        }
+        
+        return 0;
     }
     
     /**
@@ -677,11 +898,15 @@ class TravelC_Content {
             'limit' => 1
         ));
         
-        if (is_wp_error($destinations) || empty($destinations)) {
+        if (is_wp_error($destinations) || empty($destinations) || !is_array($destinations)) {
             return null;
         }
         
-        $destination = $destinations[0];
+        $destination = $destinations[0] ?? null;
+        
+        if (!$destination || !isset($destination['id'])) {
+            return null;
+        }
         
         // Verify this brand has access
         $assignment = $this->fetch_from_supabase('destination_brand_assignments', array(

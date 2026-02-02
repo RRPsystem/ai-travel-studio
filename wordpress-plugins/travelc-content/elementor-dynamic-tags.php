@@ -103,8 +103,28 @@ function tcc_get_current_destination_slug() {
             return $linked_slug;
         }
         
+        // For 'land' post type, use the post slug directly
+        if ($post->post_type === 'land') {
+            return $post->post_name;
+        }
+        
         // Try to match post slug with destination
         return $post->post_name;
+    }
+    
+    // Fallback: try to get from URL for Elementor preview
+    if (isset($_GET['elementor-preview']) || isset($_GET['preview'])) {
+        $preview_id = isset($_GET['elementor-preview']) ? $_GET['elementor-preview'] : $_GET['preview_id'];
+        if ($preview_id) {
+            $preview_post = get_post($preview_id);
+            if ($preview_post) {
+                $linked_slug = get_post_meta($preview_post->ID, '_tcc_destination_slug', true);
+                if ($linked_slug) {
+                    return $linked_slug;
+                }
+                return $preview_post->post_name;
+            }
+        }
     }
     
     return '';
@@ -149,7 +169,7 @@ function tcc_get_destination_data($slug = '') {
     $body = wp_remote_retrieve_body($response);
     $data = json_decode($body, true);
     
-    if (!empty($data) && is_array($data)) {
+    if (!empty($data) && is_array($data) && isset($data[0])) {
         $destination = $data[0];
         wp_cache_set($cache_key, $destination, 'travelc', 300); // Cache for 5 minutes
         return $destination;
@@ -162,7 +182,7 @@ function tcc_get_destination_data($slug = '') {
  * Add meta box to link posts to TravelC destinations
  */
 function tcc_add_destination_meta_box() {
-    $post_types = apply_filters('tcc_destination_post_types', array('post', 'page', 'bestemmingen'));
+    $post_types = apply_filters('tcc_destination_post_types', array('post', 'page', 'bestemmingen', 'land'));
     
     add_meta_box(
         'tcc_destination_link',
