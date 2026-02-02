@@ -766,6 +766,22 @@ export function DestinationManagement() {
                         rows={2}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                       />
+                      <div className="mt-2">
+                        <input
+                          type="url"
+                          value={h.image || ''}
+                          onChange={(e) => {
+                            const updated = [...formData.highlights];
+                            updated[i].image = e.target.value;
+                            setFormData(prev => ({ ...prev, highlights: updated }));
+                          }}
+                          placeholder="Afbeelding URL"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                        />
+                        {h.image && (
+                          <img src={h.image} alt={h.title} className="mt-2 h-20 object-cover rounded-lg" />
+                        )}
+                      </div>
                     </div>
                   ))}
                   {formData.highlights.length === 0 && (

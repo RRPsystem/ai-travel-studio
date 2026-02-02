@@ -630,6 +630,20 @@ export function BrandDestinationForm({ destinationId, onBack, onSaved }: BrandDe
                       rows={2}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                     />
+                    <input
+                      type="url"
+                      value={h.image || ''}
+                      onChange={(e) => {
+                        const updated = [...formData.highlights];
+                        updated[i].image = e.target.value;
+                        setFormData(prev => ({ ...prev, highlights: updated }));
+                      }}
+                      placeholder="Afbeelding URL"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg mt-2"
+                    />
+                    {h.image && (
+                      <img src={h.image} alt={h.title} className="mt-2 h-20 object-cover rounded-lg" />
+                    )}
                     <button
                       type="button"
                       onClick={() => setFormData(prev => ({ ...prev, highlights: prev.highlights.filter((_, idx) => idx !== i) }))}
