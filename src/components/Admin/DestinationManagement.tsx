@@ -83,6 +83,7 @@ export function DestinationManagement() {
   const [saving, setSaving] = useState(false);
   const [generatingAI, setGeneratingAI] = useState(false);
   const [showMediaSelector, setShowMediaSelector] = useState(false);
+  const [mediaSelectorTarget, setMediaSelectorTarget] = useState<{ type: 'featured' | 'highlight' | 'city' | 'gallery'; index?: number } | null>(null);
   const [formData, setFormData] = useState(emptyFormData);
 
   useEffect(() => {
@@ -196,7 +197,7 @@ export function DestinationManagement() {
           type: 'destination',
           brandId: SYSTEM_BRAND_ID,
           userId: user?.id,
-          fields: ['intro_text', 'description', 'transportation', 'climate', 'best_time_to_visit', 'currency', 'language', 'timezone', 'visa_info', 'highlights', 'regions', 'facts']
+          fields: ['intro_text', 'description', 'transportation', 'climate', 'best_time_to_visit', 'currency', 'language', 'timezone', 'visa_info', 'highlights', 'regions', 'facts', 'cities']
         }
       };
       console.log('📤 Request body:', requestBody);
@@ -236,6 +237,7 @@ export function DestinationManagement() {
           highlights: data.content.highlights || prev.highlights,
           regions: data.content.regions || prev.regions,
           facts: data.content.facts || prev.facts,
+          cities: data.content.cities || prev.cities,
           featured_image: data.content.featured_image || prev.featured_image
         }));
       }
@@ -510,7 +512,8 @@ export function DestinationManagement() {
                       <button
                         type="button"
                         onClick={() => {
-                          setFormData(prev => ({ ...prev, images: [...prev.images, ''] }));
+                          setMediaSelectorTarget({ type: 'gallery' });
+                          setShowMediaSelector(true);
                         }}
                         className="text-sm text-teal-600 hover:text-teal-700 flex items-center gap-1"
                       >
@@ -775,17 +778,30 @@ export function DestinationManagement() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                       />
                       <div className="mt-2">
-                        <input
-                          type="url"
-                          value={h.image || ''}
-                          onChange={(e) => {
-                            const updated = [...formData.highlights];
-                            updated[i].image = e.target.value;
-                            setFormData(prev => ({ ...prev, highlights: updated }));
-                          }}
-                          placeholder="Afbeelding URL"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="url"
+                            value={h.image || ''}
+                            onChange={(e) => {
+                              const updated = [...formData.highlights];
+                              updated[i].image = e.target.value;
+                              setFormData(prev => ({ ...prev, highlights: updated }));
+                            }}
+                            placeholder="Afbeelding URL"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMediaSelectorTarget({ type: 'highlight', index: i });
+                              setShowMediaSelector(true);
+                            }}
+                            className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                            title="Kies uit mediabibliotheek"
+                          >
+                            <ImageIcon size={16} />
+                          </button>
+                        </div>
                         {h.image && (
                           <img src={h.image} alt={h.title} className="mt-2 h-20 object-cover rounded-lg" />
                         )}
@@ -945,17 +961,30 @@ export function DestinationManagement() {
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                       />
                       <div className="mt-2">
-                        <input
-                          type="url"
-                          value={c.image || ''}
-                          onChange={(e) => {
-                            const updated = [...formData.cities];
-                            updated[i].image = e.target.value;
-                            setFormData(prev => ({ ...prev, cities: updated }));
-                          }}
-                          placeholder="Afbeelding URL"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="url"
+                            value={c.image || ''}
+                            onChange={(e) => {
+                              const updated = [...formData.cities];
+                              updated[i].image = e.target.value;
+                              setFormData(prev => ({ ...prev, cities: updated }));
+                            }}
+                            placeholder="Afbeelding URL"
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setMediaSelectorTarget({ type: 'city', index: i });
+                              setShowMediaSelector(true);
+                            }}
+                            className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                            title="Kies uit mediabibliotheek"
+                          >
+                            <ImageIcon size={16} />
+                          </button>
+                        </div>
                         {c.image && (
                           <img src={c.image} alt={c.name} className="mt-2 h-20 object-cover rounded-lg" />
                         )}
@@ -974,10 +1003,26 @@ export function DestinationManagement() {
         {showMediaSelector && (
           <SlidingMediaSelector
             isOpen={showMediaSelector}
-            onClose={() => setShowMediaSelector(false)}
-            onSelect={(url) => {
-              setFormData(prev => ({ ...prev, featured_image: url }));
+            onClose={() => {
               setShowMediaSelector(false);
+              setMediaSelectorTarget(null);
+            }}
+            onSelect={(url) => {
+              if (mediaSelectorTarget?.type === 'highlight' && mediaSelectorTarget.index !== undefined) {
+                const updated = [...formData.highlights];
+                updated[mediaSelectorTarget.index].image = url;
+                setFormData(prev => ({ ...prev, highlights: updated }));
+              } else if (mediaSelectorTarget?.type === 'city' && mediaSelectorTarget.index !== undefined) {
+                const updated = [...formData.cities];
+                updated[mediaSelectorTarget.index].image = url;
+                setFormData(prev => ({ ...prev, cities: updated }));
+              } else if (mediaSelectorTarget?.type === 'gallery') {
+                setFormData(prev => ({ ...prev, images: [...prev.images, url] }));
+              } else {
+                setFormData(prev => ({ ...prev, featured_image: url }));
+              }
+              setShowMediaSelector(false);
+              setMediaSelectorTarget(null);
             }}
           />
         )}

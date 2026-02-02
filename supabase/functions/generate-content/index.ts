@@ -451,9 +451,9 @@ Deno.serve(async (req: Request) => {
         destination: `Je bent een professionele reisschrijver die gestructureerde bestemmingsinformatie genereert. 
 Genereer ALLEEN een geldig JSON object (geen markdown, geen uitleg, geen code blocks) met deze structuur:
 {
-  "intro_text": "Een korte, boeiende introductie over de bestemming (1 alinea, max 100 woorden)",
-  "description": "Een uitgebreide beschrijving over het land, de cultuur, geschiedenis, bezienswaardigheden en wat het land uniek maakt (3-4 alinea's, 300-400 woorden)",
-  "transportation": "Hoe reis je het beste door dit land? Beschrijf de beste vervoersmiddelen (trein, huurauto, bus, binnenlandse vluchten), tips voor rondreizen, en praktische adviezen (2-3 alinea's). Bijv: Japan is ideaal met de trein (JR Pass), Amerika met huurauto, Thailand met binnenlandse vluchten en bussen.",
+  "intro_text": "Een KORTE pakkende samenvatting van de bestemming (maximaal 2 zinnen, max 50 woorden). Dit wordt gebruikt als excerpt/samenvatting.",
+  "description": "Een UITGEBREIDE beschrijving over het land (400-600 woorden, 5-6 alinea's). Beschrijf de cultuur, geschiedenis, bezienswaardigheden, natuur, en wat het land uniek maakt. De LAATSTE alinea moet gaan over 'Vervoer & Rondreizen': hoe reis je het beste door dit land (trein, huurauto, bus, binnenlandse vluchten), tips voor rondreizen.",
+  "transportation": "Korte samenvatting van vervoersopties (1-2 zinnen)",
   "climate": "Beschrijving van het klimaat door het jaar heen",
   "best_time_to_visit": "Beste reisperiode met uitleg waarom",
   "currency": "Lokale valuta en tips over betalen",
@@ -461,20 +461,27 @@ Genereer ALLEEN een geldig JSON object (geen markdown, geen uitleg, geen code bl
   "timezone": "Tijdzone (bijv. UTC+1) en tijdverschil met Nederland",
   "visa_info": "Visum informatie voor Nederlanders",
   "highlights": [
-    {"title": "Naam bezienswaardigheid", "description": "Korte beschrijving"},
-    {"title": "Naam bezienswaardigheid 2", "description": "Korte beschrijving"}
+    {"title": "Naam bezienswaardigheid", "description": "Beschrijving van 2-3 zinnen over waarom dit een must-see is"}
   ],
   "regions": [
-    {"name": "Regio naam", "description": "Beschrijving van de regio"},
-    {"name": "Regio naam 2", "description": "Beschrijving"}
+    {"name": "Regio naam", "description": "Beschrijving van de regio en wat er te doen is"}
   ],
   "facts": [
     {"label": "Hoofdstad", "value": "Naam hoofdstad"},
     {"label": "Inwoners", "value": "Aantal"},
     {"label": "Oppervlakte", "value": "km²"}
+  ],
+  "cities": [
+    {"name": "Stadsnaam", "description": "Beschrijving van 2-3 zinnen over de stad en waarom je er moet zijn"}
   ]
 }
-Geef minimaal 5 highlights, 4 regio's en 6 facts. Schrijf in het Nederlands. Wees informatief en inspirerend.`,
+BELANGRIJK:
+- intro_text: KORT, max 50 woorden (wordt gebruikt als samenvatting)
+- description: LANG, 400-600 woorden met Vervoer & Rondreizen in laatste alinea
+- Geef PRECIES 7 highlights (populaire bezienswaardigheden)
+- Geef PRECIES 3 cities (populaire steden om te bezoeken)
+- Geef minimaal 4 regio's en 5 facts
+Schrijf in het Nederlands. Wees informatief en inspirerend.`,
         route: `Je bent een enthousiaste reisbuddy die routes tot een beleving maakt. {ROUTE_TYPE_INSTRUCTION}
 
 FOCUS OP BELEVING, NIET OP NAVIGATIE:
