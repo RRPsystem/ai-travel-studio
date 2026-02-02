@@ -103,13 +103,8 @@ function tcc_get_destination_data($slug = '') {
         return $cached;
     }
     
-    $api_url = get_option('tcc_api_url');
-    $api_key = get_option('tcc_api_key');
-    $brand_id = get_option('tcc_brand_id');
-    
-    if (empty($api_url) || empty($api_key)) {
-        return null;
-    }
+    $api_url = TCC_SUPABASE_URL;
+    $api_key = TCC_SUPABASE_KEY;
     
     $url = trailingslashit($api_url) . 'rest/v1/destinations?slug=eq.' . urlencode($slug) . '&select=*';
     

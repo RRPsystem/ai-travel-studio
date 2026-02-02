@@ -19,6 +19,10 @@ define('TCC_VERSION', '1.0.0');
 define('TCC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TCC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
+// TravelCStudio Network Settings (same for all brands)
+define('TCC_SUPABASE_URL', 'https://huaaogdxxdcakxryecnw.supabase.co');
+define('TCC_SUPABASE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1YWFvZ2R4eGRjYWt4cnllY253Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mjk2MjA2NDAsImV4cCI6MjA0NTE5NjY0MH0.r064T3EXYfXFjOqxbLuPPWbMDBqXx6SHBYrnmhWjlPI');
+
 // Load Elementor Dynamic Tags if Elementor is active
 add_action('elementor/init', function() {
     require_once TCC_PLUGIN_DIR . 'elementor-dynamic-tags.php';
@@ -39,8 +43,8 @@ class TravelC_Content {
     }
     
     private function __construct() {
-        $this->supabase_url = get_option('tcc_supabase_url', 'https://huaaogdxxdcakxryecnw.supabase.co');
-        $this->supabase_key = get_option('tcc_supabase_key', '');
+        $this->supabase_url = TCC_SUPABASE_URL;
+        $this->supabase_key = TCC_SUPABASE_KEY;
         $this->brand_id = get_option('tcc_brand_id', '');
         
         add_action('admin_menu', array($this, 'add_admin_menu'));
@@ -200,8 +204,6 @@ class TravelC_Content {
      * Register Settings
      */
     public function register_settings() {
-        register_setting('tcc_settings', 'tcc_supabase_url');
-        register_setting('tcc_settings', 'tcc_supabase_key');
         register_setting('tcc_settings', 'tcc_brand_id');
     }
     
@@ -218,37 +220,27 @@ class TravelC_Content {
                 
                 <table class="form-table">
                     <tr>
-                        <th scope="row">Supabase URL</th>
-                        <td>
-                            <input type="url" name="tcc_supabase_url" 
-                                   value="<?php echo esc_attr(get_option('tcc_supabase_url', 'https://huaaogdxxdcakxryecnw.supabase.co')); ?>" 
-                                   class="regular-text" />
-                            <p class="description">De URL van je Supabase project</p>
-                        </td>
-                    </tr>
-                    <tr>
-                        <th scope="row">Supabase Anon Key</th>
-                        <td>
-                            <input type="password" name="tcc_supabase_key" 
-                                   value="<?php echo esc_attr(get_option('tcc_supabase_key')); ?>" 
-                                   class="regular-text" />
-                            <p class="description">De anon/public key van je Supabase project</p>
-                        </td>
-                    </tr>
-                    <tr>
                         <th scope="row">Brand ID</th>
                         <td>
                             <input type="text" name="tcc_brand_id" 
                                    value="<?php echo esc_attr(get_option('tcc_brand_id')); ?>" 
                                    class="regular-text" 
                                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
-                            <p class="description">De UUID van deze brand in TravelCStudio</p>
+                            <p class="description">De UUID van deze brand in TravelCStudio (te vinden in je dashboard)</p>
                         </td>
                     </tr>
                 </table>
                 
                 <?php submit_button('Instellingen Opslaan'); ?>
             </form>
+            
+            <div style="background: #f0f0f1; padding: 15px; border-radius: 5px; margin-top: 20px;">
+                <h3 style="margin-top: 0;">🔗 TravelCStudio Netwerk</h3>
+                <p>Deze plugin is automatisch verbonden met het TravelCStudio netwerk. Je hoeft alleen je Brand ID in te vullen.</p>
+                <code style="display: block; padding: 10px; background: #fff; margin-top: 10px;">
+                    Server: <?php echo esc_html(TCC_SUPABASE_URL); ?>
+                </code>
+            </div>
             
             <hr>
             
