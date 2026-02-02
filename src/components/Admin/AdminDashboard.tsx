@@ -615,7 +615,7 @@ export function AdminDashboard() {
             {activeSection === 'brands' && (
               <button
                 onClick={() => setShowBrandForm(true)}
-                className="bg-black text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:bg-gray-800 transition-colors"
+                className="bg-gradient-to-r from-orange-500 to-orange-600 text-white px-4 py-2 rounded-lg flex items-center space-x-2 hover:from-orange-600 hover:to-orange-700 transition-all shadow-md"
               >
                 <Plus size={16} />
                 <span>Add Brand</span>
