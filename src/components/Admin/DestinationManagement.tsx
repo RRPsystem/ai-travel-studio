@@ -227,6 +227,7 @@ export function DestinationManagement() {
       if (data.content) {
         setFormData(prev => ({
           ...prev,
+          country: data.content.country_code || prev.country,
           intro_text: data.content.intro_text || prev.intro_text,
           description: data.content.description || prev.description,
           transportation: data.content.transportation || prev.transportation,
@@ -465,12 +466,14 @@ export function DestinationManagement() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Land</label>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Landcode (ISO)</label>
                       <input
                         type="text"
                         value={formData.country}
-                        onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value }))}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                        onChange={(e) => setFormData(prev => ({ ...prev, country: e.target.value.toUpperCase() }))}
+                        placeholder="bijv. NL, BR, ES"
+                        maxLength={2}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 uppercase"
                       />
                     </div>
                     <div>

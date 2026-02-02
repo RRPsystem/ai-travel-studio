@@ -451,6 +451,7 @@ Deno.serve(async (req: Request) => {
         destination: `Je bent een professionele reisschrijver die gestructureerde bestemmingsinformatie genereert. 
 Genereer ALLEEN een geldig JSON object (geen markdown, geen uitleg, geen code blocks) met deze structuur:
 {
+  "country_code": "De officiële ISO 3166-1 alpha-2 landcode (bijv. NL voor Nederland, BR voor Brazilië, ES voor Spanje, TH voor Thailand)",
   "intro_text": "Een KORTE pakkende samenvatting van de bestemming (maximaal 2 zinnen, max 50 woorden). Dit wordt gebruikt als excerpt/samenvatting.",
   "description": "Een UITGEBREIDE beschrijving over het land (400-600 woorden, 5-6 alinea's). Beschrijf de cultuur, geschiedenis, bezienswaardigheden, natuur, en wat het land uniek maakt. De LAATSTE alinea moet gaan over 'Vervoer & Rondreizen': hoe reis je het beste door dit land (trein, huurauto, bus, binnenlandse vluchten), tips voor rondreizen.",
   "transportation": "Korte samenvatting van vervoersopties (1-2 zinnen)",
