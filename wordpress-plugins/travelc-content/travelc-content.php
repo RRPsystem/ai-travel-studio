@@ -128,6 +128,28 @@ class TravelC_Content {
         $destination_slug = get_query_var('tcc_destination');
         $news_slug = get_query_var('tcc_news');
         
+        // Fallback: parse URL directly if query var is empty
+        if (empty($destination_slug) && empty($news_slug)) {
+            $request_uri = trim($_SERVER['REQUEST_URI'], '/');
+            $path_parts = explode('/', $request_uri);
+            
+            // Check for /land/slug pattern
+            if (count($path_parts) >= 2 && $path_parts[0] === 'land') {
+                $destination_slug = sanitize_title($path_parts[1]);
+            }
+            // For multisite: check for /site/land/slug pattern
+            if (count($path_parts) >= 3 && $path_parts[1] === 'land') {
+                $destination_slug = sanitize_title($path_parts[2]);
+            }
+            // Check for /nieuws/slug pattern
+            if (count($path_parts) >= 2 && $path_parts[0] === 'nieuws') {
+                $news_slug = sanitize_title($path_parts[1]);
+            }
+            if (count($path_parts) >= 3 && $path_parts[1] === 'nieuws') {
+                $news_slug = sanitize_title($path_parts[2]);
+            }
+        }
+        
         if ($destination_slug) {
             $this->render_destination_page($destination_slug);
             exit;
