@@ -3,7 +3,7 @@
  * Plugin Name: TravelC Content
  * Plugin URI: https://travelcstudio.com
  * Description: Synchroniseert nieuws en bestemmingen van TravelCStudio naar WordPress. Content wordt beheerd in TravelCStudio en automatisch getoond op WordPress sites van brands die de content hebben geactiveerd.
- * Version: 1.0.61
+ * Version: 1.0.62
  * Author: RRP System
  * Author URI: https://rrpsystem.com
  * License: GPL v2 or later
@@ -15,7 +15,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('TCC_VERSION', '1.0.61');
+define('TCC_VERSION', '1.0.62');
 define('TCC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TCC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -1077,11 +1077,10 @@ class TravelC_Content {
             return array();
         }
         
-        // Now fetch the actual news items
+        // Now fetch the actual news items (no status filter - if assigned, it should sync)
         $news = $this->fetch_from_supabase('news_items', array(
             'id' => 'in.(' . implode(',', $news_ids) . ')',
-            'status' => 'eq.published',
-            'select' => 'id,title,slug,excerpt,content,featured_image,tags,created_at,published_at',
+            'select' => 'id,title,slug,excerpt,content,featured_image,tags,created_at,published_at,status',
             'order' => 'published_at.desc,created_at.desc',
             'limit' => $limit
         ));
