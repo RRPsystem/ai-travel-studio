@@ -54,13 +54,21 @@ class TCC_Fun_Facts_Tag extends \Elementor\Core\DynamicTags\Tag {
         $format = $this->get_settings('format');
         $fact_number = $this->get_settings('fact_number');
         
-        $destination = TravelC_Content::get_instance()->get_current_destination();
+        $destination = tcc_get_destination_data();
         
-        if (!$destination || empty($destination['fun_facts'])) {
+        if (!$destination) {
             return;
         }
         
-        $fun_facts = $destination['fun_facts'];
+        // Fun facts are stored as array of strings (not label/value objects)
+        $fun_facts = $destination['fun_facts'] ?? [];
+        if (is_string($fun_facts)) {
+            $fun_facts = json_decode($fun_facts, true) ?: [];
+        }
+        
+        if (empty($fun_facts) || !is_array($fun_facts)) {
+            return;
+        }
         
         // If specific fact requested
         if ($fact_number !== 'all') {
@@ -71,12 +79,14 @@ class TCC_Fun_Facts_Tag extends \Elementor\Core\DynamicTags\Tag {
             return;
         }
         
-        // All facts
+        // All fun facts
         switch ($format) {
             case 'list':
                 echo '<ul class="tcc-fun-facts-list">';
                 foreach ($fun_facts as $fact) {
-                    echo '<li>' . esc_html($fact) . '</li>';
+                    if (is_string($fact) && !empty($fact)) {
+                        echo '<li>' . esc_html($fact) . '</li>';
+                    }
                 }
                 echo '</ul>';
                 break;
@@ -84,14 +94,17 @@ class TCC_Fun_Facts_Tag extends \Elementor\Core\DynamicTags\Tag {
             case 'numbered':
                 echo '<ol class="tcc-fun-facts-list">';
                 foreach ($fun_facts as $fact) {
-                    echo '<li>' . esc_html($fact) . '</li>';
+                    if (is_string($fact) && !empty($fact)) {
+                        echo '<li>' . esc_html($fact) . '</li>';
+                    }
                 }
                 echo '</ol>';
                 break;
                 
             case 'plain':
             default:
-                echo esc_html(implode(', ', $fun_facts));
+                $items = array_filter($fun_facts, function($f) { return is_string($f) && !empty($f); });
+                echo esc_html(implode(', ', $items));
                 break;
         }
     }

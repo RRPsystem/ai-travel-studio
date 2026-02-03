@@ -61,23 +61,52 @@ class TCC_Region_Tag extends \Elementor\Core\DynamicTags\Tag {
         
         $destination = tcc_get_destination_data($slug);
         
-        if (!$destination || empty($destination['regions'])) {
+        if (!$destination) {
+            // Debug: no destination found
+            if (current_user_can('manage_options')) {
+                echo '<!-- TCC Region: No destination found -->';
+            }
             return;
         }
         
-        $regions = $destination['regions'];
+        // Regions can be array or JSON string
+        $regions = $destination['regions'] ?? [];
+        if (is_string($regions)) {
+            $regions = json_decode($regions, true) ?: [];
+        }
+        
+        if (empty($regions) || !is_array($regions)) {
+            // Debug: no regions
+            if (current_user_can('manage_options')) {
+                echo '<!-- TCC Region: No regions data. Raw: ' . esc_html(print_r($destination['regions'] ?? 'null', true)) . ' -->';
+            }
+            return;
+        }
+        
         $index = $number - 1;
         
         if (!isset($regions[$index])) {
+            // Debug: index not found
+            if (current_user_can('manage_options')) {
+                echo '<!-- TCC Region: Index ' . $index . ' not found. Total regions: ' . count($regions) . ' -->';
+            }
             return;
         }
         
         $region = $regions[$index];
         
-        if ($field === 'name') {
-            echo esc_html($region['name'] ?? '');
-        } else {
-            echo esc_html($region['description'] ?? '');
+        // Handle both array and object formats
+        if (is_array($region)) {
+            if ($field === 'name') {
+                echo esc_html($region['name'] ?? '');
+            } else {
+                echo esc_html($region['description'] ?? '');
+            }
+        } elseif (is_string($region)) {
+            // If region is just a string (name only)
+            if ($field === 'name') {
+                echo esc_html($region);
+            }
         }
     }
 }

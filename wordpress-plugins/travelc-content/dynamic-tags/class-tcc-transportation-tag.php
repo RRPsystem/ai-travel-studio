@@ -35,7 +35,12 @@ class TCC_Transportation_Tag extends \Elementor\Core\DynamicTags\Tag {
         $destination = tcc_get_destination_data($slug);
         
         if ($destination && isset($destination['transportation'])) {
-            echo wp_kses_post($destination['transportation']);
+            $transportation = $destination['transportation'];
+            // Convert newlines to paragraphs if not already HTML
+            if (strpos($transportation, '<p>') === false && strpos($transportation, '<br') === false) {
+                $transportation = wpautop($transportation);
+            }
+            echo wp_kses_post($transportation);
         }
     }
 }

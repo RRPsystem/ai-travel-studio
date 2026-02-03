@@ -453,8 +453,8 @@ Genereer ALLEEN een geldig JSON object (geen markdown, geen uitleg, geen code bl
 {
   "country_code": "De officiële ISO 3166-1 alpha-2 landcode (bijv. NL voor Nederland, BR voor Brazilië, ES voor Spanje, TH voor Thailand)",
   "intro_text": "Een KORTE pakkende samenvatting van de bestemming (maximaal 2 zinnen, max 50 woorden). Dit wordt gebruikt als excerpt/samenvatting.",
-  "description": "Een UITGEBREIDE beschrijving over het land (400-600 woorden, 5-6 alinea's). Beschrijf de cultuur, geschiedenis, bezienswaardigheden, natuur, en wat het land uniek maakt. De LAATSTE alinea moet gaan over 'Vervoer & Rondreizen': hoe reis je het beste door dit land (trein, huurauto, bus, binnenlandse vluchten), tips voor rondreizen.",
-  "transportation": "Korte samenvatting van vervoersopties (1-2 zinnen)",
+  "description": "Een UITGEBREIDE beschrijving over het land (400-600 woorden, 5-6 alinea's). Beschrijf de cultuur, geschiedenis, bezienswaardigheden, natuur, en wat het land uniek maakt. GEEN vervoer informatie hier - dat staat apart in transportation!",
+  "transportation": "Een UITGEBREIDE tekst (150-250 woorden, 2-3 alinea's) over vervoer en rondreizen in dit land. Beschrijf WAAROM dit land ideaal is voor een bepaalde manier van reizen. Voorbeelden: waarom Griekenland perfect is voor eilandhoppen, waarom de USA ideaal is voor een roadtrip met huurauto, waarom Japan geweldig is voor treinreizen met de JR Pass, waarom Thailand perfect is voor backpacken met lokale bussen. Geef concrete tips en maak het inspirerend.",
   "climate": "Beschrijving van het klimaat door het jaar heen",
   "best_time_to_visit": "Beste reisperiode met uitleg waarom",
   "currency": "Lokale valuta en tips over betalen",
@@ -462,7 +462,7 @@ Genereer ALLEEN een geldig JSON object (geen markdown, geen uitleg, geen code bl
   "timezone": "Tijdzone (bijv. UTC+1) en tijdverschil met Nederland",
   "visa_info": "Visum informatie voor Nederlanders",
   "highlights": [
-    {"title": "Naam bezienswaardigheid", "description": "Beschrijving van 2-3 zinnen over waarom dit een must-see is"}
+    {"title": "Naam ECHTE bezienswaardigheid (monument/tempel/museum/natuurwonder)", "description": "Beschrijving van 2-3 zinnen over waarom dit een must-see is"}
   ],
   "regions": [
     {"name": "Regio naam", "description": "Beschrijving van de regio en wat er te doen is"}
@@ -483,8 +483,9 @@ Genereer ALLEEN een geldig JSON object (geen markdown, geen uitleg, geen code bl
 }
 BELANGRIJK:
 - intro_text: KORT, max 50 woorden (wordt gebruikt als samenvatting)
-- description: LANG, 400-600 woorden met Vervoer & Rondreizen in laatste alinea
-- Geef PRECIES 7 highlights (populaire bezienswaardigheden)
+- description: LANG, 400-600 woorden over cultuur, geschiedenis, natuur, bezienswaardigheden. GEEN vervoer info hier!
+- transportation: UITGEBREID 150-250 woorden over vervoer en rondreizen - dit is het ENIGE veld voor vervoer info
+- Geef PRECIES 7 highlights - dit zijn ALLEEN echte bezienswaardigheden zoals monumenten, tempels, musea, natuurwonderen (bijv. Eiffeltoren, Akropolis, Grand Canyon, Taj Mahal). GEEN steden of regio's als highlight - die staan apart in cities en regions!
 - Geef PRECIES 3 cities (populaire steden om te bezoeken)
 - Geef minimaal 4 regio's en 5 facts
 - Geef PRECIES 3 fun_facts: leuke, verrassende of grappige weetjes die 100% WAAR zijn. Geen verzinsels! Dit kunnen zijn: bizarre wetten, gekke tradities, verrassende records, onverwachte uitvindingen uit dit land, etc.

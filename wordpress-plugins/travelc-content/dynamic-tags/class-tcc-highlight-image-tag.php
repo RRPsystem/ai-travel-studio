@@ -47,14 +47,23 @@ class TCC_Highlight_Image_Tag extends \Elementor\Core\DynamicTags\Data_Tag {
         
         $destination = tcc_get_destination_data($slug);
         
-        if (!$destination || empty($destination['highlights'])) {
+        if (!$destination) {
             return [];
         }
         
-        $highlights = $destination['highlights'];
+        // Highlights can be array or JSON string
+        $highlights = $destination['highlights'] ?? [];
+        if (is_string($highlights)) {
+            $highlights = json_decode($highlights, true) ?: [];
+        }
+        
+        if (empty($highlights) || !is_array($highlights)) {
+            return [];
+        }
+        
         $index = $number - 1;
         
-        if (!isset($highlights[$index]) || empty($highlights[$index]['image'])) {
+        if (!isset($highlights[$index]) || !is_array($highlights[$index]) || empty($highlights[$index]['image'])) {
             return [];
         }
         

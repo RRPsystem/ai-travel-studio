@@ -50,15 +50,16 @@ export function DestinationApproval() {
     setLoading(true);
     setIsLoadingData(true);
     try {
-      // Fetch brand's website URL
+      // Fetch brand's website URL (prefer wordpress_url, fallback to website_url)
       const { data: brandData } = await supabase
         .from('brands')
-        .select('website_url')
+        .select('website_url, wordpress_url')
         .eq('id', effectiveBrandId)
         .single();
       
-      if (brandData?.website_url) {
-        setBrandWebsiteUrl(brandData.website_url.replace(/\/$/, '')); // Remove trailing slash
+      const siteUrl = brandData?.wordpress_url || brandData?.website_url;
+      if (siteUrl) {
+        setBrandWebsiteUrl(siteUrl.replace(/\/$/, '')); // Remove trailing slash
       }
 
       const { data: assignmentData, error: assignmentError } = await supabase
@@ -408,7 +409,7 @@ export function DestinationApproval() {
                     <div className="flex items-center justify-end space-x-3">
                       {brandWebsiteUrl && assignment.is_published && (
                         <button
-                          onClick={() => window.open(`${brandWebsiteUrl}/bestemming/${assignment.destination.slug}/`, '_blank')}
+                          onClick={() => window.open(`${brandWebsiteUrl}/land/${assignment.destination.slug}/`, '_blank')}
                           className="text-green-600 hover:text-green-900"
                           title="Bekijk op website"
                         >

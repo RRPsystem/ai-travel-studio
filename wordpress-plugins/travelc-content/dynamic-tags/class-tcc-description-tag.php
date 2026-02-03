@@ -35,7 +35,12 @@ class TCC_Description_Tag extends \Elementor\Core\DynamicTags\Tag {
         $destination = tcc_get_destination_data($slug);
         
         if ($destination && isset($destination['description'])) {
-            echo wp_kses_post($destination['description']);
+            $description = $destination['description'];
+            // Convert newlines to paragraphs if not already HTML
+            if (strpos($description, '<p>') === false && strpos($description, '<br') === false) {
+                $description = wpautop($description);
+            }
+            echo wp_kses_post($description);
         }
     }
 }

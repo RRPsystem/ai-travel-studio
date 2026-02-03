@@ -3,7 +3,7 @@
  * Plugin Name: TravelC Content
  * Plugin URI: https://travelcstudio.com
  * Description: Synchroniseert nieuws en bestemmingen van TravelCStudio naar WordPress. Content wordt beheerd in TravelCStudio en automatisch getoond op WordPress sites van brands die de content hebben geactiveerd.
- * Version: 1.0.21
+ * Version: 1.0.48
  * Author: RRP System
  * Author URI: https://rrpsystem.com
  * License: GPL v2 or later
@@ -15,13 +15,14 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('TCC_VERSION', '1.0.21');
+define('TCC_VERSION', '1.0.48');
 define('TCC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TCC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
-// TravelCStudio Network Settings (same for all brands)
+// TravelCStudio Network Settings
 define('TCC_SUPABASE_URL', 'https://huaaogdxxdcakxryecnw.supabase.co');
-define('TCC_SUPABASE_KEY', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1YWFvZ2R4eGRjYWt4cnllY253Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mjk2MjA2NDAsImV4cCI6MjA0NTE5NjY0MH0.r064T3EXYfXFjOqxbLuPPWbMDBqXx6SHBYrnmhWjlPI');
+// Default API key (may be outdated - user can override via settings)
+define('TCC_SUPABASE_KEY_DEFAULT', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1YWFvZ2R4eGRjYWt4cnllY253Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mjk2MjA2NDAsImV4cCI6MjA0NTE5NjY0MH0.r064T3EXYfXFjOqxbLuPPWbMDBqXx6SHBYrnmhWjlPI');
 
 // Load Elementor Dynamic Tags if Elementor is active
 add_action('elementor/init', function() {
@@ -38,6 +39,7 @@ class TravelC_Content {
     private $supabase_url;
     private $supabase_key;
     private $brand_id;
+    private $current_destination = null;
     
     public static function get_instance() {
         if (null === self::$instance) {
@@ -48,7 +50,9 @@ class TravelC_Content {
     
     private function __construct() {
         $this->supabase_url = TCC_SUPABASE_URL;
-        $this->supabase_key = TCC_SUPABASE_KEY;
+        // Use custom key if set, otherwise use default
+        $custom_key = get_option('tcc_supabase_key', '');
+        $this->supabase_key = !empty($custom_key) ? $custom_key : TCC_SUPABASE_KEY_DEFAULT;
         $this->brand_id = get_option('tcc_brand_id', '');
         
         add_action('admin_menu', array($this, 'add_admin_menu'));
@@ -177,6 +181,24 @@ class TravelC_Content {
     }
     
     /**
+     * Direct sync with provided destinations array (used by manual sync)
+     */
+    public function sync_destinations_direct($destinations) {
+        if (empty($destinations) || !is_array($destinations)) {
+            return;
+        }
+        
+        foreach ($destinations as $destination) {
+            $this->create_or_update_land_post($destination);
+        }
+        
+        // Remove posts for deactivated destinations
+        $this->cleanup_deactivated_destinations($destinations);
+        
+        update_option('tcc_last_sync', time());
+    }
+    
+    /**
      * Create or update a WordPress post for a destination
      */
     private function create_or_update_land_post($destination) {
@@ -218,19 +240,17 @@ class TravelC_Content {
     private function cleanup_deactivated_destinations($active_destinations) {
         $active_slugs = array_column($active_destinations, 'slug');
         
+        // Get ALL land posts (any status)
         $all_land_posts = get_posts(array(
             'post_type' => 'land',
             'posts_per_page' => -1,
-            'post_status' => 'publish',
+            'post_status' => array('publish', 'draft', 'pending', 'private'),
         ));
         
         foreach ($all_land_posts as $post) {
             if (!in_array($post->post_name, $active_slugs)) {
-                // Move to draft instead of delete
-                wp_update_post(array(
-                    'ID' => $post->ID,
-                    'post_status' => 'draft',
-                ));
+                // Delete posts that are no longer active
+                wp_delete_post($post->ID, true); // true = force delete (skip trash)
             }
         }
     }
@@ -243,6 +263,7 @@ class TravelC_Content {
         if ($screen && $screen->id === 'toplevel_page_travelc-content') {
             $last_sync = get_option('tcc_last_sync', 0);
             $last_sync_text = $last_sync ? date('d-m-Y H:i', $last_sync) : 'Nog nooit';
+            $sync_debug = get_option('tcc_sync_debug', array());
             ?>
             <div class="notice notice-info">
                 <p>
@@ -251,6 +272,24 @@ class TravelC_Content {
                         🔄 Nu synchroniseren
                     </a>
                 </p>
+                <?php if (!empty($sync_debug)): ?>
+                <p style="margin-top: 10px; font-size: 12px; color: #666;">
+                    <strong>Debug:</strong> Brand ID: <?php echo esc_html($sync_debug['brand_id'] ?? 'niet ingesteld'); ?> | 
+                    Bestemmingen gevonden: <?php echo esc_html($sync_debug['destinations_count'] ?? 0); ?>
+                    <?php if (!empty($sync_debug['destinations'])): ?>
+                        (<?php echo esc_html(implode(', ', array_column($sync_debug['destinations'], 'title'))); ?>)
+                    <?php endif; ?>
+                </p>
+                <p style="font-size: 11px; color: #999;">
+                    Assignments: <?php echo esc_html(is_array($sync_debug['assignments_raw'] ?? null) ? count($sync_debug['assignments_raw']) . ' items' : 'error'); ?> |
+                    IDs extracted: <?php echo esc_html(count($sync_debug['dest_ids_from_assignments'] ?? array())); ?> |
+                    Fetched: <?php echo esc_html(is_array($sync_debug['fetched_destinations'] ?? null) ? count($sync_debug['fetched_destinations']) . ' items' : 'error'); ?> |
+                    Brand own: <?php echo esc_html(is_array($sync_debug['brand_dest_raw'] ?? null) ? count($sync_debug['brand_dest_raw']) . ' items' : 'error'); ?>
+                </p>
+                <p style="font-size: 10px; color: #aaa; word-break: break-all;">
+                    Raw data: <?php echo esc_html(json_encode($sync_debug)); ?>
+                </p>
+                <?php endif; ?>
             </div>
             <?php
         }
@@ -264,7 +303,88 @@ class TravelC_Content {
             wp_die('Geen toegang');
         }
         
-        $this->sync_destinations(true);
+        // Direct API test - get ALL destinations for this brand using assignments
+        $assignments_raw = $this->fetch_from_supabase('destination_brand_assignments', array(
+            'brand_id' => 'eq.' . $this->brand_id,
+            'select' => 'destination_id,status',
+        ));
+        
+        // Get destination IDs from assignments (accept all statuses except rejected)
+        $dest_ids_from_assignments = array();
+        if (is_array($assignments_raw)) {
+            foreach ($assignments_raw as $a) {
+                if (is_array($a) && isset($a['destination_id'])) {
+                    // Include all except rejected
+                    $status = $a['status'] ?? '';
+                    if ($status !== 'rejected') {
+                        $dest_ids_from_assignments[] = $a['destination_id'];
+                    }
+                }
+            }
+        }
+        
+        // Fetch those destinations with full data
+        $fetched_destinations = array();
+        if (!empty($dest_ids_from_assignments)) {
+            $fetched_destinations = $this->fetch_from_supabase('destinations', array(
+                'id' => 'in.(' . implode(',', $dest_ids_from_assignments) . ')',
+                'select' => 'id,title,slug,country,continent,intro_text,featured_image,video_url,flag_image,map_image,facts,fun_facts,climate,regions,highlights,cities,description,transportation',
+            ));
+        }
+        
+        // Also get brand's own destinations
+        $brand_dest_raw = $this->fetch_from_supabase('destinations', array(
+            'brand_id' => 'eq.' . $this->brand_id,
+            'select' => 'id,title,slug,country,continent,intro_text,featured_image,video_url,flag_image,map_image,facts,fun_facts,climate,regions,highlights,cities,description,transportation',
+        ));
+        
+        // Note: Admin destinations are synced via assignments only
+        // Brand must explicitly accept a destination to have it synced
+        $admin_dest_raw = array(); // Placeholder for debug log
+        
+        // Combine all destinations
+        $all_destinations = array();
+        if (is_array($fetched_destinations)) {
+            foreach ($fetched_destinations as $dest) {
+                if (is_array($dest) && isset($dest['id'], $dest['slug'], $dest['title'])) {
+                    $all_destinations[] = $dest;
+                }
+            }
+        }
+        if (is_array($brand_dest_raw)) {
+            foreach ($brand_dest_raw as $dest) {
+                if (is_array($dest) && isset($dest['id'], $dest['slug'], $dest['title'])) {
+                    // Avoid duplicates
+                    $exists = false;
+                    foreach ($all_destinations as $existing) {
+                        if ($existing['id'] === $dest['id']) {
+                            $exists = true;
+                            break;
+                        }
+                    }
+                    if (!$exists) {
+                        $all_destinations[] = $dest;
+                    }
+                }
+            }
+        }
+        
+        // Admin destinations are only synced if brand has accepted them via assignment
+        // (already included in fetched_destinations from assignments query above)
+        
+        $sync_log = array(
+            'brand_id' => $this->brand_id,
+            'assignments_raw' => $assignments_raw,
+            'dest_ids_from_assignments' => $dest_ids_from_assignments,
+            'fetched_destinations' => $fetched_destinations,
+            'brand_dest_raw' => $brand_dest_raw,
+            'admin_dest_raw' => $admin_dest_raw,
+            'all_destinations' => $all_destinations,
+        );
+        update_option('tcc_sync_debug', $sync_log);
+        
+        // Sync using the combined destinations directly
+        $this->sync_destinations_direct($all_destinations);
         
         // Flush rewrite rules after sync
         flush_rewrite_rules();
@@ -275,13 +395,10 @@ class TravelC_Content {
     
     /**
      * Add rewrite rules for virtual pages
+     * Note: /land/ is handled by the 'land' custom post type, no rewrite needed
      */
     public function add_rewrite_rules() {
-        add_rewrite_rule(
-            '^land/([^/]+)/?$',
-            'index.php?tcc_destination=$matches[1]',
-            'top'
-        );
+        // Only add rewrite for nieuws - land is handled by CPT
         add_rewrite_rule(
             '^nieuws/([^/]+)/?$',
             'index.php?tcc_news=$matches[1]',
@@ -302,32 +419,24 @@ class TravelC_Content {
      * Handle virtual pages for destinations and news
      */
     public function handle_virtual_pages() {
+        // If we're on a 'land' post type, let WordPress/Elementor handle it normally
+        if (is_singular('land')) {
+            return;
+        }
+        
         $destination_slug = get_query_var('tcc_destination');
         $news_slug = get_query_var('tcc_news');
         
-        // Fallback: parse URL directly if query var is empty
-        if (empty($destination_slug) && empty($news_slug)) {
-            $request_uri = trim($_SERVER['REQUEST_URI'], '/');
-            $path_parts = explode('/', $request_uri);
-            
-            // Check for /land/slug pattern
-            if (count($path_parts) >= 2 && $path_parts[0] === 'land') {
-                $destination_slug = sanitize_title($path_parts[1]);
-            }
-            // For multisite: check for /site/land/slug pattern
-            if (count($path_parts) >= 3 && $path_parts[1] === 'land') {
-                $destination_slug = sanitize_title($path_parts[2]);
-            }
-            // Check for /nieuws/slug pattern
-            if (count($path_parts) >= 2 && $path_parts[0] === 'nieuws') {
-                $news_slug = sanitize_title($path_parts[1]);
-            }
-            if (count($path_parts) >= 3 && $path_parts[1] === 'nieuws') {
-                $news_slug = sanitize_title($path_parts[2]);
-            }
-        }
+        // Only handle tcc_destination and tcc_news query vars (virtual pages)
+        // Do NOT intercept /land/ URLs - those are real posts handled by WordPress
         
         if ($destination_slug) {
+            // Check if a real 'land' post exists with this slug - if so, redirect to it
+            $existing_post = get_page_by_path($destination_slug, OBJECT, 'land');
+            if ($existing_post) {
+                wp_redirect(get_permalink($existing_post->ID));
+                exit;
+            }
             $this->render_destination_page($destination_slug);
             exit;
         }
@@ -452,6 +561,7 @@ class TravelC_Content {
      */
     public function register_settings() {
         register_setting('tcc_settings', 'tcc_brand_id');
+        register_setting('tcc_settings', 'tcc_supabase_key');
     }
     
     /**
@@ -474,6 +584,16 @@ class TravelC_Content {
                                    class="regular-text" 
                                    placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" />
                             <p class="description">De UUID van deze brand in TravelCStudio (te vinden in je dashboard)</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Supabase API Key</th>
+                        <td>
+                            <input type="text" name="tcc_supabase_key" 
+                                   value="<?php echo esc_attr(get_option('tcc_supabase_key')); ?>" 
+                                   class="large-text" 
+                                   placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." />
+                            <p class="description">De Supabase anon key (te vinden in Supabase Dashboard → Settings → API). Laat leeg om de standaard key te gebruiken.</p>
                         </td>
                     </tr>
                 </table>
@@ -839,29 +959,65 @@ class TravelC_Content {
             return array();
         }
         
-        // First get the destination IDs that are activated for this brand
+        $all_destinations = array();
+        
+        // 1. Get destinations assigned to this brand via destination_brand_assignments
         $assignments = $this->fetch_from_supabase('destination_brand_assignments', array(
             'brand_id' => 'eq.' . $this->brand_id,
-            'status' => 'in.(accepted,mandatory)',
+            'status' => 'in.(accepted,mandatory,brand)',
             'select' => 'destination_id'
         ));
         
-        if (is_wp_error($assignments) || empty($assignments)) {
-            return array();
+        $dest_ids = array();
+        if (!is_wp_error($assignments) && is_array($assignments)) {
+            foreach ($assignments as $assignment) {
+                if (is_array($assignment) && isset($assignment['destination_id'])) {
+                    $dest_ids[] = $assignment['destination_id'];
+                }
+            }
         }
         
-        $dest_ids = array_column($assignments, 'destination_id');
-        
-        if (empty($dest_ids)) {
-            return array();
+        // Fetch assigned destinations
+        if (!empty($dest_ids)) {
+            $assigned_destinations = $this->fetch_from_supabase('destinations', array(
+                'id' => 'in.(' . implode(',', $dest_ids) . ')',
+                'select' => 'id,title,slug,country,continent,intro_text,featured_image,video_url,flag_image,map_image,facts,fun_facts,climate,regions,highlights,cities,description,transportation',
+            ));
+            if (!is_wp_error($assigned_destinations) && is_array($assigned_destinations)) {
+                foreach ($assigned_destinations as $dest) {
+                    if (is_array($dest) && isset($dest['id'])) {
+                        $all_destinations[] = $dest;
+                    }
+                }
+            }
         }
         
-        // Now fetch the actual destinations
-        $destinations = $this->fetch_from_supabase('destinations', array(
-            'id' => 'in.(' . implode(',', $dest_ids) . ')',
-            'select' => 'id,title,slug,country,continent,intro_text,featured_image,facts,climate,regions,highlights',
-            'order' => 'continent.asc,country.asc,title.asc'
+        // 2. Get brand's own destinations (created by the brand, stored with brand_id)
+        $brand_destinations = $this->fetch_from_supabase('destinations', array(
+            'brand_id' => 'eq.' . $this->brand_id,
+            'select' => 'id,title,slug,country,continent,intro_text,featured_image,video_url,flag_image,map_image,facts,fun_facts,climate,regions,highlights,cities,description,transportation',
         ));
+        
+        if (!is_wp_error($brand_destinations) && is_array($brand_destinations)) {
+            foreach ($brand_destinations as $dest) {
+                if (!is_array($dest) || !isset($dest['id'])) {
+                    continue;
+                }
+                // Check for duplicates
+                $exists = false;
+                foreach ($all_destinations as $existing) {
+                    if (isset($existing['id']) && $existing['id'] === $dest['id']) {
+                        $exists = true;
+                        break;
+                    }
+                }
+                if (!$exists) {
+                    $all_destinations[] = $dest;
+                }
+            }
+        }
+        
+        $destinations = $all_destinations;
         
         if (!is_array($destinations)) {
             return array();
@@ -912,7 +1068,7 @@ class TravelC_Content {
         $assignment = $this->fetch_from_supabase('destination_brand_assignments', array(
             'brand_id' => 'eq.' . $this->brand_id,
             'destination_id' => 'eq.' . $destination['id'],
-            'status' => 'in.(accepted,mandatory)',
+            'status' => 'in.(accepted,mandatory,brand)',
             'select' => 'id',
             'limit' => 1
         ));

@@ -54,6 +54,7 @@ function tcc_register_dynamic_tags($dynamic_tags_manager) {
     
     // Region Tags
     require_once(__DIR__ . '/dynamic-tags/class-tcc-region-tag.php');
+    require_once(__DIR__ . '/dynamic-tags/class-tcc-regions-list-tag.php');
     
     // City Tags
     require_once(__DIR__ . '/dynamic-tags/class-tcc-city-tag.php');
@@ -78,6 +79,7 @@ function tcc_register_dynamic_tags($dynamic_tags_manager) {
     $dynamic_tags_manager->register(new TCC_Highlight_Image_Tag());
     $dynamic_tags_manager->register(new TCC_Fact_Tag());
     $dynamic_tags_manager->register(new TCC_Region_Tag());
+    $dynamic_tags_manager->register(new TCC_Regions_List_Tag());
     $dynamic_tags_manager->register(new TCC_City_Tag());
     $dynamic_tags_manager->register(new TCC_City_Image_Tag());
     $dynamic_tags_manager->register(new TCC_Fun_Facts_Tag());
@@ -90,40 +92,81 @@ add_action('elementor/dynamic_tags/register', 'tcc_register_dynamic_tags');
 function tcc_get_current_destination_slug() {
     global $post;
     
-    // Check if we're on a destination page via rewrite
+    // Try to get the current post - use get_queried_object for frontend
+    $current_post = $post;
+    if (!$current_post && function_exists('get_queried_object')) {
+        $queried = get_queried_object();
+        if ($queried instanceof WP_Post) {
+            $current_post = $queried;
+        }
+    }
+    
+    // Frontend: Check if we're on a 'land' post type
+    if ($current_post && $current_post->ID && $current_post->post_type === 'land') {
+        // First check for linked slug in meta
+        $linked_slug = get_post_meta($current_post->ID, '_tcc_destination_slug', true);
+        if ($linked_slug) {
+            return $linked_slug;
+        }
+        // Use post slug directly
+        if (!empty($current_post->post_name)) {
+            return $current_post->post_name;
+        }
+    }
+    
+    // Check if we're on a destination page via rewrite (legacy)
     $destination_slug = get_query_var('tcc_destination');
     if ($destination_slug) {
         return $destination_slug;
     }
     
-    // Check post meta for linked destination
-    if ($post) {
-        $linked_slug = get_post_meta($post->ID, '_tcc_destination_slug', true);
+    // Check post meta for linked destination (other post types)
+    if ($current_post && $current_post->ID) {
+        $linked_slug = get_post_meta($current_post->ID, '_tcc_destination_slug', true);
         if ($linked_slug) {
             return $linked_slug;
         }
-        
-        // For 'land' post type, use the post slug directly
-        if ($post->post_type === 'land') {
-            return $post->post_name;
-        }
-        
-        // Try to match post slug with destination
-        return $post->post_name;
     }
     
-    // Fallback: try to get from URL for Elementor preview
-    if (isset($_GET['elementor-preview']) || isset($_GET['preview'])) {
-        $preview_id = isset($_GET['elementor-preview']) ? $_GET['elementor-preview'] : $_GET['preview_id'];
-        if ($preview_id) {
-            $preview_post = get_post($preview_id);
-            if ($preview_post) {
-                $linked_slug = get_post_meta($preview_post->ID, '_tcc_destination_slug', true);
-                if ($linked_slug) {
-                    return $linked_slug;
-                }
+    // Elementor editor/preview mode - check various parameters
+    $preview_id = null;
+    if (isset($_GET['elementor-preview'])) {
+        $preview_id = intval($_GET['elementor-preview']);
+    } elseif (isset($_GET['preview_id'])) {
+        $preview_id = intval($_GET['preview_id']);
+    } elseif (isset($_GET['post'])) {
+        $preview_id = intval($_GET['post']);
+    } elseif (isset($_POST['editor_post_id'])) {
+        $preview_id = intval($_POST['editor_post_id']);
+    }
+    
+    if ($preview_id) {
+        $preview_post = get_post($preview_id);
+        if ($preview_post) {
+            $linked_slug = get_post_meta($preview_post->ID, '_tcc_destination_slug', true);
+            if ($linked_slug) {
+                return $linked_slug;
+            }
+            if ($preview_post->post_type === 'land' && !empty($preview_post->post_name)) {
                 return $preview_post->post_name;
             }
+        }
+    }
+    
+    // Theme Builder template editing - get first 'land' post as sample
+    if (isset($_GET['action']) && $_GET['action'] === 'elementor' || 
+        (defined('ELEMENTOR_VERSION') && \Elementor\Plugin::$instance->editor->is_edit_mode())) {
+        $sample_post = get_posts(array(
+            'post_type' => 'land',
+            'posts_per_page' => 1,
+            'post_status' => 'publish',
+        ));
+        if (!empty($sample_post)) {
+            $linked_slug = get_post_meta($sample_post[0]->ID, '_tcc_destination_slug', true);
+            if ($linked_slug) {
+                return $linked_slug;
+            }
+            return $sample_post[0]->post_name;
         }
     }
     
@@ -150,7 +193,9 @@ function tcc_get_destination_data($slug = '') {
     }
     
     $api_url = TCC_SUPABASE_URL;
-    $api_key = TCC_SUPABASE_KEY;
+    // Use custom key if set, otherwise use default
+    $custom_key = get_option('tcc_supabase_key', '');
+    $api_key = !empty($custom_key) ? $custom_key : TCC_SUPABASE_KEY_DEFAULT;
     
     $url = trailingslashit($api_url) . 'rest/v1/destinations?slug=eq.' . urlencode($slug) . '&select=*';
     

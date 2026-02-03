@@ -38,6 +38,14 @@ interface Brand {
   id: string;
   name: string;
   business_type: 'franchise' | 'custom';
+  website_url?: string;
+  wordpress_url?: string;
+}
+
+interface DestinationAssignment {
+  destination_id: string;
+  brand_id: string;
+  status: string;
 }
 
 type ViewMode = 'list' | 'create' | 'edit';
@@ -78,6 +86,7 @@ export function DestinationManagement() {
   const { user } = useAuth();
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
+  const [assignments, setAssignments] = useState<DestinationAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [editingDestination, setEditingDestination] = useState<Destination | null>(null);
@@ -90,7 +99,35 @@ export function DestinationManagement() {
   useEffect(() => {
     loadDestinations();
     loadBrands();
+    loadAssignments();
   }, []);
+
+  const loadAssignments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('destination_brand_assignments')
+        .select('destination_id, brand_id, status')
+        .in('status', ['accepted', 'mandatory', 'brand']);
+
+      if (error) throw error;
+      setAssignments(data || []);
+    } catch (error) {
+      console.error('Error loading assignments:', error);
+    }
+  };
+
+  // Get the first brand with website URL that has accepted this destination
+  const getPreviewUrl = (destinationSlug: string, destinationId: string) => {
+    const destAssignments = assignments.filter(a => a.destination_id === destinationId);
+    for (const assignment of destAssignments) {
+      const brand = brands.find(b => b.id === assignment.brand_id);
+      const siteUrl = brand?.wordpress_url || brand?.website_url;
+      if (siteUrl) {
+        return `${siteUrl.replace(/\/$/, '')}/land/${destinationSlug}/`;
+      }
+    }
+    return null;
+  };
 
   const loadDestinations = async () => {
     try {
@@ -113,7 +150,7 @@ export function DestinationManagement() {
     try {
       const { data, error } = await supabase
         .from('brands')
-        .select('id, name, business_type')
+        .select('id, name, business_type, website_url, wordpress_url')
         .order('name');
 
       if (error) throw error;
@@ -1172,6 +1209,15 @@ export function DestinationManagement() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-3">
+                      {getPreviewUrl(d.slug, d.id) && (
+                        <button
+                          onClick={() => window.open(getPreviewUrl(d.slug, d.id)!, '_blank')}
+                          className="text-green-600 hover:text-green-900"
+                          title="Bekijk op website"
+                        >
+                          <Eye size={16} />
+                        </button>
+                      )}
                       <button onClick={() => handleEdit(d)} className="text-blue-600 hover:text-blue-900" title="Bewerken">
                         <Edit2 size={16} />
                       </button>
