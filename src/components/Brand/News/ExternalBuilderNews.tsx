@@ -132,6 +132,21 @@ export function ExternalBuilderNews() {
           .eq('id', assignment.news_id);
 
         if (error) throw error;
+      } else if (assignmentId.startsWith('available-news-') || !assignmentId.includes('-')) {
+        // Available news without assignment - create one
+        if (!currentValue && effectiveBrandId) {
+          const { error } = await supabase
+            .from('news_brand_assignments')
+            .insert({
+              brand_id: effectiveBrandId,
+              news_id: assignment.news_id,
+              status: 'accepted',
+              is_published: true,
+              assigned_at: new Date().toISOString()
+            });
+
+          if (error) throw error;
+        }
       } else {
         const { error } = await supabase
           .from('news_brand_assignments')

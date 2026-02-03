@@ -179,13 +179,30 @@ export function WordPressNewsManager() {
   const handleTogglePublish = async (assignmentId: string, currentValue: boolean, assignment: NewsAssignment) => {
     try {
       if (assignment.status === 'brand' && assignment.news_id) {
+        // Brand's own news - update the news_items status directly
         const { error } = await supabase
           .from('news_items')
           .update({ status: !currentValue ? 'published' : 'draft' })
           .eq('id', assignment.news_id);
 
         if (error) throw error;
+      } else if (assignmentId.startsWith('available-news-') || !assignmentId.includes('-')) {
+        // This is available news without an assignment yet - create one
+        if (!currentValue && effectiveBrandId) {
+          const { error } = await supabase
+            .from('news_brand_assignments')
+            .insert({
+              brand_id: effectiveBrandId,
+              news_id: assignment.news_id,
+              status: 'accepted',
+              is_published: true,
+              assigned_at: new Date().toISOString()
+            });
+
+          if (error) throw error;
+        }
       } else {
+        // Existing assignment - update it
         const { error } = await supabase
           .from('news_brand_assignments')
           .update({
