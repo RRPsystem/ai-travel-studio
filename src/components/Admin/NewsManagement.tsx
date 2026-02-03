@@ -3,7 +3,7 @@ import { Newspaper, Plus, Edit2, Trash2, Eye, ArrowLeft, Save, Image as ImageIco
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { SlidingMediaSelector } from '../shared/SlidingMediaSelector';
-import { OpenAIService } from '../../lib/apiServices';
+import { aiTravelService } from '../../lib/apiServices';
 
 interface NewsItem {
   id: string;
@@ -226,9 +226,7 @@ export function NewsManagement() {
 
     setGeneratingAI(true);
     try {
-      const openai = new OpenAIService();
-      
-      const systemPrompt = `Je bent een professionele reisredacteur die boeiende nieuwsartikelen schrijft voor een reiswebsite.
+      const userPrompt = `Je bent een professionele reisredacteur die boeiende nieuwsartikelen schrijft voor een reiswebsite.
 
 BELANGRIJKE REGELS:
 - Schrijf ALLEEN feitelijk correcte informatie. Verzin GEEN feiten, cijfers, namen of locaties.
@@ -241,9 +239,9 @@ SCHRIJFSTIJL:
 - Schrijf in het Nederlands, in een vriendelijke maar professionele toon.
 - Maak de tekst informatief en inspirerend voor reizigers.
 - Gebruik korte alinea's en duidelijke structuur.
-- Geef praktische tips die altijd geldig zijn.`;
+- Geef praktische tips die altijd geldig zijn.
 
-      const userPrompt = `Schrijf een compleet nieuwsartikel over: "${topic}"
+Schrijf een compleet nieuwsartikel over: "${topic}"
 
 Geef het antwoord in het volgende JSON formaat:
 {
@@ -256,12 +254,10 @@ Geef het antwoord in het volgende JSON formaat:
 
 Alleen JSON, geen andere tekst.`;
 
-      const response = await openai.generateContent(
-        'news',
+      const response = await aiTravelService.generateEnhancedContent(
+        'destination',
         userPrompt,
-        'professional',
-        '',
-        { systemPrompt, temperature: 0.7, maxTokens: 2000 }
+        'professional'
       );
 
       // Parse JSON response
@@ -308,8 +304,6 @@ Alleen JSON, geen andere tekst.`;
       // Sort by days since last post
       categoryStats.sort((a, b) => b.daysSince - a.daysSince);
 
-      const openai = new OpenAIService();
-      
       const currentMonth = new Date().toLocaleString('nl-NL', { month: 'long' });
       const currentSeason = getSeason();
       
@@ -328,12 +322,10 @@ Geef 3 suggesties in JSON formaat:
 
 Alleen JSON array, geen andere tekst.`;
 
-      const response = await openai.generateContent(
-        'planning',
+      const response = await aiTravelService.generateEnhancedContent(
+        'destination',
         prompt,
-        'professional',
-        '',
-        { temperature: 0.8, maxTokens: 1000 }
+        'professional'
       );
 
       const jsonMatch = response.match(/\[[\s\S]*\]/);
