@@ -3,7 +3,7 @@
  * Plugin Name: TravelC Content
  * Plugin URI: https://travelcstudio.com
  * Description: Synchroniseert nieuws en bestemmingen van TravelCStudio naar WordPress. Content wordt beheerd in TravelCStudio en automatisch getoond op WordPress sites van brands die de content hebben geactiveerd.
- * Version: 1.0.66
+ * Version: 1.0.67
  * Author: RRP System
  * Author URI: https://rrpsystem.com
  * License: GPL v2 or later
@@ -15,7 +15,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('TCC_VERSION', '1.0.66');
+define('TCC_VERSION', '1.0.67');
 define('TCC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TCC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -193,9 +193,9 @@ class TravelC_Content {
             return;
         }
         
-        // Only sync once per hour unless forced
+        // Only sync once per 5 minutes unless forced
         $last_sync = get_option('tcc_last_news_sync', 0);
-        if (!$force && (time() - $last_sync) < 3600) {
+        if (!$force && (time() - $last_sync) < 300) {
             error_log('[TCC] Skipping sync - last sync was ' . (time() - $last_sync) . ' seconds ago');
             return;
         }
