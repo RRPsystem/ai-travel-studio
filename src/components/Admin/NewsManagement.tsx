@@ -142,6 +142,7 @@ export function NewsManagement() {
   };
 
   const getPreviewUrl = (newsSlug: string, newsId: string) => {
+    // First try to find a WordPress site URL from assignments
     const newsAssignments = assignments.filter(a => a.news_id === newsId);
     for (const assignment of newsAssignments) {
       const brand = brands.find(b => b.id === assignment.brand_id);
@@ -150,7 +151,8 @@ export function NewsManagement() {
         return `${siteUrl.replace(/\/$/, '')}/nieuws/${newsSlug}/`;
       }
     }
-    return null;
+    // Fallback: internal preview page
+    return `/preview/news/${newsSlug}`;
   };
 
   const generateSlug = (text: string) => {
