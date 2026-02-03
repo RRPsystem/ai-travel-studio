@@ -14,7 +14,9 @@ import { WordPressCatalogSync } from '../Operator/WordPressCatalogSync';
 import PodcastManagement from '../Podcast/PodcastManagement';
 import { GPTManagement } from '../Operator/GPTManagement';
 import { AIContentGenerator } from '../Brand/AIContentGenerator';
-import { Users, Building2, FileText, Settings, Plus, Search, Filter, CreditCard as Edit, Trash2, LayoutGrid as Layout, Menu, Globe, Newspaper, MapPin, Plane, Key, X, Lock, BookOpen, Mic, Bot, Wand2, Map, FlaskConical } from 'lucide-react'
+import VideoLibrary from '../Brand/VideoLibrary';
+import { TravelBroSetup } from '../TravelBro/TravelBroSetup';
+import { Users, Building2, FileText, Settings, Plus, Search, Filter, CreditCard as Edit, Trash2, LayoutGrid as Layout, Menu, Globe, Newspaper, MapPin, Plane, Key, X, Lock, BookOpen, Mic, Bot, Wand2, Map, FlaskConical, Video, MessageCircle } from 'lucide-react'
 import { ChevronDown, ChevronRight } from 'lucide-react';
 
 export function AdminDashboard() {
@@ -199,6 +201,8 @@ export function AdminDashboard() {
   const aiToolsItems = [
     { id: 'gpt-management', label: 'GPT Management', icon: Bot },
     { id: 'ai-content-generator', label: 'AI Content Generator', icon: Wand2 },
+    { id: 'ai-video-generator', label: 'AI Video Generator', icon: Video },
+    { id: 'travel-bro', label: 'Travel Bro', icon: MessageCircle },
   ];
 
   const handleTravelStudioClick = () => {
@@ -603,6 +607,10 @@ export function AdminDashboard() {
                 {activeSection === 'template-manager' && 'Template Manager'}
                 {activeSection === 'gpt-management' && 'GPT Management'}
                 {activeSection === 'ai-content-generator' && 'AI Content Generator'}
+                {activeSection === 'ai-video-generator' && 'AI Video Generator'}
+                {activeSection === 'travel-bro' && 'Travel Bro'}
+                {activeSection === 'roadmap' && 'Roadmap'}
+                {activeSection === 'test-dashboard' && 'Test Dashboard'}
                 {activeSection === 'settings' && 'Settings'}
                 {activeSection === 'travel-journal' && 'TravelC Talk'}
               </h1>
@@ -649,6 +657,8 @@ export function AdminDashboard() {
           {activeSection === 'template-manager' && <TemplateManager />}
           {activeSection === 'gpt-management' && <GPTManagement />}
           {activeSection === 'ai-content-generator' && <AIContentGenerator />}
+          {activeSection === 'ai-video-generator' && <VideoLibrary />}
+          {activeSection === 'travel-bro' && <TravelBroSetup />}
           {activeSection === 'settings' && (
             <div className="max-w-6xl mx-auto">
               <div className="bg-white rounded-lg shadow-md p-6">
