@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Newspaper, Plus, Edit2, Trash2, Eye, ArrowLeft, Save, Image as ImageIcon, X, Tag as TagIcon } from 'lucide-react';
+import { Newspaper, Plus, Edit2, Trash2, Eye, ArrowLeft, Save, Image as ImageIcon, X, Tag as TagIcon, Sparkles, Calendar, Lightbulb, RefreshCw, Clock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { SlidingMediaSelector } from '../shared/SlidingMediaSelector';
+import { OpenAIService } from '../../lib/apiServices';
 
 interface NewsItem {
   id: string;
@@ -37,7 +38,23 @@ interface NewsAssignment {
   status: string;
 }
 
-type ViewMode = 'list' | 'create' | 'edit';
+type ViewMode = 'list' | 'create' | 'edit' | 'planning';
+
+const NEWS_CATEGORIES = [
+  { id: 'bestemmingen', name: 'Bestemmingen', icon: '🌍', color: 'bg-blue-100 text-blue-800' },
+  { id: 'reistips', name: 'Reistips', icon: '💡', color: 'bg-yellow-100 text-yellow-800' },
+  { id: 'seizoenen', name: 'Seizoenen', icon: '🌸', color: 'bg-pink-100 text-pink-800' },
+  { id: 'events', name: 'Events & Festivals', icon: '🎉', color: 'bg-purple-100 text-purple-800' },
+  { id: 'praktisch', name: 'Praktische Info', icon: '📋', color: 'bg-gray-100 text-gray-800' },
+  { id: 'inspiratie', name: 'Inspiratie', icon: '✨', color: 'bg-orange-100 text-orange-800' },
+];
+
+interface AISuggestion {
+  category: string;
+  topic: string;
+  reason: string;
+  urgency: 'high' | 'medium' | 'low';
+}
 
 const SYSTEM_BRAND_ID = '00000000-0000-0000-0000-000000000999';
 
@@ -67,6 +84,10 @@ export function NewsManagement() {
   const [showMediaSelector, setShowMediaSelector] = useState(false);
   const [formData, setFormData] = useState(emptyFormData);
   const [tagInput, setTagInput] = useState('');
+  const [generatingAI, setGeneratingAI] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<AISuggestion[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('');
 
   useEffect(() => {
     loadNewsItems();
@@ -195,6 +216,152 @@ export function NewsManagement() {
     }));
   };
 
+  // AI Content Generation
+  const generateAIContent = async (topic: string) => {
+    if (!topic.trim()) {
+      alert('Voer eerst een onderwerp in');
+      return;
+    }
+
+    setGeneratingAI(true);
+    try {
+      const openai = new OpenAIService();
+      
+      const systemPrompt = `Je bent een professionele reisredacteur die boeiende nieuwsartikelen schrijft voor een reiswebsite.
+Schrijf in het Nederlands, in een vriendelijke maar professionele toon.
+Maak de tekst informatief en inspirerend voor reizigers.
+Gebruik korte alinea's en duidelijke structuur.`;
+
+      const userPrompt = `Schrijf een compleet nieuwsartikel over: "${topic}"
+
+Geef het antwoord in het volgende JSON formaat:
+{
+  "title": "Pakkende titel",
+  "excerpt": "Korte samenvatting van 1-2 zinnen",
+  "content": "Volledige artikel inhoud met meerdere alinea's",
+  "tags": ["tag1", "tag2", "tag3"],
+  "closing_text": "Afsluitende call-to-action"
+}
+
+Alleen JSON, geen andere tekst.`;
+
+      const response = await openai.generateContent(
+        'news',
+        userPrompt,
+        'professional',
+        '',
+        { systemPrompt, temperature: 0.7, maxTokens: 2000 }
+      );
+
+      // Parse JSON response
+      const jsonMatch = response.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const generated = JSON.parse(jsonMatch[0]);
+        setFormData(prev => ({
+          ...prev,
+          title: generated.title || prev.title,
+          excerpt: generated.excerpt || prev.excerpt,
+          content: generated.content || prev.content,
+          closing_text: generated.closing_text || prev.closing_text,
+          tags: generated.tags || prev.tags,
+          slug: prev.slug || generateSlug(generated.title || topic)
+        }));
+      }
+    } catch (error: any) {
+      console.error('AI generation error:', error);
+      alert(`Fout bij AI generatie: ${error.message}`);
+    } finally {
+      setGeneratingAI(false);
+    }
+  };
+
+  // AI Topic Suggestions
+  const loadAISuggestions = async () => {
+    setLoadingSuggestions(true);
+    try {
+      // Analyze existing news to find gaps
+      const categoryStats = NEWS_CATEGORIES.map(cat => {
+        const catNews = newsItems.filter(n => 
+          n.tags?.some(t => t.toLowerCase().includes(cat.id.toLowerCase()))
+        );
+        const lastPost = catNews.length > 0 
+          ? new Date(Math.max(...catNews.map(n => new Date(n.created_at).getTime())))
+          : null;
+        const daysSince = lastPost 
+          ? Math.floor((Date.now() - lastPost.getTime()) / (1000 * 60 * 60 * 24))
+          : 999;
+        
+        return { ...cat, count: catNews.length, daysSince, lastPost };
+      });
+
+      // Sort by days since last post
+      categoryStats.sort((a, b) => b.daysSince - a.daysSince);
+
+      const openai = new OpenAIService();
+      
+      const currentMonth = new Date().toLocaleString('nl-NL', { month: 'long' });
+      const currentSeason = getSeason();
+      
+      const prompt = `Je bent een content planner voor een reiswebsite. 
+Analyseer deze categorieën en geef 3 concrete artikel suggesties:
+
+Categorieën (dagen sinds laatste post):
+${categoryStats.map(c => `- ${c.name}: ${c.daysSince} dagen geleden (${c.count} artikelen totaal)`).join('\n')}
+
+Het is nu ${currentMonth} (${currentSeason}).
+
+Geef 3 suggesties in JSON formaat:
+[
+  {"category": "categorie_id", "topic": "Concreet artikel onderwerp", "reason": "Waarom nu", "urgency": "high/medium/low"}
+]
+
+Alleen JSON array, geen andere tekst.`;
+
+      const response = await openai.generateContent(
+        'planning',
+        prompt,
+        'professional',
+        '',
+        { temperature: 0.8, maxTokens: 1000 }
+      );
+
+      const jsonMatch = response.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const suggestions = JSON.parse(jsonMatch[0]);
+        setAiSuggestions(suggestions);
+      }
+    } catch (error: any) {
+      console.error('AI suggestions error:', error);
+      // Fallback suggestions
+      setAiSuggestions([
+        { category: 'seizoenen', topic: 'Beste bestemmingen voor dit seizoen', reason: 'Seizoensgebonden content', urgency: 'high' as const },
+        { category: 'reistips', topic: 'Handige inpaktips voor je volgende reis', reason: 'Evergreen content', urgency: 'medium' as const },
+        { category: 'inspiratie', topic: 'Verborgen parels in Europa', reason: 'Inspirerende content', urgency: 'low' as const }
+      ]);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  };
+
+  const getSeason = () => {
+    const month = new Date().getMonth();
+    if (month >= 2 && month <= 4) return 'lente';
+    if (month >= 5 && month <= 7) return 'zomer';
+    if (month >= 8 && month <= 10) return 'herfst';
+    return 'winter';
+  };
+
+  const handleUseSuggestion = (suggestion: AISuggestion) => {
+    setSelectedCategory(suggestion.category);
+    setFormData({
+      ...emptyFormData,
+      tags: [suggestion.category]
+    });
+    setViewMode('create');
+    // Auto-generate content for the suggestion
+    setTimeout(() => generateAIContent(suggestion.topic), 100);
+  };
+
   const handleSave = async () => {
     if (!formData.title.trim()) {
       alert('Titel is verplicht');
@@ -299,6 +466,50 @@ export function NewsManagement() {
           <h1 className="text-2xl font-bold">
             {viewMode === 'edit' ? 'Nieuwsbericht Bewerken' : 'Nieuw Nieuwsbericht'}
           </h1>
+        </div>
+
+        {/* AI Assistant Panel */}
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Sparkles className="w-5 h-5 text-purple-600" />
+            <h3 className="font-medium text-purple-900">AI Nieuws Assistent</h3>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="Beschrijf het onderwerp (bijv. 'Beste stranden in Griekenland')"
+              className="flex-1 px-3 py-2 border border-purple-200 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white"
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  generateAIContent((e.target as HTMLInputElement).value);
+                }
+              }}
+              id="ai-topic-input"
+            />
+            <button
+              onClick={() => {
+                const input = document.getElementById('ai-topic-input') as HTMLInputElement;
+                generateAIContent(input?.value || formData.title);
+              }}
+              disabled={generatingAI}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors disabled:opacity-50"
+            >
+              {generatingAI ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Genereren...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Genereer met AI
+                </>
+              )}
+            </button>
+          </div>
+          <p className="text-xs text-purple-600 mt-2">
+            Voer een onderwerp in en laat AI een compleet artikel genereren
+          </p>
         </div>
 
         <div className="bg-white rounded-lg shadow-md p-6">
@@ -547,6 +758,177 @@ export function NewsManagement() {
     );
   }
 
+  // PLANNING VIEW
+  if (viewMode === 'planning') {
+    return (
+      <div className="p-8">
+        <div className="flex items-center gap-4 mb-6">
+          <button
+            onClick={() => setViewMode('list')}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            Terug naar overzicht
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 mb-6">
+          <Calendar className="w-8 h-8 text-purple-600" />
+          <h1 className="text-2xl font-bold">Content Planning</h1>
+        </div>
+
+        {/* Category Overview */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+          {NEWS_CATEGORIES.map(cat => {
+            const catNews = newsItems.filter(n => 
+              n.tags?.some(t => t.toLowerCase().includes(cat.id.toLowerCase()))
+            );
+            const lastPost = catNews.length > 0 
+              ? new Date(Math.max(...catNews.map(n => new Date(n.created_at).getTime())))
+              : null;
+            const daysSince = lastPost 
+              ? Math.floor((Date.now() - lastPost.getTime()) / (1000 * 60 * 60 * 24))
+              : null;
+            
+            return (
+              <div 
+                key={cat.id}
+                className={`p-4 rounded-lg border-2 ${
+                  daysSince && daysSince > 30 ? 'border-red-300 bg-red-50' :
+                  daysSince && daysSince > 14 ? 'border-yellow-300 bg-yellow-50' :
+                  'border-gray-200 bg-white'
+                }`}
+              >
+                <div className="text-2xl mb-1">{cat.icon}</div>
+                <div className="font-medium text-sm">{cat.name}</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {catNews.length} artikelen
+                </div>
+                <div className="text-xs mt-1">
+                  {daysSince !== null ? (
+                    <span className={daysSince > 30 ? 'text-red-600 font-medium' : daysSince > 14 ? 'text-yellow-600' : 'text-green-600'}>
+                      <Clock className="w-3 h-3 inline mr-1" />
+                      {daysSince}d geleden
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">Nog geen</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* AI Suggestions */}
+        <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-6 mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="w-5 h-5 text-purple-600" />
+              <h3 className="font-medium text-purple-900">AI Suggesties</h3>
+            </div>
+            <button
+              onClick={loadAISuggestions}
+              disabled={loadingSuggestions}
+              className="flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm disabled:opacity-50"
+            >
+              {loadingSuggestions ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Laden...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  Genereer Suggesties
+                </>
+              )}
+            </button>
+          </div>
+
+          {aiSuggestions.length > 0 ? (
+            <div className="space-y-3">
+              {aiSuggestions.map((suggestion, index) => {
+                const category = NEWS_CATEGORIES.find(c => c.id === suggestion.category);
+                return (
+                  <div 
+                    key={index}
+                    className="flex items-center justify-between bg-white p-4 rounded-lg border border-purple-100"
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`px-2 py-0.5 rounded-full text-xs ${
+                          suggestion.urgency === 'high' ? 'bg-red-100 text-red-700' :
+                          suggestion.urgency === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-green-100 text-green-700'
+                        }`}>
+                          {suggestion.urgency === 'high' ? 'Urgent' : suggestion.urgency === 'medium' ? 'Aanbevolen' : 'Optioneel'}
+                        </span>
+                        {category && (
+                          <span className={`px-2 py-0.5 rounded-full text-xs ${category.color}`}>
+                            {category.icon} {category.name}
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-medium">{suggestion.topic}</div>
+                      <div className="text-sm text-gray-500">{suggestion.reason}</div>
+                    </div>
+                    <button
+                      onClick={() => handleUseSuggestion(suggestion)}
+                      className="flex items-center gap-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm ml-4"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Maak Artikel
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-purple-600 text-sm">
+              Klik op "Genereer Suggesties" om AI-gestuurde content ideeën te krijgen op basis van je bestaande artikelen en het huidige seizoen.
+            </p>
+          )}
+        </div>
+
+        {/* Recent Articles by Category */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h3 className="font-medium text-gray-900 mb-4">Recente Artikelen per Categorie</h3>
+          <div className="space-y-4">
+            {NEWS_CATEGORIES.map(cat => {
+              const catNews = newsItems
+                .filter(n => n.tags?.some(t => t.toLowerCase().includes(cat.id.toLowerCase())))
+                .slice(0, 3);
+              
+              return (
+                <div key={cat.id} className="border-b pb-4 last:border-b-0">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span>{cat.icon}</span>
+                    <span className="font-medium">{cat.name}</span>
+                    <span className="text-xs text-gray-500">({catNews.length} recent)</span>
+                  </div>
+                  {catNews.length > 0 ? (
+                    <div className="pl-6 space-y-1">
+                      {catNews.map(news => (
+                        <div key={news.id} className="flex items-center justify-between text-sm">
+                          <span className="text-gray-700">{news.title}</span>
+                          <span className="text-gray-400">
+                            {new Date(news.created_at).toLocaleDateString('nl-NL')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="pl-6 text-sm text-gray-400 italic">Nog geen artikelen in deze categorie</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // LIST VIEW
   return (
     <div className="p-8">
@@ -555,13 +937,22 @@ export function NewsManagement() {
           <Newspaper className="w-8 h-8 text-orange-600" />
           <h1 className="text-2xl font-bold">Nieuwsbeheer</h1>
         </div>
-        <button
-          onClick={handleCreateNews}
-          className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700"
-        >
-          <Plus className="w-5 h-5" />
-          Nieuw Bericht
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setViewMode('planning')}
+            className="flex items-center gap-2 bg-purple-100 text-purple-700 px-4 py-2 rounded-lg hover:bg-purple-200"
+          >
+            <Calendar className="w-5 h-5" />
+            Planning
+          </button>
+          <button
+            onClick={handleCreateNews}
+            className="flex items-center gap-2 bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700"
+          >
+            <Plus className="w-5 h-5" />
+            Nieuw Bericht
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-lg shadow-md overflow-hidden">
