@@ -3,7 +3,7 @@
  * Plugin Name: TravelC Content
  * Plugin URI: https://travelcstudio.com
  * Description: Synchroniseert nieuws en bestemmingen van TravelCStudio naar WordPress. Content wordt beheerd in TravelCStudio en automatisch getoond op WordPress sites van brands die de content hebben geactiveerd.
- * Version: 1.0.65
+ * Version: 1.0.66
  * Author: RRP System
  * Author URI: https://rrpsystem.com
  * License: GPL v2 or later
@@ -15,7 +15,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('TCC_VERSION', '1.0.65');
+define('TCC_VERSION', '1.0.66');
 define('TCC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TCC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -1086,12 +1086,13 @@ class TravelC_Content {
         }
         
         // 2. Get news assigned to this brand via news_brand_assignments
+        // Try without status filter first to debug
         $assignments = $this->fetch_from_supabase('news_brand_assignments', array(
             'brand_id' => 'eq.' . $this->brand_id,
-            'status' => 'neq.rejected',
-            'select' => 'news_id,status,is_published'
+            'select' => 'id,news_id,status,is_published'
         ));
         
+        error_log('[TCC] News assignments raw response: ' . print_r($assignments, true));
         error_log('[TCC] News assignments for brand ' . $this->brand_id . ': ' . (is_array($assignments) ? count($assignments) : 0) . ' items');
         
         if (is_array($assignments) && !empty($assignments)) {
