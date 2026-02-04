@@ -1129,134 +1129,108 @@ export function TravelBroSetup() {
 
       {activeTab === 'overview' && (
         <div className="space-y-6">
-          <div className="bg-white rounded-lg shadow-sm border p-6 max-w-md">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900">Actieve TravelBRO's</h3>
-              <Bot className="text-orange-500" size={24} />
+          {/* Quick Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-5 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-orange-100 text-sm">Actieve Reizen</p>
+                  <p className="text-3xl font-bold">{activeTravelBros.length}</p>
+                </div>
+                <Bot className="text-white/80" size={32} />
+              </div>
             </div>
-            <p className="text-3xl font-bold text-gray-900">{activeTravelBros.length}</p>
-            <p className="text-sm text-gray-600">Reizen beschikbaar</p>
+            <button
+              onClick={() => setActiveTab('new')}
+              className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-5 text-white text-left hover:from-blue-600 hover:to-blue-700 transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-blue-100 text-sm">Nieuwe Reis</p>
+                  <p className="text-lg font-semibold">+ TravelBRO aanmaken</p>
+                </div>
+                <Plus className="text-white/80" size={32} />
+              </div>
+            </button>
+            <button
+              onClick={() => setActiveTab('active')}
+              className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-5 text-white text-left hover:from-green-600 hover:to-green-700 transition-all"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-sm">Beheer</p>
+                  <p className="text-lg font-semibold">Bekijk reizen →</p>
+                </div>
+                <Users className="text-white/80" size={32} />
+              </div>
+            </button>
           </div>
 
-          <div className="space-y-6">
-            <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-lg border border-orange-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4 text-lg">Hoe werkt TravelBRO?</h3>
-              <div className="space-y-3 text-sm text-gray-700">
-                <div className="flex items-start space-x-3">
-                  <span className="text-orange-600 font-bold text-lg">1.</span>
-                  <div>
-                    <p className="font-semibold text-gray-900">Maak een TravelBRO aan</p>
-                    <p className="text-gray-600">Upload een reis PDF en/of voeg URLs toe met reisinformatie</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <span className="text-orange-600 font-bold text-lg">2.</span>
-                  <div>
-                    <p className="font-semibold text-gray-900">Deel de link</p>
-                    <p className="text-gray-600">Stuur de client link naar je reizigers via email of WhatsApp</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <span className="text-orange-600 font-bold text-lg">3.</span>
-                  <div>
-                    <p className="font-semibold text-gray-900">Reizigers vullen intake in</p>
-                    <p className="text-gray-600">Zij delen hun voorkeuren, allergieën, verwachtingen en interesses</p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-3">
-                  <span className="text-orange-600 font-bold text-lg">4.</span>
-                  <div>
-                    <p className="font-semibold text-gray-900">AI helpt 24/7</p>
-                    <p className="text-gray-600">TravelBRO beantwoordt vragen via WhatsApp of webchat met betrouwbare informatie</p>
-                  </div>
+          {/* Quick Start Guide - Compact */}
+          <div className="bg-white rounded-xl border p-6">
+            <h3 className="font-semibold text-gray-900 mb-4 flex items-center">
+              <Bot className="mr-2 text-orange-500" size={20} />
+              Snel aan de slag
+            </h3>
+            <div className="grid md:grid-cols-4 gap-4 text-sm">
+              <div className="flex items-start space-x-3">
+                <span className="bg-orange-100 text-orange-600 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shrink-0">1</span>
+                <div>
+                  <p className="font-medium text-gray-900">Maak TravelBRO</p>
+                  <p className="text-gray-500 text-xs">Upload PDF of sync TC</p>
                 </div>
               </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg border border-blue-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4 text-lg flex items-center">
-                <Bot className="mr-2 text-blue-600" size={20} />
-                Wat kan TravelBRO beantwoorden?
-              </h3>
-              <div className="grid md:grid-cols-2 gap-4 text-sm">
+              <div className="flex items-start space-x-3">
+                <span className="bg-orange-100 text-orange-600 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shrink-0">2</span>
                 <div>
-                  <p className="font-semibold text-blue-900 mb-2">📍 Locatie & Routes</p>
-                  <ul className="space-y-1 text-gray-700 ml-4 list-disc">
-                    <li>"Hoe kom ik bij het hotel?"</li>
-                    <li>"Wat is het adres van restaurant X?"</li>
-                    <li>"Hoe ver is het naar de volgende stop?"</li>
-                    <li>Automatische route-info met afstand en reistijd</li>
-                  </ul>
-                </div>
-                <div>
-                  <p className="font-semibold text-blue-900 mb-2">🍽️ Restaurants & Eten</p>
-                  <ul className="space-y-1 text-gray-700 ml-4 list-disc">
-                    <li>"Waar kan ik Pizza eten?" (o.b.v. voorkeuren)</li>
-                    <li>"Welke restaurants zijn geschikt voor vegetariërs?"</li>
-                    <li>Top 5 restaurants in de buurt met ratings</li>
-                    <li>Let op allergieën en dieetwensen</li>
-                  </ul>
-                </div>
-                <div>
-                  <p className="font-semibold text-blue-900 mb-2">🎯 Activiteiten & Tips</p>
-                  <ul className="space-y-1 text-gray-700 ml-4 list-disc">
-                    <li>"Wat is er te doen voor kinderen?"</li>
-                    <li>"Welke bezienswaardigheden zijn must-see?"</li>
-                    <li>Persoonlijke tips o.b.v. interesses</li>
-                    <li>Info uit het reisdocument</li>
-                  </ul>
-                </div>
-                <div>
-                  <p className="font-semibold text-blue-900 mb-2">🏨 Accommodatie & Reis</p>
-                  <ul className="space-y-1 text-gray-700 ml-4 list-disc">
-                    <li>"Hoe laat is check-in?"</li>
-                    <li>"Wat zijn de vluchtgegevens?"</li>
-                    <li>"Is er WiFi in het hotel?"</li>
-                    <li>Alle praktische reisinformatie</li>
-                  </ul>
+                  <p className="font-medium text-gray-900">Deel link</p>
+                  <p className="text-gray-500 text-xs">Via email of WhatsApp</p>
                 </div>
               </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border border-green-200 p-6">
-              <h3 className="font-semibold text-gray-900 mb-4 text-lg flex items-center">
-                <CheckCircle className="mr-2 text-green-600" size={20} />
-                Waar haalt TravelBRO zijn informatie vandaan?
-              </h3>
-              <div className="space-y-3 text-sm">
-                <div className="bg-white rounded-lg p-4 border border-green-100">
-                  <p className="font-semibold text-green-900 mb-2">📄 Reisdocument (PDF)</p>
-                  <p className="text-gray-700">Alle informatie uit het door jou geüploade reisdocument wordt geanalyseerd door AI en gebruikt om vragen te beantwoorden.</p>
-                </div>
-                <div className="bg-white rounded-lg p-4 border border-green-100">
-                  <p className="font-semibold text-green-900 mb-2">🔗 Extra URLs</p>
-                  <p className="text-gray-700">Links naar websites, hotel info, activiteiten, etc. die je toevoegt worden gebruikt als extra informatiebronnen.</p>
-                </div>
-                <div className="bg-white rounded-lg p-4 border border-green-100">
-                  <p className="font-semibold text-green-900 mb-2">👥 Intake Formulier</p>
-                  <p className="text-gray-700">Persoonlijke voorkeuren, allergieën, verwachtingen en interesses van de reizigers worden actief gebruikt voor gepersonaliseerde adviezen.</p>
-                </div>
-                <div className="bg-white rounded-lg p-4 border border-green-100">
-                  <p className="font-semibold text-green-900 mb-2">🔍 Google Search</p>
-                  <p className="text-gray-700">Real-time zoekresultaten voor actuele informatie over restaurants, activiteiten en bezienswaardigheden.</p>
-                </div>
-                <div className="bg-white rounded-lg p-4 border border-green-100">
-                  <p className="font-semibold text-green-900 mb-2">🗺️ Google Maps & Places</p>
-                  <p className="text-gray-700">Adressen, routes, afstanden, reistijden, restaurant ratings en locatie-details worden opgehaald via Google's API's.</p>
+              <div className="flex items-start space-x-3">
+                <span className="bg-orange-100 text-orange-600 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shrink-0">3</span>
+                <div>
+                  <p className="font-medium text-gray-900">Klant vult intake</p>
+                  <p className="text-gray-500 text-xs">Voorkeuren & wensen</p>
                 </div>
               </div>
-              <div className="mt-4 bg-green-100 border-2 border-green-300 rounded-lg p-4">
-                <p className="font-bold text-green-900 flex items-center">
-                  <CheckCircle className="mr-2" size={18} />
-                  100% Betrouwbare Informatie
-                </p>
-                <p className="text-green-800 text-sm mt-1">
-                  TravelBRO verzint NOOIT informatie. Alle antwoorden zijn gebaseerd op echte data uit bovenstaande bronnen.
-                  <strong>Zorg jij voor goede input, dan zorgt TravelBRO voor betrouwbare output!</strong>
-                </p>
+              <div className="flex items-start space-x-3">
+                <span className="bg-orange-100 text-orange-600 rounded-full w-6 h-6 flex items-center justify-center font-bold text-xs shrink-0">4</span>
+                <div>
+                  <p className="font-medium text-gray-900">AI helpt 24/7</p>
+                  <p className="text-gray-500 text-xs">WhatsApp of webchat</p>
+                </div>
               </div>
             </div>
           </div>
+
+          {/* Recent TravelBROs */}
+          {activeTravelBros.length > 0 && (
+            <div className="bg-white rounded-xl border p-6">
+              <h3 className="font-semibold text-gray-900 mb-4">Recente TravelBRO's</h3>
+              <div className="space-y-2">
+                {activeTravelBros.slice(0, 5).map((trip: any) => (
+                  <button
+                    key={trip.id}
+                    onClick={() => loadTripDetails(trip)}
+                    className="w-full flex items-center justify-between p-3 bg-gray-50 hover:bg-orange-50 rounded-lg transition-colors text-left"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <Bot className="text-orange-500" size={20} />
+                      <div>
+                        <p className="font-medium text-gray-900">{trip.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(trip.created_at).toLocaleDateString('nl-NL')}
+                          {trip.compositor_booking_id && ` • TC: ${trip.compositor_booking_id}`}
+                        </p>
+                      </div>
+                    </div>
+                    <ArrowRight className="text-gray-400" size={16} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
