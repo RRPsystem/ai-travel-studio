@@ -966,6 +966,50 @@ export function TravelBroSetup() {
     }
   };
 
+  const handleCreateRoadbook = async (trip: any) => {
+    try {
+      // Create a new page in the pages table for the roadbook
+      const { data: newPage, error: pageError } = await db.supabase
+        .from('pages')
+        .insert({
+          brand_id: trip.brand_id,
+          title: trip.name,
+          slug: `roadbook-${trip.share_token}`,
+          template_type: 'roadbook',
+          content: {
+            tripId: trip.id,
+            shareToken: trip.share_token,
+            travelBroUrl: getShareUrl(trip.share_token),
+            ...trip.parsed_data
+          },
+          status: 'published'
+        })
+        .select()
+        .single();
+
+      if (pageError) throw pageError;
+
+      // Update the trip with the page_id
+      const { error: tripError } = await db.supabase
+        .from('travel_trips')
+        .update({ page_id: newPage.id })
+        .eq('id', trip.id);
+
+      if (tripError) throw tripError;
+
+      alert('✅ Roadbook aangemaakt! Je wordt doorgestuurd naar de builder...');
+      
+      // Open the roadbook in the builder
+      window.open(`https://www.ai-websitestudio.nl/builder.html?page_id=${newPage.id}`, '_blank');
+      
+      // Reload data to show the link
+      loadData();
+    } catch (error) {
+      console.error('Error creating roadbook:', error);
+      alert('❌ Fout bij aanmaken roadbook: ' + (error instanceof Error ? error.message : 'Onbekende fout'));
+    }
+  };
+
   const [showQRCode, setShowQRCode] = useState(false);
 
   const toggleQRCode = () => {
@@ -2213,6 +2257,29 @@ export function TravelBroSetup() {
                             >
                               📋 Kopieer Link
                             </button>
+                          </div>
+
+                          {/* Roadbook koppeling */}
+                          <div className="bg-purple-100 rounded-lg p-4 mb-4 border-2 border-purple-400">
+                            <p className="text-sm font-semibold text-purple-800 mb-2">🗺️ Roadbook:</p>
+                            {selectedTrip.page_id ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-green-600 font-semibold">✅ Gekoppeld</span>
+                                <button
+                                  onClick={() => window.open(`https://www.ai-websitestudio.nl/preview.html?page_id=${selectedTrip.page_id}`, '_blank')}
+                                  className="text-purple-600 hover:text-purple-800 underline text-sm"
+                                >
+                                  Bekijk Roadbook
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleCreateRoadbook(selectedTrip)}
+                                className="w-full bg-purple-600 hover:bg-purple-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors"
+                              >
+                                🗺️ Maak Roadbook
+                              </button>
+                            )}
                           </div>
 
                           <div className="bg-orange-100 rounded-lg p-3 mb-4 border-2 border-dashed border-orange-400">
