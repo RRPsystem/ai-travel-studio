@@ -187,11 +187,18 @@ export function ChatEmbed({ tripId, shareToken }: ChatEmbedProps) {
       }
 
       const data = await response.json();
-      console.log('[ChatEmbed] Response data:', data);
+      console.log('[ChatEmbed] Response data:', JSON.stringify(data, null, 2));
+
+      // Extract text from various possible response formats
+      const responseText = data.text || data.message || data.response || data.reply || 
+                          (data.choices && data.choices[0]?.message?.content) ||
+                          'Geen antwoord ontvangen';
+
+      console.log('[ChatEmbed] Extracted text:', responseText);
 
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: data.text || data.message || 'Geen antwoord',
+        content: responseText,
         timestamp: new Date(),
         response: data,
       }]);
