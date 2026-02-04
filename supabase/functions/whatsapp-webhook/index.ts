@@ -253,7 +253,6 @@ Deno.serve(async (req: Request) => {
         .insert({
           session_id: sessionData.id,
           trip_id: trip.id,
-          brand_id: brandId,
           conversation_history: []
         })
         .select('id')
