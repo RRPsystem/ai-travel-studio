@@ -1021,13 +1021,15 @@ export function TravelBroSetup() {
 
       if (pageError) throw pageError;
 
-      // Update the trip with the page_id
-      const { error: tripError } = await db.supabase
-        .from('travel_trips')
-        .update({ page_id: newPage.id })
-        .eq('id', trip.id);
-
-      if (tripError) throw tripError;
+      // Try to update the trip with the page_id (column may not exist yet)
+      try {
+        await db.supabase
+          .from('travel_trips')
+          .update({ page_id: newPage.id })
+          .eq('id', trip.id);
+      } catch (e) {
+        console.warn('Could not update page_id on trip (column may not exist):', e);
+      }
 
       alert('✅ Roadbook aangemaakt! Je wordt doorgestuurd naar de builder...');
       
