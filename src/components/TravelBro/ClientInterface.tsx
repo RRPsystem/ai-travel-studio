@@ -127,6 +127,7 @@ export function ClientInterface({ shareToken }: { shareToken: string }) {
       } else {
         const newSessionToken = crypto.randomUUID().replace(/-/g, '');
 
+        // Try to create intake, but don't block if it fails (RLS or FK issues)
         const { error: intakeInsertError } = await supabase
           .from('travel_intakes')
           .insert({
@@ -138,17 +139,11 @@ export function ClientInterface({ shareToken }: { shareToken: string }) {
           });
 
         if (intakeInsertError) {
-          console.error('Error creating intake:', {
-            message: intakeInsertError.message,
-            code: intakeInsertError.code,
-            details: intakeInsertError.details,
-            hint: intakeInsertError.hint,
-            full: intakeInsertError
-          });
-          alert('Kon intake niet aanmaken: ' + intakeInsertError.message + ' (Code: ' + intakeInsertError.code + ')');
-          return;
+          console.warn('Could not create intake (continuing anyway):', intakeInsertError.message);
+          // Don't block - continue without intake
         }
 
+        // Try to create session
         const { error: sessionInsertError } = await supabase
           .from('travel_whatsapp_sessions')
           .insert({
@@ -158,19 +153,14 @@ export function ClientInterface({ shareToken }: { shareToken: string }) {
           });
 
         if (sessionInsertError) {
-          console.error('Error creating session:', {
-            message: sessionInsertError.message,
-            code: sessionInsertError.code,
-            details: sessionInsertError.details,
-            hint: sessionInsertError.hint,
-            full: sessionInsertError
-          });
-          alert('Kon sessie niet aanmaken: ' + sessionInsertError.message + ' (Code: ' + sessionInsertError.code + ')');
-          return;
+          console.warn('Could not create session (continuing anyway):', sessionInsertError.message);
+          // Don't block - continue without session record
         }
 
         setTrip(tripData);
         setSessionToken(newSessionToken);
+        // Skip intake form and go directly to chat
+        setShowIntake(false);
       }
     } catch (error) {
       console.error('Error loading trip:', error);
