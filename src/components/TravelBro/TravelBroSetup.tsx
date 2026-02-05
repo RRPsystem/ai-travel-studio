@@ -1037,10 +1037,7 @@ export function TravelBroSetup() {
       return;
     }
 
-    if (!isTwilioConfigured) {
-      alert('⚠️ WhatsApp is nog niet geconfigureerd. Ga naar de Settings tab.');
-      return;
-    }
+    // Don't block on isTwilioConfigured - edge function will use system credentials
 
     setSendingInvite(true);
     try {
@@ -2151,19 +2148,18 @@ export function TravelBroSetup() {
                 )}
               </div>
 
-              {/* === ACTIE CARDS GRID === */}
-              <div className="grid md:grid-cols-2 gap-4">
-                {/* Card 1: Deel de Reis */}
-                <div className="bg-white rounded-xl shadow-sm border p-5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                      <Share2 className="w-5 h-5 text-green-600" />
-                    </div>
-                    <h3 className="font-semibold text-gray-900">Deel de Reis</h3>
+              {/* === ACTIE KNOPPEN === */}
+              <div className="bg-white rounded-xl shadow-sm border p-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                    <Share2 className="w-5 h-5 text-green-600" />
                   </div>
-                  
+                  <h3 className="font-semibold text-gray-900">Deel de Reis</h3>
+                </div>
+                
+                <div className="grid md:grid-cols-2 gap-4">
+                  {/* Links & QR */}
                   <div className="space-y-3">
-                    {/* Web Link */}
                     <div className="bg-gray-50 rounded-lg p-3">
                       <p className="text-xs text-gray-500 mb-1">🌐 Web Link</p>
                       <code className="text-xs text-gray-700 break-all block mb-2">{getShareUrl(selectedTrip.share_token)}</code>
@@ -2175,69 +2171,69 @@ export function TravelBroSetup() {
                         Kopieer Link
                       </button>
                     </div>
-                    
-                    {/* QR Code */}
                     {(() => {
                       const qrData = getQRCodeData();
                       return qrData ? (
-                        <div className="text-center">
-                          <p className="text-xs text-gray-500 mb-2">📱 WhatsApp QR Code</p>
-                          <img src={qrData.qrCodeUrl} alt="QR Code" className="w-32 h-32 mx-auto rounded-lg shadow bg-white p-1" />
-                          <p className="text-xs text-gray-500 mt-2">Code: <span className="font-mono font-bold text-orange-600">{qrData.code}</span></p>
+                        <div className="text-center bg-gray-50 rounded-lg p-3">
+                          <p className="text-xs text-gray-500 mb-2">📱 WhatsApp QR</p>
+                          <img src={qrData.qrCodeUrl} alt="QR Code" className="w-24 h-24 mx-auto rounded-lg shadow bg-white p-1" />
+                          <p className="text-xs text-gray-500 mt-1">Code: <span className="font-mono font-bold text-orange-600">{qrData.code}</span></p>
                         </div>
                       ) : null;
                     })()}
                   </div>
-                </div>
 
-                {/* Card 2: Roadbook */}
-                <div className="bg-white rounded-xl shadow-sm border p-5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
-                      <Route className="w-5 h-5 text-purple-600" />
-                    </div>
-                    <h3 className="font-semibold text-gray-900">Roadbook</h3>
-                  </div>
-                  
-                  {selectedTrip.page_id ? (
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2 text-green-600">
-                        <CheckCircle size={18} />
-                        <span className="font-medium">Roadbook aangemaakt</span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2">
+                  {/* Roadbook + Acties */}
+                  <div className="space-y-3">
+                    {/* Roadbook */}
+                    <div className="bg-purple-50 rounded-lg p-3">
+                      <p className="text-xs text-purple-600 font-medium mb-2">🗺️ Roadbook</p>
+                      {selectedTrip.page_id ? (
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => window.open(`https://www.ai-websitestudio.nl/preview.html?page_id=${selectedTrip.page_id}&brand_id=${selectedTrip.brand_id}`, '_blank')}
+                            className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium py-2 px-2 rounded-lg transition-colors flex items-center justify-center gap-1"
+                          >
+                            <ExternalLink size={12} />
+                            Bekijk
+                          </button>
+                          <button
+                            onClick={() => window.open(`https://www.ai-websitestudio.nl/builder.html?page_id=${selectedTrip.page_id}`, '_blank')}
+                            className="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs font-medium py-2 px-2 rounded-lg transition-colors flex items-center justify-center gap-1"
+                          >
+                            <Edit size={12} />
+                            Bewerk
+                          </button>
+                        </div>
+                      ) : selectedTrip.compositor_booking_id ? (
                         <button
-                          onClick={() => window.open(`https://www.ai-websitestudio.nl/preview.html?page_id=${selectedTrip.page_id}&brand_id=${selectedTrip.brand_id}`, '_blank')}
-                          className="bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium py-2.5 px-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                          onClick={() => handleCreateRoadbook(selectedTrip)}
+                          className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1"
                         >
-                          <ExternalLink size={14} />
-                          Bekijk
+                          <Route size={14} />
+                          Maak Roadbook
                         </button>
-                        <button
-                          onClick={() => window.open(`https://www.ai-websitestudio.nl/builder.html?page_id=${selectedTrip.page_id}`, '_blank')}
-                          className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium py-2.5 px-3 rounded-lg transition-colors flex items-center justify-center gap-2"
-                        >
-                          <Edit size={14} />
-                          Bewerk
-                        </button>
-                      </div>
+                      ) : (
+                        <p className="text-xs text-gray-400 italic">Alleen met TC ID</p>
+                      )}
                     </div>
-                  ) : selectedTrip.compositor_booking_id ? (
-                    <div className="space-y-3">
-                      <p className="text-sm text-gray-600">Maak een interactief roadbook voor je klant.</p>
+
+                    {/* Stuur Intake */}
+                    <div className="bg-blue-50 rounded-lg p-3">
+                      <p className="text-xs text-blue-600 font-medium mb-2">📋 Intake Formulier</p>
                       <button
-                        onClick={() => handleCreateRoadbook(selectedTrip)}
-                        className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                        onClick={() => {
+                          const intakeUrl = getShareUrl(selectedTrip.share_token);
+                          navigator.clipboard.writeText(intakeUrl);
+                          alert('✅ Intake link gekopieerd!\n\nStuur deze link naar je klant om het intake formulier in te vullen.');
+                        }}
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1"
                       >
-                        <Route size={18} />
-                        Maak Roadbook
+                        <Send size={12} />
+                        Kopieer Intake Link
                       </button>
                     </div>
-                  ) : (
-                    <div className="text-center py-4">
-                      <p className="text-sm text-gray-500">Alleen beschikbaar voor reizen met Travel Compositor ID</p>
-                    </div>
-                  )}
+                  </div>
                 </div>
               </div>
 
@@ -2245,65 +2241,64 @@ export function TravelBroSetup() {
               <details className="bg-white rounded-xl shadow-sm border">
                 <summary className="p-5 cursor-pointer hover:bg-gray-50 transition-colors">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                      <Send className="w-5 h-5 text-green-600" />
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isTwilioConfigured ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                      <Send className={`w-5 h-5 ${isTwilioConfigured ? 'text-green-600' : 'text-yellow-600'}`} />
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">WhatsApp Uitnodiging Versturen</h3>
-                      <p className="text-xs text-gray-500">Stuur een template bericht naar de klant</p>
+                      <p className="text-xs text-gray-500">
+                        {isTwilioConfigured ? 'Stuur een template bericht naar de klant' : '⚠️ Twilio niet geconfigureerd'}
+                      </p>
                     </div>
                   </div>
                 </summary>
                 <div className="px-5 pb-5 border-t">
-                  {!isTwilioConfigured ? (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
-                      <p className="text-sm text-yellow-800">
-                        <strong>WhatsApp niet geconfigureerd.</strong> Ga naar Instellingen om Twilio in te stellen.
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="space-y-4 mt-4">
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">Naam klant</label>
-                          <input
-                            type="text"
-                            value={inviteClientName}
-                            onChange={(e) => setInviteClientName(e.target.value)}
-                            placeholder="Alex"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs font-medium text-gray-600 mb-1">WhatsApp nummer</label>
-                          <input
-                            type="tel"
-                            value={invitePhone}
-                            onChange={(e) => setInvitePhone(e.target.value)}
-                            placeholder="+31612345678"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
-                          />
-                        </div>
-                      </div>
-                      <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                  <div className="space-y-4 mt-4">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Naam klant</label>
                         <input
-                          type="checkbox"
-                          checked={skipIntake}
-                          onChange={(e) => setSkipIntake(e.target.checked)}
-                          className="h-4 w-4 text-green-600 border-gray-300 rounded"
+                          type="text"
+                          value={inviteClientName}
+                          onChange={(e) => setInviteClientName(e.target.value)}
+                          placeholder="Alex"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
                         />
-                        Intake formulier overslaan
-                      </label>
-                      <button
-                        onClick={sendWhatsAppInvite}
-                        disabled={sendingInvite || !invitePhone.trim()}
-                        className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                      >
-                        {sendingInvite ? <Loader className="w-4 h-4 animate-spin" /> : <Send size={16} />}
-                        {sendingInvite ? 'Verzenden...' : 'Verstuur Template'}
-                      </button>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">WhatsApp nummer</label>
+                        <input
+                          type="tel"
+                          value={invitePhone}
+                          onChange={(e) => setInvitePhone(e.target.value)}
+                          placeholder="+31612345678"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
+                        />
+                      </div>
                     </div>
-                  )}
+                    <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={skipIntake}
+                        onChange={(e) => setSkipIntake(e.target.checked)}
+                        className="h-4 w-4 text-green-600 border-gray-300 rounded"
+                      />
+                      Intake formulier overslaan
+                    </label>
+                    <button
+                      onClick={sendWhatsAppInvite}
+                      disabled={sendingInvite || !invitePhone.trim()}
+                      className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      {sendingInvite ? <Loader className="w-4 h-4 animate-spin" /> : <Send size={16} />}
+                      {sendingInvite ? 'Verzenden...' : 'Verstuur Template'}
+                    </button>
+                    {!isTwilioConfigured && (
+                      <p className="text-xs text-yellow-700 bg-yellow-50 p-2 rounded">
+                        💡 Twilio credentials worden automatisch uit systeem instellingen geladen. Als dit niet werkt, neem contact op met support.
+                      </p>
+                    )}
+                  </div>
                 </div>
               </details>
 
