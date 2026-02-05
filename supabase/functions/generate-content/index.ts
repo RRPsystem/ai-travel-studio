@@ -722,7 +722,7 @@ Begin DIRECT met "## 1. **Hotelnaam**" - geen inleiding of vragen!`,
     const data = await response.json();
     let content = data.choices[0].message.content;
 
-    // For destination content type, parse the JSON and format as readable text
+    // For destination content type, parse the JSON and return structured data
     if (contentType === 'destination') {
       try {
         // Remove markdown code blocks if present
@@ -739,60 +739,19 @@ Begin DIRECT met "## 1. **Hotelnaam**" - geen inleiding of vragen!`,
         
         const parsedContent = JSON.parse(jsonStr);
         
-        // Format JSON as readable text for chat display
-        let formattedText = '';
+        console.log('[generate-content] Parsed destination JSON successfully');
+        console.log('[generate-content] Fields:', Object.keys(parsedContent));
         
-        if (parsedContent.intro_text) {
-          formattedText += `**${parsedContent.intro_text}**\n\n`;
-        }
-        
-        if (parsedContent.description) {
-          formattedText += `## Over dit land\n${parsedContent.description}\n\n`;
-        }
-        
-        if (parsedContent.transportation) {
-          formattedText += `## Vervoer & Rondreizen\n${parsedContent.transportation}\n\n`;
-        }
-        
-        if (parsedContent.highlights && parsedContent.highlights.length > 0) {
-          formattedText += `## Bezienswaardigheden\n`;
-          parsedContent.highlights.forEach((h: any) => {
-            formattedText += `- **${h.title}**: ${h.description}\n`;
-          });
-          formattedText += '\n';
-        }
-        
-        if (parsedContent.cities && parsedContent.cities.length > 0) {
-          formattedText += `## Populaire Steden\n`;
-          parsedContent.cities.forEach((c: any) => {
-            formattedText += `- **${c.name}**: ${c.description}\n`;
-          });
-          formattedText += '\n';
-        }
-        
-        if (parsedContent.best_time_to_visit) {
-          formattedText += `## Beste Reistijd\n${parsedContent.best_time_to_visit}\n\n`;
-        }
-        
-        if (parsedContent.climate) {
-          formattedText += `## Klimaat\n${parsedContent.climate}\n\n`;
-        }
-        
-        if (parsedContent.fun_facts && parsedContent.fun_facts.length > 0) {
-          formattedText += `## Leuke Weetjes\n`;
-          parsedContent.fun_facts.forEach((f: string) => {
-            formattedText += `- ${f}\n`;
-          });
-        }
-        
+        // Return the parsed JSON object directly so frontend can populate form fields
         return new Response(
-          JSON.stringify({ content: formattedText.trim() }),
+          JSON.stringify({ success: true, content: parsedContent }),
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           }
         );
       } catch (parseError) {
         console.error('Failed to parse destination JSON:', parseError);
+        console.error('Raw content:', content.substring(0, 500));
         // Return raw content if parsing fails
       }
     }
