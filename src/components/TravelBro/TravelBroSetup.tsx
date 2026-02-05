@@ -2237,175 +2237,131 @@ export function TravelBroSetup() {
                 </div>
               </div>
 
-              {/* === WHATSAPP UITNODIGING (collapsed) === */}
-              <details className="bg-white rounded-xl shadow-sm border">
-                <summary className="p-5 cursor-pointer hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${isTwilioConfigured ? 'bg-green-100' : 'bg-yellow-100'}`}>
-                      <Send className={`w-5 h-5 ${isTwilioConfigured ? 'text-green-600' : 'text-yellow-600'}`} />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">WhatsApp Uitnodiging Versturen</h3>
-                      <p className="text-xs text-gray-500">
-                        {isTwilioConfigured ? 'Stuur een template bericht naar de klant' : '⚠️ Twilio niet geconfigureerd'}
-                      </p>
-                    </div>
-                  </div>
-                </summary>
-                <div className="px-5 pb-5 border-t">
-                  <div className="space-y-4 mt-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Naam klant</label>
-                        <input
-                          type="text"
-                          value={inviteClientName}
-                          onChange={(e) => setInviteClientName(e.target.value)}
-                          placeholder="Alex"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">WhatsApp nummer</label>
-                        <input
-                          type="tel"
-                          value={invitePhone}
-                          onChange={(e) => setInvitePhone(e.target.value)}
-                          placeholder="+31612345678"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
-                        />
-                      </div>
-                    </div>
-                    <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={skipIntake}
-                        onChange={(e) => setSkipIntake(e.target.checked)}
-                        className="h-4 w-4 text-green-600 border-gray-300 rounded"
-                      />
-                      Intake formulier overslaan
-                    </label>
-                    <button
-                      onClick={sendWhatsAppInvite}
-                      disabled={sendingInvite || !invitePhone.trim()}
-                      className="w-full bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
-                    >
-                      {sendingInvite ? <Loader className="w-4 h-4 animate-spin" /> : <Send size={16} />}
-                      {sendingInvite ? 'Verzenden...' : 'Verstuur Template'}
-                    </button>
-                    {!isTwilioConfigured && (
-                      <p className="text-xs text-yellow-700 bg-yellow-50 p-2 rounded">
-                        💡 Twilio credentials worden automatisch uit systeem instellingen geladen. Als dit niet werkt, neem contact op met support.
-                      </p>
-                    )}
-                  </div>
+              {/* === COMMUNICATIE SECTIE === */}
+              <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-5 py-4">
+                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
+                    <MessageSquare className="w-5 h-5" />
+                    Communicatie
+                  </h3>
                 </div>
-              </details>
-
-              <div className="bg-white rounded-lg shadow-sm border p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <FileText className="w-5 h-5 mr-2 text-blue-600" />
-                  Ingevulde Intake Formulieren ({tripIntakes.length})
-                </h3>
-
-                {tripIntakes.length === 0 ? (
-                  <p className="text-gray-600 text-sm">Nog geen intake formulieren ingevuld voor deze reis</p>
-                ) : (
-                  <div className="space-y-3">
-                    {tripIntakes.map((intake) => (
-                      <div key={intake.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-gray-900">
-                              {intake.travelers_count} reiziger{intake.travelers_count !== 1 ? 's' : ''}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              {new Date(intake.completed_at || intake.created_at).toLocaleString('nl-NL')}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => {
-                              console.log('Intake data:', intake.intake_data);
-                              alert('Intake data zie je in de console');
-                            }}
-                            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                          >
-                            Bekijk details
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-white rounded-lg shadow-sm border p-6">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                  <MessageSquare className="w-5 h-5 mr-2 text-green-600" />
-                  WhatsApp Sessies ({tripSessions.length})
-                </h3>
-
-                {tripSessions.length === 0 ? (
-                  <p className="text-gray-600 text-sm">Nog geen WhatsApp conversaties voor deze reis</p>
-                ) : (
-                  <div className="space-y-3">
-                    {tripSessions.map((session) => (
-                      <div 
-                        key={session.id} 
-                        className="border rounded-lg p-4 hover:bg-orange-50 hover:border-orange-300 transition-colors cursor-pointer"
-                        onClick={() => loadChatHistory(session)}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
-                              <MessageSquare className="w-5 h-5 text-white" />
+                
+                <div className="p-5 space-y-4">
+                  {/* WhatsApp Sessies */}
+                  {tripSessions.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Actieve Gesprekken</p>
+                      {tripSessions.map((session) => (
+                        <div 
+                          key={session.id} 
+                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-green-50 cursor-pointer transition-colors"
+                          onClick={() => loadChatHistory(session)}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                              <MessageSquare className="w-4 h-4 text-white" />
                             </div>
                             <div>
-                              <p className="font-medium text-gray-900">{session.phone_number}</p>
-                              <p className="text-xs text-gray-500">
-                                Laatste bericht: {new Date(session.last_message_at || session.created_at).toLocaleString('nl-NL')}
-                              </p>
+                              <p className="text-sm font-medium text-gray-900">{session.phone_number}</p>
+                              <p className="text-xs text-gray-500">{new Date(session.last_message_at || session.created_at).toLocaleDateString('nl-NL')}</p>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                              Actief
-                            </span>
-                            <ArrowRight className="w-4 h-4 text-gray-400" />
-                          </div>
+                          <ArrowRight className="w-4 h-4 text-gray-400" />
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  )}
+
+                  {tripSessions.length === 0 && (
+                    <p className="text-sm text-gray-500 text-center py-4">Nog geen WhatsApp gesprekken</p>
+                  )}
+
+                  {/* Stuur WhatsApp */}
+                  <div className="border-t pt-4">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Stuur Uitnodiging</p>
+                    <div className="flex gap-2">
+                      <input
+                        type="tel"
+                        value={invitePhone}
+                        onChange={(e) => setInvitePhone(e.target.value)}
+                        placeholder="+31612345678"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
+                      />
+                      <button
+                        onClick={sendWhatsAppInvite}
+                        disabled={sendingInvite || !invitePhone.trim()}
+                        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                      >
+                        {sendingInvite ? <Loader className="w-4 h-4 animate-spin" /> : <Send size={16} />}
+                        <span className="text-sm font-medium">Verstuur</span>
+                      </button>
+                    </div>
                   </div>
-                )}
+                </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow-sm border p-6">
+              {/* === INTAKE & GEPLANDE BERICHTEN (compact) === */}
+              <div className="grid md:grid-cols-2 gap-4">
+                {/* Intake Formulieren */}
+                <div className="bg-white rounded-xl shadow-sm border p-5">
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-blue-600" />
+                    Intake ({tripIntakes.length})
+                  </h4>
+                  {tripIntakes.length === 0 ? (
+                    <p className="text-sm text-gray-500">Nog geen intake ingevuld</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {tripIntakes.slice(0, 3).map((intake) => (
+                        <div key={intake.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm">
+                          <span className="text-gray-900">{intake.travelers_count} reiziger(s)</span>
+                          <span className="text-xs text-gray-500">{new Date(intake.completed_at || intake.created_at).toLocaleDateString('nl-NL')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Geplande Berichten */}
+                <div className="bg-white rounded-xl shadow-sm border p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-purple-600" />
+                      Gepland ({scheduledMessages.filter(m => !m.is_sent).length})
+                    </h4>
+                    <button
+                      onClick={() => setShowScheduleForm(!showScheduleForm)}
+                      className="text-purple-600 hover:text-purple-700 text-xs font-medium"
+                    >
+                      + Nieuw
+                    </button>
+                  </div>
+                  {scheduledMessages.filter(m => !m.is_sent).length === 0 ? (
+                    <p className="text-sm text-gray-500">Geen geplande berichten</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {scheduledMessages.filter(m => !m.is_sent).slice(0, 3).map((msg) => (
+                        <div key={msg.id} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg text-sm">
+                          <span className="text-gray-900 truncate">{msg.message_type.replace('_', ' ')}</span>
+                          <span className="text-xs text-gray-500">{msg.scheduled_date}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Geplande Berichten Form (alleen als open) */}
+              {showScheduleForm && (
+              <div className="bg-white rounded-xl shadow-sm border p-5">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                    <Clock className="w-5 h-5 mr-2 text-purple-600" />
-                    Geplande WhatsApp Berichten ({scheduledMessages.filter(m => !m.is_sent).length})
-                  </h3>
-                  <button
-                    onClick={() => setShowScheduleForm(!showScheduleForm)}
-                    className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
-                  >
-                    <Plus size={16} />
-                    <span>Plan Bericht</span>
+                  <h3 className="font-semibold text-gray-900">Nieuw Gepland Bericht</h3>
+                  <button onClick={() => setShowScheduleForm(false)} className="text-gray-400 hover:text-gray-600">
+                    <XCircle size={20} />
                   </button>
                 </div>
 
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                  <p className="text-sm text-blue-900">
-                    <strong>📅 Automatische berichten:</strong> Plan berichten die automatisch verstuurd worden op een specifieke datum en tijd. Perfect voor routebeschrijvingen, hotel check-in reminders, of vlucht informatie.
-                  </p>
-                  <p className="text-xs text-blue-700 mt-2">
-                    💡 <strong>Tijdzone support:</strong> Het systeem houdt automatisch rekening met tijdsverschillen! Stel de timezone in van de bestemming waar je klant is.
-                  </p>
-                </div>
-
-                {showScheduleForm && (
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 mb-4 space-y-4">
+                <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
                         Telefoonnummer
@@ -2609,122 +2565,21 @@ export function TravelBroSetup() {
                       <button
                         onClick={saveScheduledMessage}
                         disabled={savingSchedule || !scheduleMessage.trim() || !scheduleDate || !schedulePhone.trim()}
-                        className="flex-1 flex items-center justify-center space-x-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+                        className="flex-1 flex items-center justify-center space-x-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-4 py-2 rounded-lg font-medium transition-colors"
                       >
-                        {savingSchedule ? (
-                          <>
-                            <Loader className="w-5 h-5 animate-spin" />
-                            <span>Opslaan...</span>
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle size={20} />
-                            <span>Opslaan</span>
-                          </>
-                        )}
+                        {savingSchedule ? <Loader className="w-4 h-4 animate-spin" /> : <CheckCircle size={16} />}
+                        <span>{savingSchedule ? 'Opslaan...' : 'Opslaan'}</span>
                       </button>
                       <button
-                        onClick={() => {
-                          setShowScheduleForm(false);
-                          setScheduleMessage('');
-                          setScheduleDate('');
-                          setSchedulePhone('');
-                        }}
-                        className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                        onClick={() => setShowScheduleForm(false)}
+                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                       >
                         Annuleren
                       </button>
                     </div>
                   </div>
-                )}
-
-                {scheduledMessages.length === 0 ? (
-                  <p className="text-gray-600 text-sm">Nog geen geplande berichten</p>
-                ) : (
-                  <div className="space-y-3">
-                    {scheduledMessages.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className={`border rounded-lg p-4 ${msg.is_sent ? 'bg-gray-50 border-gray-200' : 'bg-white hover:bg-gray-50'} transition-colors`}
-                      >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              {msg.message_type === 'route_description' && <span>🗺️</span>}
-                              {msg.message_type === 'hotel_checkin' && <span>🏨</span>}
-                              {msg.message_type === 'flight_reminder' && <span>✈️</span>}
-                              {msg.message_type === 'activity_reminder' && <span>🎯</span>}
-                              {msg.message_type === 'custom' && <span>📝</span>}
-                              <span className="font-medium text-gray-900 capitalize">
-                                {msg.message_type.replace('_', ' ')}
-                              </span>
-                              {msg.is_sent && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                  <CheckCircle size={12} className="mr-1" />
-                                  Verzonden
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-sm text-gray-700 mb-2 line-clamp-2">{msg.message_content}</p>
-                            <div className="flex items-center space-x-4 text-xs text-gray-500">
-                              <span>📱 {msg.recipient_phone}</span>
-                              <span>📅 {new Date(msg.scheduled_date + 'T' + msg.scheduled_time).toLocaleDateString('nl-NL')}</span>
-                              <span>⏰ {msg.scheduled_time}</span>
-                              <span>🌍 {msg.timezone.split('/')[1]}</span>
-                            </div>
-                            {msg.is_sent && msg.sent_at && (
-                              <p className="text-xs text-green-600 mt-1">
-                                Verzonden: {new Date(msg.sent_at).toLocaleString('nl-NL')}
-                              </p>
-                            )}
-                          </div>
-                          {!msg.is_sent && (
-                            <button
-                              onClick={() => deleteScheduledMessage(msg.id)}
-                              className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                              title="Verwijder"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="mt-6 pt-6 border-t">
-                  <div className="bg-blue-50 rounded-lg p-4 mb-4">
-                    <div className="flex items-start space-x-3">
-                      <Clock className="w-5 h-5 text-blue-600 mt-0.5" />
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-blue-900 mb-1">Automatische Scheduler</h4>
-                        <p className="text-sm text-blue-700 mb-2">
-                          Geplande berichten worden automatisch verstuurd op de ingestelde datum en tijd.
-                          Je kunt de scheduler ook handmatig triggeren om berichten die nu verstuurd zouden moeten worden direct te verwerken.
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={processScheduledMessages}
-                    disabled={loading}
-                    className="w-full flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-semibold transition-colors"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader className="w-5 h-5 animate-spin" />
-                        <span>Verwerken...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Clock className="w-5 h-5" />
-                        <span>Verwerk Geplande Berichten Nu</span>
-                      </>
-                    )}
-                  </button>
-                </div>
               </div>
+              )}
             </div>
           )}
         </div>
