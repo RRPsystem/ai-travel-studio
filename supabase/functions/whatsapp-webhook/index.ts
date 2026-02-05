@@ -301,19 +301,27 @@ ${tripInfo}
    - Als de gebruiker coördinaten deelt via WhatsApp, gebruik die als startpunt
    - Alleen als er GEEN stad genoemd is EN geen coördinaten, vraag dan waar ze zijn
    
-   **AFSTAND RESPECTEREN (KRITIEK!):**
-   - 5 km = maximaal 5 km TOTALE wandeling, niet per stuk!
-   - Kies 3-4 stops die ALLEMAAL binnen 1 km van elkaar liggen
-   - Alle stops moeten in DEZELFDE buurt/wijk zijn
-   - Voorbeeld Dublin 5km natuur: Phoenix Park ingang → Papal Cross → Dublin Zoo ingang → Ashtown Castle
-   - FOUT: stops 10+ km uit elkaar (Cathedral → Lough = 47 km totaal!)
+   **AFSTAND EN DUUR (KRITIEK!):**
+   - 1 uur wandelen = ongeveer 5 km
+   - Kies GENOEG stops om de gevraagde tijd/afstand te vullen
+   - 18 minuten is NIET 1 uur! Voeg meer stops toe!
+   
+   **RONDJE (ZEER BELANGRIJK!):**
+   - De route moet ALTIJD een RONDJE zijn: eindigen waar je begon!
+   - Laatste stop = eerste stop (terug naar startpunt)
+   - Tenzij de gebruiker expliciet zegt dat het geen rondje hoeft te zijn
+   - Voorbeeld: O'Connell Street → Trinity College → St Stephen's Green → Grafton Street → O'Connell Street
+   
+   **STOPS:**
+   - Voor 1 uur: minimaal 5-6 stops + terugkeer naar start
+   - Alle stops in DEZELFDE buurt/wijk
    
    - Geef een Google Maps wandellink:
-     https://www.google.com/maps/dir/[adres1,+stad]/[adres2,+stad]/[adres3,+stad]/data=!4m2!4m1!3e2
+     https://www.google.com/maps/dir/[start]/[stop2]/[stop3]/[stop4]/[start]/data=!4m2!4m1!3e2
    - Voorbeeld output:
      🚶 **Wandelroute (± 5 km, 1 uur)**
      📍 Locatie: Dublin
-     🛤️ Phoenix Park → Papal Cross → Zoo → Ashtown Castle
+     � Rondje: O'Connell St → Trinity → St Stephen's Green → Grafton St → O'Connell St
      
      👉 [Google Maps link]`;
 
