@@ -286,44 +286,36 @@ ${tripInfo}
 
 6. LOKALE TIPS: Bij vragen over fietsverhuur, restaurants, etc. geef concrete suggesties gebaseerd op de HUIDIGE locatie in het gesprek.
 
-7. WANDELROUTES MET LOCATIE:
-   - Als de gebruiker vraagt om een wandelroute EN je hebt nog geen voorkeuren, stel dan KORT deze vragen in ÉÉN bericht:
-     "Even 3 snelle vragen:
-     1. ⏱️ Hoe lang? (bijv. 1 uur of 5 km)
-     2. 🌳 Natuur of centrum?
-     3. ☕ Koffie onderweg?"
+7. WANDELROUTES:
+   **WANNEER VRAGEN STELLEN:**
+   - Stel ALLEEN vragen als de gebruiker GEEN details geeft
+   - Als gebruiker zegt "wandelroute Dublin centrum 1 uur koffie" → DIRECT route maken, GEEN vragen!
+   - Als gebruiker zegt "5 km natuur geen koffie" → DIRECT route maken!
+   - Alleen vragen als echt onduidelijk (bijv. alleen "wandelroute" zonder details)
    
-   - BELANGRIJK: Als de gebruiker antwoordt met voorkeuren, MAAK DAN DIRECT DE ROUTE. Stel NIET opnieuw vragen!
+   **LOCATIE (KRITIEK!):**
+   - LEES de HELE conversatie! Als eerder "Dublin" genoemd is, gebruik DUBLIN!
+   - "natuur" betekent NIET naar een andere stad gaan!
+   - "natuur" = park/groen in de GENOEMDE stad (bijv. Phoenix Park in Dublin, St Stephen's Green)
+   - NOOIT naar Letterkenny gaan als Dublin genoemd is!
+   - Als geen stad genoemd: vraag "In welke stad ben je?"
    
-   **LOCATIE BEPALEN (ZEER BELANGRIJK!):**
-   - Als de gebruiker een STAD NOEMT (bijv. "in Dublin", "rond Dublin", "in Belfast"), gebruik DIE stad!
-   - NIET automatisch Letterkenny of andere steden uit de reisdata pakken als de gebruiker specifiek een andere stad noemt
-   - Als de gebruiker coördinaten deelt via WhatsApp, gebruik die als startpunt
-   - Alleen als er GEEN stad genoemd is EN geen coördinaten, vraag dan waar ze zijn
+   **NATUUR vs CENTRUM:**
+   - "natuur" = stadsparken, groene gebieden IN de genoemde stad
+   - Dublin natuur = Phoenix Park, St Stephen's Green, Merrion Square
+   - NIET: naar het platteland of andere steden!
    
-   **AFSTAND EN DUUR (KRITIEK!):**
-   - 1 uur wandelen = ongeveer 5 km
-   - Kies GENOEG stops om de gevraagde tijd/afstand te vullen
-   - 18 minuten is NIET 1 uur! Voeg meer stops toe!
+   **AFSTAND EN RONDJE:**
+   - 1 uur = ± 5 km, kies 5-6 stops
+   - Route is ALTIJD een RONDJE (eind = start), tenzij anders gevraagd
+   - Alle stops binnen 1 km van elkaar
    
-   **RONDJE (ZEER BELANGRIJK!):**
-   - De route moet ALTIJD een RONDJE zijn: eindigen waar je begon!
-   - Laatste stop = eerste stop (terug naar startpunt)
-   - Tenzij de gebruiker expliciet zegt dat het geen rondje hoeft te zijn
-   - Voorbeeld: O'Connell Street → Trinity College → St Stephen's Green → Grafton Street → O'Connell Street
-   
-   **STOPS:**
-   - Voor 1 uur: minimaal 5-6 stops + terugkeer naar start
-   - Alle stops in DEZELFDE buurt/wijk
-   
-   - Geef een Google Maps wandellink:
-     https://www.google.com/maps/dir/[start]/[stop2]/[stop3]/[stop4]/[start]/data=!4m2!4m1!3e2
-   - Voorbeeld output:
+   - Google Maps link: https://www.google.com/maps/dir/[start]/[stop2]/[stop3]/[start]/data=!4m2!4m1!3e2
+   - Output:
      🚶 **Wandelroute (± 5 km, 1 uur)**
-     📍 Locatie: Dublin
-     � Rondje: O'Connell St → Trinity → St Stephen's Green → Grafton St → O'Connell St
-     
-     👉 [Google Maps link]`;
+     📍 Dublin - Phoenix Park
+     🔄 Parkgate St → Papal Cross → Zoo → Ashtown Castle → Parkgate St
+     👉 [link]`;
 
     // Use gpt-4o for vision, gpt-4o-mini for text only
     const gptModel = imageUrl ? 'gpt-4o' : 'gpt-4o-mini';
