@@ -15,7 +15,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('TCC_VERSION', '1.0.68');
+define('TCC_VERSION', '1.0.67');
 define('TCC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TCC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -284,31 +284,7 @@ class TravelC_Content {
             }
         }
         
-        // Strip embedded CSS/style tags from builder output
-        $content = preg_replace('/<style[^>]*>.*?<\/style>/is', '', $content);
-        
-        // Also strip any CSS that starts with /* Reset or /* Component
-        $content = preg_replace('/\/\*\s*(Reset|Component|Utility).*?\*\/.*?(?=<|$)/is', '', $content);
-        
-        // Clean up any remaining raw CSS (lines starting with common CSS patterns)
-        $lines = explode("\n", $content);
-        $filtered_lines = array_filter($lines, function($line) {
-            $trimmed = trim($line);
-            // Skip lines that look like CSS rules
-            if (preg_match('/^[a-z\.\#\*\@\[\:]/i', $trimmed) && strpos($trimmed, '{') !== false) {
-                return false;
-            }
-            if (preg_match('/^\s*(margin|padding|font-|color|background|border|display|position|width|height|box-sizing|line-height)[\s:]/i', $trimmed)) {
-                return false;
-            }
-            if (preg_match('/^\s*[\}\{]\s*$/', $trimmed)) {
-                return false;
-            }
-            return true;
-        });
-        $content = implode("\n", $filtered_lines);
-        
-        return trim($content);
+        return $content;
     }
     
     /**
