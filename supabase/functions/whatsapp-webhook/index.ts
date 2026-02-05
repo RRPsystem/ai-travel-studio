@@ -98,8 +98,13 @@ Deno.serve(async (req: Request) => {
     const numMedia = parseInt(formData.get('NumMedia')?.toString() || '0');
     const mediaUrl = numMedia > 0 ? formData.get('MediaUrl0')?.toString() : undefined;
     const mediaContentType = numMedia > 0 ? formData.get('MediaContentType0')?.toString() : undefined;
+    
+    // Get location data if user shared their location
+    const latitude = formData.get('Latitude')?.toString();
+    const longitude = formData.get('Longitude')?.toString();
+    const hasLocation = latitude && longitude;
 
-    console.log('Received:', { from, body: body.substring(0, 50), numMedia });
+    console.log('Received:', { from, body: body.substring(0, 50), numMedia, hasLocation });
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -160,6 +165,18 @@ Deno.serve(async (req: Request) => {
       imageUrl = mediaUrl;
       if (!userMessage) {
         userMessage = '[Gebruiker stuurde een afbeelding]';
+      }
+    }
+
+    // Handle location messages - user shared their location
+    if (hasLocation) {
+      console.log('📍 Location received:', latitude, longitude);
+      // Add location context to the message
+      const locationContext = `[Gebruiker deelde locatie: ${latitude}, ${longitude}]`;
+      if (!userMessage) {
+        userMessage = locationContext + ' Geef me een wandelroute vanaf deze locatie.';
+      } else {
+        userMessage = locationContext + ' ' + userMessage;
       }
     }
 
@@ -267,7 +284,21 @@ ${tripInfo}
    - Toon NOOIT prijzen (klant heeft al geboekt)
    - Wees proactief met suggesties
 
-6. LOKALE TIPS: Bij vragen over fietsverhuur, restaurants, etc. geef concrete suggesties gebaseerd op de HUIDIGE locatie in het gesprek.`;
+6. LOKALE TIPS: Bij vragen over fietsverhuur, restaurants, etc. geef concrete suggesties gebaseerd op de HUIDIGE locatie in het gesprek.
+
+7. WANDELROUTES MET LOCATIE:
+   - Als de gebruiker een locatie deelt (coördinaten), gebruik deze als startpunt
+   - Genereer een wandelroute met interessante stops in de buurt
+   - Geef een Google Maps wandellink in dit formaat:
+     https://www.google.com/maps/dir/[startlocatie]/[stop1]/[stop2]/[eindlocatie]/@[lat],[lng],15z/data=!4m2!4m1!3e2
+   - De "!3e2" aan het einde zorgt voor wandelmodus
+   - Voorbeeld output:
+     🚶 **Wandelroute vanaf jouw locatie**
+     📍 Start: [locatienaam]
+     🛤️ Route: [stop1] → [stop2] → [stop3]
+     ⏱️ Duur: ± X uur
+     
+     👉 [Google Maps wandellink]`;
 
     // Use gpt-4o for vision, gpt-4o-mini for text only
     const gptModel = imageUrl ? 'gpt-4o' : 'gpt-4o-mini';
