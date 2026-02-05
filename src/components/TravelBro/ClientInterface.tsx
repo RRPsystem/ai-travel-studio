@@ -128,19 +128,23 @@ export function ClientInterface({ shareToken }: { shareToken: string }) {
         const newSessionToken = crypto.randomUUID().replace(/-/g, '');
 
         // Try to create intake, but don't block if it fails (RLS or FK issues)
-        const { error: intakeInsertError } = await supabase
-          .from('travel_intakes')
-          .insert({
-            session_token: newSessionToken,
-            trip_id: tripData.id,
-            brand_id: tripData.brand_id,
-            travelers_count: 0,
-            intake_data: {}
-          });
+        try {
+          const { error: intakeInsertError } = await supabase
+            .from('travel_intakes')
+            .insert({
+              session_token: newSessionToken,
+              trip_id: tripData.id,
+              brand_id: tripData.brand_id,
+              travelers_count: 0,
+              intake_data: {}
+            });
 
-        if (intakeInsertError) {
-          console.warn('Could not create intake (continuing anyway):', intakeInsertError.message);
-          // Don't block - continue without intake
+          if (intakeInsertError) {
+            console.warn('Could not create intake (continuing anyway):', intakeInsertError.message);
+            // Don't block - continue without intake
+          }
+        } catch (e) {
+          console.warn('Intake creation failed silently:', e);
         }
 
         // Try to create session
