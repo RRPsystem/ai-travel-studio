@@ -47,120 +47,6 @@ async function sendWhatsAppMessage(
   return await response.json();
 }
 
-// Check if user is asking for a route/map
-function isRouteRequest(message: string): boolean {
-  const routeKeywords = [
-    'route', 'kaart', 'map', 'navigatie', 'rijden naar', 'hoe kom ik',
-    'weg naar', 'richting', 'navigeren', 'routekaart', 'plattegrond',
-    'hoe rij ik', 'route van', 'route naar', 'toon de route', 'laat de route zien'
-  ];
-  const lowerMessage = message.toLowerCase();
-  return routeKeywords.some(keyword => lowerMessage.includes(keyword));
-}
-
-// Extract locations from a route request using AI
-async function extractRouteLocations(
-  message: string,
-  conversationHistory: any[],
-  tripData: any,
-  openaiApiKey: string
-): Promise<{ from: string; to: string } | null> {
-  try {
-    const systemPrompt = `Je bent een locatie-extractor. Analyseer het bericht en de conversatie om de START en EIND locatie van een gevraagde route te bepalen.
-
-REISCONTEXT:
-${JSON.stringify(tripData, null, 2)}
-
-REGELS:
-1. Als de gebruiker vraagt om een route, bepaal dan de FROM en TO locaties
-2. Als alleen een bestemming wordt genoemd, gebruik dan de huidige locatie uit de reis of conversatie als startpunt
-3. Als de gebruiker "hier" of "mijn hotel" zegt, gebruik dan de relevante locatie uit de reisdata
-4. Geef ALLEEN een JSON object terug, geen uitleg
-
-Antwoord ALLEEN in dit formaat:
-{"from": "startlocatie", "to": "eindlocatie"}
-
-Als je geen route kunt bepalen, antwoord dan:
-{"from": null, "to": null}`;
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...conversationHistory.slice(-4),
-          { role: 'user', content: `Bepaal de route locaties voor dit bericht: "${message}"` }
-        ],
-        temperature: 0.3,
-        max_tokens: 100,
-      }),
-    });
-
-    if (!response.ok) {
-      console.error('Failed to extract route locations');
-      return null;
-    }
-
-    const result = await response.json();
-    const content = result.choices[0].message.content.trim();
-    
-    // Parse JSON response
-    const match = content.match(/\{[\s\S]*\}/);
-    if (match) {
-      const parsed = JSON.parse(match[0]);
-      if (parsed.from && parsed.to) {
-        console.log(`📍 Route extracted: ${parsed.from} → ${parsed.to}`);
-        return parsed;
-      }
-    }
-    return null;
-  } catch (error) {
-    console.error('Error extracting route locations:', error);
-    return null;
-  }
-}
-
-// Generate a Google Static Maps URL with route
-async function generateRouteMapUrl(
-  from: string,
-  to: string,
-  googleMapsApiKey: string
-): Promise<{ mapUrl: string; distance: string; duration: string } | null> {
-  try {
-    // First get the route to get the polyline
-    const directionsUrl = `https://maps.googleapis.com/maps/api/directions/json?origin=${encodeURIComponent(from)}&destination=${encodeURIComponent(to)}&mode=driving&key=${googleMapsApiKey}&language=nl`;
-    
-    const response = await fetch(directionsUrl);
-    const data = await response.json();
-
-    if (data.status !== 'OK' || !data.routes || data.routes.length === 0) {
-      console.error('Directions API error:', data.status);
-      return null;
-    }
-
-    const route = data.routes[0];
-    const leg = route.legs[0];
-    const polyline = route.overview_polyline.points;
-
-    // Generate Static Maps URL with the route
-    const mapUrl = `https://maps.googleapis.com/maps/api/staticmap?size=600x400&maptype=roadmap&path=enc:${encodeURIComponent(polyline)}&markers=color:green|label:A|${encodeURIComponent(from)}&markers=color:red|label:B|${encodeURIComponent(to)}&key=${googleMapsApiKey}`;
-
-    return {
-      mapUrl,
-      distance: leg.distance.text,
-      duration: leg.duration.text
-    };
-  } catch (error) {
-    console.error('Error generating route map:', error);
-    return null;
-  }
-}
-
 async function transcribeAudio(audioUrl: string, openaiApiKey: string, twilioAccountSid: string, twilioAuthToken: string): Promise<string> {
   try {
     const authHeader = 'Basic ' + btoa(`${twilioAccountSid}:${twilioAuthToken}`);
@@ -329,48 +215,6 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    // Check if this is a route/map request
-    let routeMapUrl: string | undefined = undefined;
-    let routeInfo: { distance: string; duration: string } | undefined = undefined;
-    
-    if (isRouteRequest(userMessage)) {
-      console.log('🗺️ Route request detected');
-      
-      // Get Google Maps API key
-      const { data: googleSettings } = await supabase
-        .from('api_settings')
-        .select('maps_api_key')
-        .eq('provider', 'Google')
-        .maybeSingle();
-      
-      if (googleSettings?.maps_api_key) {
-        // Extract route locations using AI
-        const locations = await extractRouteLocations(
-          userMessage,
-          conversationHistory,
-          trip.parsed_data,
-          openaiSettings.api_key
-        );
-        
-        if (locations) {
-          console.log(`📍 Generating map: ${locations.from} → ${locations.to}`);
-          const mapResult = await generateRouteMapUrl(
-            locations.from,
-            locations.to,
-            googleSettings.maps_api_key
-          );
-          
-          if (mapResult) {
-            routeMapUrl = mapResult.mapUrl;
-            routeInfo = { distance: mapResult.distance, duration: mapResult.duration };
-            console.log(`✅ Map generated: ${mapResult.distance}, ${mapResult.duration}`);
-          }
-        }
-      } else {
-        console.log('⚠️ Google Maps API key not configured');
-      }
-    }
-
     // Prepare trip info - REMOVE raw_compositor_data to reduce tokens
     let compactData = trip.parsed_data;
     if (compactData?.raw_compositor_data) {
@@ -502,16 +346,9 @@ ${tripInfo}
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', sessionData.id);
 
-    // Send WhatsApp response - include route map if available
-    let finalMessage = aiMessage;
-    
-    // If we have route info, add it to the message
-    if (routeInfo) {
-      finalMessage = `🗺️ Route: ${routeInfo.distance} | ⏱️ ${routeInfo.duration}\n\n${aiMessage}`;
-    }
-    
-    await sendWhatsAppMessage(from, finalMessage, twilioAccountSid, twilioAuthToken, twilioWhatsAppNumber, routeMapUrl);
-    console.log('✅ Response sent', routeMapUrl ? '(with map)' : '');
+    // Send WhatsApp response
+    await sendWhatsAppMessage(from, aiMessage, twilioAccountSid, twilioAuthToken, twilioWhatsAppNumber);
+    console.log('✅ Response sent');
 
     return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
       headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
