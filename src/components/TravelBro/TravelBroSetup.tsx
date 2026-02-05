@@ -53,6 +53,7 @@ export function TravelBroSetup() {
   const [loadingMicrosites, setLoadingMicrosites] = useState(false);
   const [syncingCompositor, setSyncingCompositor] = useState(false);
   const [compositorData, setCompositorData] = useState<any>(null);
+  const [syncedTripId, setSyncedTripId] = useState<string | null>(null);
   const [pdfFile, setPdfFile] = useState<File | null>(null);
   const [sourceUrls, setSourceUrls] = useState<string[]>(['']);
   const [travelers, setTravelers] = useState([{ name: '', age: '', relation: 'adult', phone: '' }]);
@@ -574,45 +575,57 @@ export function TravelBroSetup() {
       const itinerary = parsedData?.itinerary;
       const tripMetadata = itinerary ? { itinerary } : null;
 
-      console.log('💾 Inserting into database...');
-      console.log('💾 Data:', {
-        brand_id: user?.brand_id,
-        name: newTripName,
-        pdf_url: pdfUrl,
-        parsed_data: parsedData || {},
-        metadata: tripMetadata,
-        source_urls: filteredUrls,
-        intake_template: intakeTemplate,
-        custom_context: customContext,
-        gpt_model: gptModel,
-        gpt_temperature: gptTemperature,
-        created_by: user?.id,
-      });
+      let createdTrip: any;
 
-      const { data, error} = await db.supabase
-        .from('travel_trips')
-        .insert({
-          brand_id: user?.brand_id,
-          name: newTripName,
-          compositor_booking_id: compositorBookingId.trim() || null,
-          pdf_url: pdfUrl,
-          parsed_data: parsedData || {},
-          metadata: tripMetadata,
-          source_urls: filteredUrls,
-          intake_template: intakeTemplate,
-          custom_context: customContext,
-          gpt_model: gptModel,
-          gpt_temperature: gptTemperature,
-          created_by: user?.id,
-        })
-        .select()
-        .single();
+      // If trip was already created by sync-travel API, update it instead of creating new
+      if (syncedTripId) {
+        console.log('💾 Trip already exists from sync, updating:', syncedTripId);
+        
+        const { data, error } = await db.supabase
+          .from('travel_trips')
+          .update({
+            name: newTripName,
+            pdf_url: pdfUrl,
+            metadata: tripMetadata,
+            intake_template: intakeTemplate,
+            gpt_model: gptModel,
+            gpt_temperature: gptTemperature,
+            created_by: user?.id,
+          })
+          .eq('id', syncedTripId)
+          .select()
+          .single();
 
-      console.log('💾 Database response:', { data, error });
+        console.log('💾 Update response:', { data, error });
+        if (error) throw error;
+        createdTrip = data;
+      } else {
+        // No synced trip, create new one
+        console.log('💾 Creating new trip...');
+        
+        const { data, error } = await db.supabase
+          .from('travel_trips')
+          .insert({
+            brand_id: user?.brand_id,
+            name: newTripName,
+            compositor_booking_id: compositorBookingId.trim() || null,
+            pdf_url: pdfUrl,
+            parsed_data: parsedData || {},
+            metadata: tripMetadata,
+            source_urls: filteredUrls,
+            intake_template: intakeTemplate,
+            custom_context: customContext,
+            gpt_model: gptModel,
+            gpt_temperature: gptTemperature,
+            created_by: user?.id,
+          })
+          .select()
+          .single();
 
-      if (error) throw error;
-
-      const createdTrip = data;
+        console.log('💾 Insert response:', { data, error });
+        if (error) throw error;
+        createdTrip = data;
+      }
 
       if (compositorBookingId.trim()) {
         console.log('🔔 Notifying External Builder webhook for Compositor sync...');
@@ -723,6 +736,8 @@ export function TravelBroSetup() {
       console.log('✅ TravelBRO created successfully!');
       setNewTripName('');
       setCompositorBookingId('');
+      setCompositorData(null);
+      setSyncedTripId(null);
       setPdfFile(null);
       setSourceUrls(['']);
       setTravelers([{ name: '', age: '', relation: 'adult', phone: '' }]);
@@ -884,6 +899,12 @@ export function TravelBroSetup() {
       }
 
       setCompositorData(result.data);
+      
+      // Store the trip_id from sync so we don't create a duplicate
+      if (result.trip_id) {
+        setSyncedTripId(result.trip_id);
+        console.log('✅ Trip already created by sync-travel API:', result.trip_id);
+      }
 
       if (result.data?.title) {
         setNewTripName(result.data.title);
@@ -893,7 +914,7 @@ export function TravelBroSetup() {
         setSourceUrls([result.data.destination_names.join(', ')]);
       }
 
-      alert(`✅ Data opgehaald én opgeslagen van Travel Compositor!\n\nReis: ${result.data?.title}\nTC ID: ${result.tc_idea_id}\nTrip ID: ${result.trip_id}\nDuur: ${result.data?.duration_days || 0} dagen`);
+      alert(`✅ Data opgehaald én opgeslagen van Travel Compositor!\n\nReis: ${result.data?.title}\nTC ID: ${result.tc_idea_id}\nDuur: ${result.data?.duration_days || 0} dagen`);
 
       await loadData();
     } catch (error) {
