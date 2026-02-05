@@ -673,36 +673,34 @@ export function TravelBroSetup() {
               continue;
             }
 
-            const now = new Date();
-            const scheduleDate = now.toISOString().split('T')[0];
-            const scheduleTime = now.toISOString().split('T')[1].split('.')[0];
-
-            const shareLink = getShareUrl(createdTrip.share_token);
-
-            const { error: scheduleError } = await db.supabase
-              .from('scheduled_whatsapp_messages')
-              .insert({
-                trip_id: createdTrip.id,
-                brand_id: user?.brand_id,
-                recipient_phone: normalizedPhone,
-                template_name: 'travelbro',
-                message_content: '',
-                scheduled_date: scheduleDate,
-                scheduled_time: scheduleTime,
-                timezone: 'Europe/Amsterdam',
-                message_type: 'welcome',
-                template_variables: {
+            // Send welcome message directly via edge function
+            const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-whatsapp`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              },
+              body: JSON.stringify({
+                to: normalizedPhone,
+                brandId: user?.brand_id,
+                useTemplate: true,
+                templateSid: 'HX23e0ee5840758fb35bd1bedf502fdf42',
+                templateVariables: {
                   '1': (traveler.name || 'Reiziger').substring(0, 100),
                   '2': (createdTrip.name || 'jouw reis').substring(0, 100),
-                  '3': shareLink
                 },
-              });
+                tripId: createdTrip.id,
+                sessionToken: crypto.randomUUID(),
+              }),
+            });
 
-            if (scheduleError) {
-              console.error(`❌ Error scheduling message for ${traveler.name}:`, scheduleError);
+            if (!response.ok) {
+              const result = await response.json();
+              console.error(`❌ Error sending message for ${traveler.name}:`, result);
               failCount++;
             } else {
               successCount++;
+              console.log(`✅ Welcome message sent to ${traveler.name}`);
             }
           } catch (error) {
             console.error(`❌ Error processing traveler ${traveler.name}:`, error);
@@ -711,9 +709,9 @@ export function TravelBroSetup() {
         }
 
         if (successCount > 0) {
-          alert(`✅ TravelBRO aangemaakt en ${successCount} welkomstbericht(en) gepland! (50 credits gebruikt)\n\n${failCount > 0 ? `⚠️ ${failCount} bericht(en) mislukt.` : ''}\n\nDruk op "Verwerk Geplande Berichten Nu" om de berichten direct te versturen.`);
+          alert(`✅ TravelBRO aangemaakt!\n\n${successCount} welkomstbericht(en) verstuurd naar je klant(en).${failCount > 0 ? `\n⚠️ ${failCount} bericht(en) mislukt.` : ''}`);
         } else {
-          alert('⚠️ TravelBRO aangemaakt (50 credits gebruikt), maar geen WhatsApp berichten konden worden gepland. Check de logs.');
+          alert('⚠️ TravelBRO aangemaakt, maar WhatsApp berichten konden niet worden verstuurd. Check de Twilio instellingen.');
         }
       } else if (intakeTemplate) {
         console.log('📋 TravelBRO heeft intake formulier - klant moet eerst formulier invullen');
@@ -1751,12 +1749,17 @@ export function TravelBroSetup() {
             </div>
           ) : (
             <div className="space-y-6">
-              <div className="bg-white rounded-lg shadow-sm border p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                    <Settings className="w-5 h-5 mr-2 text-gray-600" />
-                    Reis Instellingen
-                  </h3>
+              {/* Reis Instellingen - standaard ingeklapt */}
+              <details className="bg-white rounded-lg shadow-sm border">
+                <summary className="p-4 cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Settings className="w-5 h-5 text-gray-600" />
+                    <span className="font-semibold text-gray-900">Reis Instellingen</span>
+                  </div>
+                  <span className="text-xs text-gray-400">Klik om te openen</span>
+                </summary>
+                <div className="p-6 border-t">
+                <div className="flex justify-end mb-4">
                   <button
                     onClick={() => {
                       if (isEditingTrip) {
@@ -2146,159 +2149,123 @@ export function TravelBroSetup() {
                     )}
                   </div>
                 )}
+                </div>
+              </details>
+
+              {/* === ACTIES - MODERNE CARD LAYOUT === */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {/* Deel Link */}
+                <button
+                  onClick={() => copyClientLink(selectedTrip.share_token)}
+                  className="group bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 rounded-xl p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                >
+                  <Share2 className="w-8 h-8 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                  <p className="text-sm font-semibold">Deel Link</p>
+                  <p className="text-xs opacity-80">Kopieer naar klant</p>
+                </button>
+
+                {/* WhatsApp */}
+                <button
+                  onClick={() => {
+                    const phone = prompt('WhatsApp nummer (bijv. +31612345678):');
+                    if (phone) {
+                      setInvitePhone(phone);
+                      sendWhatsAppInvite();
+                    }
+                  }}
+                  className="group bg-gradient-to-br from-green-400 to-green-600 hover:from-green-500 hover:to-green-700 rounded-xl p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                >
+                  <MessageSquare className="w-8 h-8 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                  <p className="text-sm font-semibold">WhatsApp</p>
+                  <p className="text-xs opacity-80">Stuur uitnodiging</p>
+                </button>
+
+                {/* Roadbook */}
+                {selectedTrip.page_id ? (
+                  <button
+                    onClick={() => window.open(`https://www.ai-websitestudio.nl/preview.html?page_id=${selectedTrip.page_id}&brand_id=${selectedTrip.brand_id}`, '_blank')}
+                    className="group bg-gradient-to-br from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 rounded-xl p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                  >
+                    <Route className="w-8 h-8 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                    <p className="text-sm font-semibold">Roadbook</p>
+                    <p className="text-xs opacity-80">Bekijk / Bewerk</p>
+                  </button>
+                ) : selectedTrip.compositor_booking_id ? (
+                  <button
+                    onClick={() => handleCreateRoadbook(selectedTrip)}
+                    className="group bg-gradient-to-br from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 rounded-xl p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                  >
+                    <Route className="w-8 h-8 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                    <p className="text-sm font-semibold">Roadbook</p>
+                    <p className="text-xs opacity-80">Maak nieuw</p>
+                  </button>
+                ) : (
+                  <div className="bg-gray-100 rounded-xl p-4 text-gray-400 opacity-50">
+                    <Route className="w-8 h-8 mx-auto mb-2" />
+                    <p className="text-sm font-semibold">Roadbook</p>
+                    <p className="text-xs">Alleen met TC ID</p>
+                  </div>
+                )}
+
+                {/* Intake */}
+                <button
+                  onClick={() => {
+                    const intakeUrl = getShareUrl(selectedTrip.share_token);
+                    navigator.clipboard.writeText(intakeUrl);
+                    alert('✅ Intake link gekopieerd!');
+                  }}
+                  className="group bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 rounded-xl p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                >
+                  <FileText className="w-8 h-8 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                  <p className="text-sm font-semibold">Intake</p>
+                  <p className="text-xs opacity-80">Kopieer link</p>
+                </button>
               </div>
 
-              {/* === ACTIE KNOPPEN === */}
-              <div className="bg-white rounded-xl shadow-sm border p-5">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
-                    <Share2 className="w-5 h-5 text-green-600" />
+              {/* === QR CODE (compact) === */}
+              {(() => {
+                const qrData = getQRCodeData();
+                return qrData ? (
+                  <div className="bg-white rounded-xl shadow-sm border p-4 flex items-center gap-4">
+                    <img src={qrData.qrCodeUrl} alt="QR Code" className="w-20 h-20 rounded-lg shadow bg-white p-1" />
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">WhatsApp QR Code</p>
+                      <p className="text-xs text-gray-500">Klant kan scannen om te starten</p>
+                      <p className="text-sm font-mono font-bold text-orange-600 mt-1">{qrData.code}</p>
+                    </div>
                   </div>
-                  <h3 className="font-semibold text-gray-900">Deel de Reis</h3>
-                </div>
-                
-                <div className="grid md:grid-cols-2 gap-4">
-                  {/* Links & QR */}
-                  <div className="space-y-3">
-                    <div className="bg-gray-50 rounded-lg p-3">
-                      <p className="text-xs text-gray-500 mb-1">🌐 Web Link</p>
-                      <code className="text-xs text-gray-700 break-all block mb-2">{getShareUrl(selectedTrip.share_token)}</code>
-                      <button
-                        onClick={() => copyClientLink(selectedTrip.share_token)}
-                        className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                ) : null;
+              })()}
+
+              {/* === WHATSAPP GESPREKKEN === */}
+              {tripSessions.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm border p-4">
+                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-green-600" />
+                    WhatsApp Gesprekken ({tripSessions.length})
+                  </h4>
+                  <div className="space-y-2">
+                    {tripSessions.map((session) => (
+                      <div 
+                        key={session.id} 
+                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-green-50 cursor-pointer transition-colors"
+                        onClick={() => loadChatHistory(session)}
                       >
-                        <Share2 size={14} />
-                        Kopieer Link
-                      </button>
-                    </div>
-                    {(() => {
-                      const qrData = getQRCodeData();
-                      return qrData ? (
-                        <div className="text-center bg-gray-50 rounded-lg p-3">
-                          <p className="text-xs text-gray-500 mb-2">📱 WhatsApp QR</p>
-                          <img src={qrData.qrCodeUrl} alt="QR Code" className="w-24 h-24 mx-auto rounded-lg shadow bg-white p-1" />
-                          <p className="text-xs text-gray-500 mt-1">Code: <span className="font-mono font-bold text-orange-600">{qrData.code}</span></p>
-                        </div>
-                      ) : null;
-                    })()}
-                  </div>
-
-                  {/* Roadbook + Acties */}
-                  <div className="space-y-3">
-                    {/* Roadbook */}
-                    <div className="bg-purple-50 rounded-lg p-3">
-                      <p className="text-xs text-purple-600 font-medium mb-2">🗺️ Roadbook</p>
-                      {selectedTrip.page_id ? (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => window.open(`https://www.ai-websitestudio.nl/preview.html?page_id=${selectedTrip.page_id}&brand_id=${selectedTrip.brand_id}`, '_blank')}
-                            className="flex-1 bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium py-2 px-2 rounded-lg transition-colors flex items-center justify-center gap-1"
-                          >
-                            <ExternalLink size={12} />
-                            Bekijk
-                          </button>
-                          <button
-                            onClick={() => window.open(`https://www.ai-websitestudio.nl/builder.html?page_id=${selectedTrip.page_id}`, '_blank')}
-                            className="flex-1 bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs font-medium py-2 px-2 rounded-lg transition-colors flex items-center justify-center gap-1"
-                          >
-                            <Edit size={12} />
-                            Bewerk
-                          </button>
-                        </div>
-                      ) : selectedTrip.compositor_booking_id ? (
-                        <button
-                          onClick={() => handleCreateRoadbook(selectedTrip)}
-                          className="w-full bg-purple-600 hover:bg-purple-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1"
-                        >
-                          <Route size={14} />
-                          Maak Roadbook
-                        </button>
-                      ) : (
-                        <p className="text-xs text-gray-400 italic">Alleen met TC ID</p>
-                      )}
-                    </div>
-
-                    {/* Stuur Intake */}
-                    <div className="bg-blue-50 rounded-lg p-3">
-                      <p className="text-xs text-blue-600 font-medium mb-2">📋 Intake Formulier</p>
-                      <button
-                        onClick={() => {
-                          const intakeUrl = getShareUrl(selectedTrip.share_token);
-                          navigator.clipboard.writeText(intakeUrl);
-                          alert('✅ Intake link gekopieerd!\n\nStuur deze link naar je klant om het intake formulier in te vullen.');
-                        }}
-                        className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2 px-3 rounded-lg transition-colors flex items-center justify-center gap-1"
-                      >
-                        <Send size={12} />
-                        Kopieer Intake Link
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* === COMMUNICATIE SECTIE === */}
-              <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-                <div className="bg-gradient-to-r from-green-500 to-emerald-600 px-5 py-4">
-                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <MessageSquare className="w-5 h-5" />
-                    Communicatie
-                  </h3>
-                </div>
-                
-                <div className="p-5 space-y-4">
-                  {/* WhatsApp Sessies */}
-                  {tripSessions.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">Actieve Gesprekken</p>
-                      {tripSessions.map((session) => (
-                        <div 
-                          key={session.id} 
-                          className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-green-50 cursor-pointer transition-colors"
-                          onClick={() => loadChatHistory(session)}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
-                              <MessageSquare className="w-4 h-4 text-white" />
-                            </div>
-                            <div>
-                              <p className="text-sm font-medium text-gray-900">{session.phone_number}</p>
-                              <p className="text-xs text-gray-500">{new Date(session.last_message_at || session.created_at).toLocaleDateString('nl-NL')}</p>
-                            </div>
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center">
+                            <MessageSquare className="w-4 h-4 text-white" />
                           </div>
-                          <ArrowRight className="w-4 h-4 text-gray-400" />
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">{session.phone_number}</p>
+                            <p className="text-xs text-gray-500">{new Date(session.last_message_at || session.created_at).toLocaleDateString('nl-NL')}</p>
+                          </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {tripSessions.length === 0 && (
-                    <p className="text-sm text-gray-500 text-center py-4">Nog geen WhatsApp gesprekken</p>
-                  )}
-
-                  {/* Stuur WhatsApp */}
-                  <div className="border-t pt-4">
-                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">Stuur Uitnodiging</p>
-                    <div className="flex gap-2">
-                      <input
-                        type="tel"
-                        value={invitePhone}
-                        onChange={(e) => setInvitePhone(e.target.value)}
-                        placeholder="+31612345678"
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500"
-                      />
-                      <button
-                        onClick={sendWhatsAppInvite}
-                        disabled={sendingInvite || !invitePhone.trim()}
-                        className="bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-                      >
-                        {sendingInvite ? <Loader className="w-4 h-4 animate-spin" /> : <Send size={16} />}
-                        <span className="text-sm font-medium">Verstuur</span>
-                      </button>
-                    </div>
+                        <ArrowRight className="w-4 h-4 text-gray-400" />
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* === INTAKE & GEPLANDE BERICHTEN (compact) === */}
               <div className="grid md:grid-cols-2 gap-4">
