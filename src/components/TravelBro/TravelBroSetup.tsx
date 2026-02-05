@@ -1686,45 +1686,66 @@ export function TravelBroSetup() {
 
       {activeTab === 'detail' && selectedTrip && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={closeTripDetails}
-                className="flex items-center space-x-2 px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ArrowRight className="rotate-180" size={20} />
-                <span>Terug naar lijst</span>
-              </button>
-              <div className="h-8 w-px bg-gray-300"></div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">{selectedTrip.name}</h2>
-                <p className="text-sm text-gray-600">
-                  Aangemaakt: {new Date(selectedTrip.created_at).toLocaleDateString('nl-NL')}
+          {/* Modern Header Card */}
+          <div className="bg-gradient-to-r from-orange-500 to-amber-500 rounded-xl p-6 text-white shadow-lg">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <button
+                  onClick={closeTripDetails}
+                  className="flex items-center space-x-1 text-white/80 hover:text-white mb-3 text-sm transition-colors"
+                >
+                  <ArrowRight className="rotate-180" size={16} />
+                  <span>Terug naar overzicht</span>
+                </button>
+                <h2 className="text-2xl font-bold mb-2">{selectedTrip.name}</h2>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-white/90">
+                  <span className="flex items-center gap-1">
+                    <Calendar size={14} />
+                    {new Date(selectedTrip.created_at).toLocaleDateString('nl-NL')}
+                  </span>
                   {selectedTrip.compositor_booking_id && (
-                    <span className="ml-3 text-blue-600">TC ID: {selectedTrip.compositor_booking_id}</span>
+                    <span className="bg-white/20 px-2 py-0.5 rounded text-xs font-medium">
+                      TC: {selectedTrip.compositor_booking_id}
+                    </span>
                   )}
-                </p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 ml-4">
+                {selectedTrip.compositor_booking_id && (
+                  <button
+                    onClick={() => handleResyncTripFromCompositor(selectedTrip)}
+                    disabled={loading}
+                    className="flex items-center justify-center space-x-2 px-4 py-2 bg-white/20 hover:bg-white/30 disabled:opacity-50 rounded-lg text-sm font-medium transition-colors"
+                  >
+                    {loading ? <Loader className="w-4 h-4 animate-spin" /> : <Navigation size={16} />}
+                    <span>Re-sync</span>
+                  </button>
+                )}
+                <button
+                  onClick={() => copyClientLink(selectedTrip.share_token)}
+                  className="flex items-center justify-center space-x-2 px-4 py-2 bg-white text-orange-600 hover:bg-orange-50 rounded-lg text-sm font-medium transition-colors"
+                >
+                  <Share2 size={16} />
+                  <span>Deel Link</span>
+                </button>
               </div>
             </div>
-            {selectedTrip.compositor_booking_id && (
-              <button
-                onClick={() => handleResyncTripFromCompositor(selectedTrip)}
-                disabled={loading}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white rounded-lg font-medium transition-colors"
-              >
-                {loading ? (
-                  <>
-                    <Loader className="w-4 h-4 animate-spin" />
-                    <span>Synchroniseren...</span>
-                  </>
-                ) : (
-                  <>
-                    <Navigation size={18} />
-                    <span>Re-sync Compositor</span>
-                  </>
-                )}
-              </button>
-            )}
+            
+            {/* Quick Stats */}
+            <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-white/20">
+              {selectedTrip.parsed_data && Object.keys(selectedTrip.parsed_data).length > 0 && (
+                <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium">✓ Data geladen</span>
+              )}
+              {selectedTrip.page_id && (
+                <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium">🗺️ Roadbook</span>
+              )}
+              {selectedTrip.pdf_url && (
+                <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium">📄 PDF</span>
+              )}
+              <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-medium">
+                💬 {tripSessions.length} chat{tripSessions.length !== 1 ? 's' : ''}
+              </span>
+            </div>
           </div>
 
           {loadingTripDetails ? (
