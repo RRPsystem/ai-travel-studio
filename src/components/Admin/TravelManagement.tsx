@@ -84,11 +84,21 @@ const stripHtml = (html: string): string => {
     .trim();
 };
 
+interface DbCategory {
+  id: string;
+  name: string;
+  slug: string;
+  icon: string;
+  color: string;
+  is_active: boolean;
+}
+
 export function TravelManagement() {
   const { user } = useAuth();
   const [travels, setTravels] = useState<Travel[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [assignments, setAssignments] = useState<TravelAssignment[]>([]);
+  const [dbCategories, setDbCategories] = useState<DbCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [editingTravel, setEditingTravel] = useState<Travel | null>(null);
@@ -163,6 +173,15 @@ export function TravelManagement() {
         .select('*');
 
       setAssignments(assignmentsData || []);
+
+      // Load categories from database
+      const { data: categoriesData } = await supabase
+        .from('travelc_categories')
+        .select('*')
+        .eq('is_active', true)
+        .order('sort_order', { ascending: true });
+
+      setDbCategories(categoriesData || []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -598,24 +617,35 @@ export function TravelManagement() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">📂 Categorieën</label>
                 <div className="flex flex-wrap gap-2">
-                  {['Rondreis', 'Fly & Drive', 'Stedentrip', 'Strandvakantie', 'Avontuur', 'Luxe', 'Budget', 'Familie', 'Romantisch', 'Actief', 'Cruise', 'Safari'].map(cat => (
-                    <label key={cat} className="flex items-center gap-1 px-3 py-1 bg-gray-50 rounded-full cursor-pointer hover:bg-gray-100">
+                  {dbCategories.map(cat => (
+                    <label 
+                      key={cat.id} 
+                      className="flex items-center gap-1 px-3 py-1 rounded-full cursor-pointer transition-colors"
+                      style={{ 
+                        backgroundColor: formData.categories.includes(cat.name) ? cat.color + '20' : '#f9fafb',
+                        borderColor: formData.categories.includes(cat.name) ? cat.color : 'transparent',
+                        borderWidth: '1px'
+                      }}
+                    >
                       <input
                         type="checkbox"
-                        checked={formData.categories.includes(cat)}
+                        checked={formData.categories.includes(cat.name)}
                         onChange={(e) => {
                           if (e.target.checked) {
-                            setFormData({ ...formData, categories: [...formData.categories, cat] });
+                            setFormData({ ...formData, categories: [...formData.categories, cat.name] });
                           } else {
-                            setFormData({ ...formData, categories: formData.categories.filter(c => c !== cat) });
+                            setFormData({ ...formData, categories: formData.categories.filter(c => c !== cat.name) });
                           }
                         }}
                         className="w-3 h-3"
                       />
-                      <span className="text-sm">{cat}</span>
+                      <span className="text-sm">{cat.icon} {cat.name}</span>
                     </label>
                   ))}
                 </div>
+                {dbCategories.length === 0 && (
+                  <p className="text-sm text-gray-400 mt-2">Geen categorieën gevonden. Voeg ze toe via Admin → Categorieën.</p>
+                )}
               </div>
 
               {/* Themes */}

@@ -6,6 +6,7 @@ import { BrandForm } from './BrandForm';
 import { NewsManagement } from './NewsManagement';
 import { DestinationManagement } from './DestinationManagement';
 import { TravelManagement } from './TravelManagement';
+import { CategoryManagement } from './CategoryManagement';
 import { TemplateManager } from './TemplateManager';
 import { TripCatalogManager } from './TripCatalogManager';
 import RoadmapBoard from '../Brand/RoadmapBoard';
@@ -195,6 +196,7 @@ export function AdminDashboard() {
     { id: 'admin-news', label: 'Nieuwsbeheer', icon: Newspaper },
     { id: 'destinations', label: 'Bestemmingen', icon: MapPin },
     { id: 'trips', label: 'Reizen', icon: Plane },
+    { id: 'categories', label: 'Categorieën', icon: Filter },
     { id: 'trip-catalog', label: 'Reizen Catalogus', icon: BookOpen },
     { id: 'wordpress-catalog', label: 'WordPress Catalogus', icon: Globe },
   ];
@@ -651,6 +653,7 @@ export function AdminDashboard() {
           {activeSection === 'admin-news' && <NewsManagement />}
           {activeSection === 'destinations' && <DestinationManagement />}
           {activeSection === 'trips' && <TravelManagement />}
+          {activeSection === 'categories' && <CategoryManagement />}
           {activeSection === 'trip-catalog' && <TripCatalogManager />}
           {activeSection === 'wordpress-catalog' && <WordPressCatalogSync />}
           {activeSection === 'podcast' && <PodcastManagement />}
