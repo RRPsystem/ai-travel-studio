@@ -7,8 +7,6 @@ import { BrandSettings } from './BrandSettings';
 import { HelpBot } from '../shared/HelpBot';
 import { NewsApproval } from './NewsApproval';
 import { DestinationApproval } from './DestinationApproval';
-import { TripApproval } from './TripApproval';
-import { TripManager } from './TripManager';
 import { BrandTravelCReizen } from './BrandTravelCReizen';
 import { PageManagement } from './PageManagement';
 import { QuickStart } from './QuickStart';
