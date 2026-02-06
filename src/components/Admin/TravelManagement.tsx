@@ -129,11 +129,19 @@ export function TravelManagement() {
   const micrositeLogos: Record<string, {name: string, logo: string, color: string}> = {
     'rondreis-planner': { name: 'Rondreis Planner', logo: '🌍', color: 'bg-green-100 text-green-800' },
     'reisbureaunederland': { name: 'Reisbureau Nederland', logo: '🇳🇱', color: 'bg-blue-100 text-blue-800' },
-    'traveltime': { name: 'Travel Time', logo: '⏰', color: 'bg-purple-100 text-purple-800' },
-    'travel-time': { name: 'Travel Time', logo: '⏰', color: 'bg-purple-100 text-purple-800' },
-    'vakantieplaneet': { name: 'Vakantie Planeet', logo: '🪐', color: 'bg-orange-100 text-orange-800' },
-    'vakantie-planeet': { name: 'Vakantie Planeet', logo: '🪐', color: 'bg-orange-100 text-orange-800' },
+    'symphonytravel': { name: 'Symphony Travel', logo: '🎵', color: 'bg-purple-100 text-purple-800' },
+    'pacificislandtravel': { name: 'Pacific Island Travel', logo: '🌴', color: 'bg-teal-100 text-teal-800' },
+    'newreisplan': { name: 'New Reisplan', logo: '✨', color: 'bg-orange-100 text-orange-800' },
   };
+
+  // Hardcoded fallback microsites (in case builder API doesn't return all)
+  const fallbackMicrosites = [
+    { id: 'rondreis-planner', name: 'Rondreis Planner', hasCredentials: true },
+    { id: 'reisbureaunederland', name: 'Reisbureau Nederland', hasCredentials: true },
+    { id: 'symphonytravel', name: 'Symphony Travel', hasCredentials: true },
+    { id: 'pacificislandtravel', name: 'Pacific Island Travel', hasCredentials: true },
+    { id: 'newreisplan', name: 'New Reisplan', hasCredentials: true },
+  ];
   const [showMediaSelector, setShowMediaSelector] = useState(false);
   const [mediaSelectorMode, setMediaSelectorMode] = useState<'hero' | 'gallery'>('gallery');
 
@@ -190,12 +198,16 @@ export function TravelManagement() {
       });
       const result = await response.json();
       if (result.success && result.data?.microsites) {
-        setMicrosites(result.data.microsites);
-        if (result.data.microsites.length > 0) setMicrositeId(result.data.microsites[0].id);
+        // Merge API results with fallback to ensure all 5 are present
+        const apiIds = new Set(result.data.microsites.map((m: any) => m.id));
+        const merged = [...result.data.microsites, ...fallbackMicrosites.filter(f => !apiIds.has(f.id))];
+        setMicrosites(merged);
+      } else {
+        setMicrosites(fallbackMicrosites);
       }
     } catch (error) {
       console.log('Using default microsites');
-      setMicrosites([{ id: 'rondreis-planner', name: 'Rondreis Planner', hasCredentials: true }]);
+      setMicrosites(fallbackMicrosites);
     } finally {
       setLoadingMicrosites(false);
     }
