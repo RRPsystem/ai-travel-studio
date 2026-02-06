@@ -584,19 +584,22 @@ export function TravelManagement() {
                     <div className="flex items-center gap-2">
                       <Plane className="w-4 h-4 text-blue-600" />
                       <span className="font-medium">
-                        {transport.departure?.city || transport.departure?.name || transport.from || 'Vertrek'}
+                        {transport.originCode || transport.originDestinationCode || transport.from || 'Vertrek'}
                       </span>
                       <span>→</span>
                       <span className="font-medium">
-                        {transport.arrival?.city || transport.arrival?.name || transport.to || 'Aankomst'}
+                        {transport.targetCode || transport.targetDestinationCode || transport.to || 'Aankomst'}
                       </span>
                     </div>
                     <div className="text-sm text-gray-600 mt-1">
-                      {transport.carrier && <span className="mr-2">✈️ {transport.carrier}</span>}
-                      {transport.flightNumber && <span className="mr-2">{transport.flightNumber}</span>}
-                      {transport.departure?.date && <span className="mr-2">📅 {transport.departure.date}</span>}
-                      {transport.departure?.time && <span>🕐 {transport.departure.time}</span>}
+                      {transport.company && <span className="mr-2">✈️ {transport.company}</span>}
+                      {transport.transportNumber && <span className="mr-2">{transport.transportNumber}</span>}
+                      {transport.marketingAirlineCode && <span className="mr-2">({transport.marketingAirlineCode})</span>}
+                      {transport.departureDate && <span className="mr-2">📅 {transport.departureDate}</span>}
+                      {transport.departureTime && <span className="mr-2">🕐 {transport.departureTime}</span>}
+                      {transport.duration && <span className="text-gray-400">({transport.duration})</span>}
                     </div>
+                    {transport.fare && <p className="text-xs text-gray-500 mt-1">Klasse: {transport.fare}</p>}
                   </div>
                 ))}
                 {/* Fallback to flights if no transports */}
@@ -626,19 +629,34 @@ export function TravelManagement() {
                     <div className="flex items-center gap-2">
                       <Car className="w-4 h-4 text-orange-600" />
                       <span className="font-medium">
-                        {car.company || car.supplier || 'Huurauto'} 
-                        {(car.category || car.carType || car.vehicle) && ` - ${car.category || car.carType || car.vehicle}`}
+                        {car.company || car.supplier || car.carData?.company || 'Huurauto'}
+                        {(car.category || car.carType || car.carData?.category || car.carData?.name) && 
+                          ` - ${car.category || car.carType || car.carData?.category || car.carData?.name}`}
                       </span>
-                      {(car.days || car.rentalDays) && <span className="text-sm text-gray-500">({car.days || car.rentalDays} dagen)</span>}
+                      {(car.days || car.rentalDays || car.numberOfDays) && 
+                        <span className="text-sm text-gray-500">({car.days || car.rentalDays || car.numberOfDays} dagen)</span>}
                     </div>
-                    {(car.pickupLocation || car.pickUp || car.pickup) && (
-                      <p className="text-sm text-gray-600 mt-1">📍 Ophalen: {car.pickupLocation || car.pickUp || car.pickup}</p>
+                    {/* Pickup location - TC uses pickUpDestinationCode or pickUpLocation */}
+                    {(car.pickUpDestinationCode || car.pickUpLocation || car.pickupLocation || car.pickUp) && (
+                      <p className="text-sm text-gray-600 mt-1">
+                        📍 Ophalen: {car.pickUpDestinationCode || car.pickUpLocation || car.pickupLocation || car.pickUp}
+                        {car.pickUpDate && ` (${car.pickUpDate})`}
+                        {car.pickUpTime && ` ${car.pickUpTime}`}
+                      </p>
                     )}
-                    {(car.dropoffLocation || car.dropOff || car.dropoff) && (car.dropoffLocation || car.dropOff || car.dropoff) !== (car.pickupLocation || car.pickUp || car.pickup) && (
-                      <p className="text-sm text-gray-600">📍 Inleveren: {car.dropoffLocation || car.dropOff || car.dropoff}</p>
+                    {/* Dropoff location */}
+                    {(car.dropOffDestinationCode || car.dropOffLocation || car.dropoffLocation || car.dropOff) && (
+                      <p className="text-sm text-gray-600">
+                        📍 Inleveren: {car.dropOffDestinationCode || car.dropOffLocation || car.dropoffLocation || car.dropOff}
+                        {car.dropOffDate && ` (${car.dropOffDate})`}
+                      </p>
                     )}
-                    {car.transmission && <p className="text-sm text-gray-500">⚙️ {car.transmission}</p>}
-                    {car.price && <p className="text-sm text-gray-500">💰 €{car.price}</p>}
+                    {/* Car details from carData */}
+                    {car.carData?.name && <p className="text-sm text-gray-600">🚗 {car.carData.name}</p>}
+                    {(car.transmission || car.carData?.transmission) && 
+                      <p className="text-sm text-gray-500">⚙️ {car.transmission || car.carData?.transmission}</p>}
+                    {car.carData?.doors && <p className="text-sm text-gray-500">🚪 {car.carData.doors} deuren</p>}
+                    {car.carData?.passengers && <p className="text-sm text-gray-500">� {car.carData.passengers} personen</p>}
                   </div>
                 ))}
               </div>
