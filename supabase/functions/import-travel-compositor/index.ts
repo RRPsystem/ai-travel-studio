@@ -80,6 +80,21 @@ Deno.serve(async (req: Request) => {
   }
 });
 
+// Helper function to strip HTML tags and decode entities
+function stripHtml(html: string): string {
+  if (!html) return '';
+  return html
+    .replace(/<[^>]*>/g, '') // Remove HTML tags
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ') // Normalize whitespace
+    .trim();
+}
+
 function processAndReturnTravel(data: any, rawTcData: any, travelId: string) {
   // Log raw data for debugging
   console.log(`[Import TC] Formatted data keys:`, Object.keys(data));
@@ -92,8 +107,8 @@ function processAndReturnTravel(data: any, rawTcData: any, travelId: string) {
   const travel = {
     id: data.tc_idea_id || data.id || travelId,
     title: data.title || data.name || `Reis ${travelId}`,
-    description: data.description || data.long_description || "",
-    introText: data.intro_text || data.short_description || "",
+    description: stripHtml(data.description || data.long_description || ""),
+    introText: stripHtml(data.intro_text || data.short_description || ""),
     numberOfNights: data.duration_nights || data.numberOfNights || 0,
     numberOfDays: data.duration_days || data.numberOfDays || 0,
     pricePerPerson: data.price_per_person || data.total_price || 0,

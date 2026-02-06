@@ -777,6 +777,19 @@ export function TravelManagement() {
                 </div>
               </div>
 
+              {/* Hero Video URL */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Hero Video (YouTube)</label>
+                <input
+                  type="text"
+                  value={formData.hero_video_url}
+                  onChange={(e) => setFormData({ ...formData, hero_video_url: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="https://www.youtube.com/watch?v=..."
+                />
+                <p className="text-xs text-gray-500 mt-1">YouTube video URL voor de hero sectie</p>
+              </div>
+
               {/* SlidingMediaSelector */}
               <SlidingMediaSelector
                 isOpen={showMediaSelector}
@@ -803,193 +816,252 @@ export function TravelManagement() {
           {editTab === 'components' && (
             <div className="space-y-6">
 
-          {/* Destinations Preview */}
-          {formData.destinations.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Bestemmingen ({formData.destinations.length})</label>
-              <div className="space-y-2">
-                {formData.destinations.map((dest: any, idx: number) => (
-                  <div key={idx} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-blue-600" />
-                      <span className="font-medium">{dest.name || dest.city || dest}</span>
-                      {dest.country && <span className="text-sm text-gray-500">({dest.country})</span>}
-                      {dest.nights && <span className="text-sm text-gray-500">• {dest.nights} nachten</span>}
-                    </div>
-                    {dest.description && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{dest.description}</p>}
-                    {dest.highlights?.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {dest.highlights.slice(0, 3).map((h: string, i: number) => (
-                          <span key={i} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{h}</span>
-                        ))}
+              {/* Editable Destinations */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <MapPin className="w-4 h-4 inline mr-1" />
+                  Bestemmingen ({formData.destinations.length})
+                </label>
+                <div className="space-y-4">
+                  {formData.destinations.map((dest: any, idx: number) => (
+                    <div key={idx} className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-5 h-5 text-blue-600" />
+                          <input
+                            type="text"
+                            value={dest.name || dest.city || ''}
+                            onChange={(e) => {
+                              const newDests = [...formData.destinations];
+                              newDests[idx] = { ...newDests[idx], name: e.target.value };
+                              setFormData({ ...formData, destinations: newDests });
+                            }}
+                            className="font-medium bg-white px-2 py-1 border rounded"
+                            placeholder="Naam bestemming"
+                          />
+                          {dest.country && <span className="text-sm text-gray-500">({dest.country})</span>}
+                          {dest.nights && <span className="text-sm text-gray-500">• {dest.nights} nachten</span>}
+                        </div>
                       </div>
-                    )}
-                    {dest.images?.length > 0 && (
-                      <div className="flex gap-2 mt-2">
-                        {dest.images.slice(0, 3).map((img: string, i: number) => (
-                          <img key={i} src={img} alt="" className="w-16 h-12 object-cover rounded" />
-                        ))}
+                      
+                      {/* Description */}
+                      <div className="mb-3">
+                        <label className="text-xs text-gray-500 block mb-1">Beschrijving</label>
+                        <textarea
+                          value={dest.description || ''}
+                          onChange={(e) => {
+                            const newDests = [...formData.destinations];
+                            newDests[idx] = { ...newDests[idx], description: e.target.value };
+                            setFormData({ ...formData, destinations: newDests });
+                          }}
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                          rows={3}
+                          placeholder="Beschrijving van de bestemming..."
+                        />
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* Hotels Preview */}
-          {formData.hotels.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Hotels ({formData.hotels.length})</label>
-              <div className="space-y-2">
-                {formData.hotels.map((hotel: any, idx: number) => (
-                  <div key={idx} className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <Hotel className="w-4 h-4 text-green-600" />
-                      <span className="font-medium">{hotel.name || hotel}</span>
-                      {hotel.stars && <span className="text-yellow-500">{'★'.repeat(hotel.stars)}</span>}
-                      {hotel.nights && <span className="text-sm text-gray-500">({hotel.nights} nachten)</span>}
-                    </div>
-                    {hotel.city && <p className="text-sm text-gray-600 mt-1">📍 {hotel.city}</p>}
-                    {hotel.mealPlan && <p className="text-sm text-gray-600">🍽️ {hotel.mealPlanDescription || hotel.mealPlan}</p>}
-                    {hotel.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{hotel.description}</p>}
-                    {hotel.images?.length > 0 && (
-                      <div className="flex gap-2 mt-2">
-                        {hotel.images.slice(0, 3).map((img: string, i: number) => (
-                          <img key={i} src={img} alt="" className="w-16 h-12 object-cover rounded" />
-                        ))}
-                        {hotel.images.length > 3 && <span className="text-xs text-gray-400">+{hotel.images.length - 3} meer</span>}
+                      {/* Highlights */}
+                      <div className="mb-3">
+                        <label className="text-xs text-gray-500 block mb-1">Highlights</label>
+                        <div className="flex flex-wrap gap-1">
+                          {(dest.highlights || []).map((h: string, i: number) => (
+                            <span key={i} className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded flex items-center gap-1">
+                              {h}
+                              <button
+                                onClick={() => {
+                                  const newDests = [...formData.destinations];
+                                  newDests[idx] = { 
+                                    ...newDests[idx], 
+                                    highlights: (newDests[idx].highlights || []).filter((_: any, hi: number) => hi !== i) 
+                                  };
+                                  setFormData({ ...formData, destinations: newDests });
+                                }}
+                                className="text-blue-500 hover:text-red-500"
+                              >×</button>
+                            </span>
+                          ))}
+                          <input
+                            type="text"
+                            placeholder="+ highlight"
+                            className="text-xs px-2 py-1 border rounded w-24"
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                const input = e.target as HTMLInputElement;
+                                if (input.value) {
+                                  const newDests = [...formData.destinations];
+                                  newDests[idx] = { 
+                                    ...newDests[idx], 
+                                    highlights: [...(newDests[idx].highlights || []), input.value] 
+                                  };
+                                  setFormData({ ...formData, destinations: newDests });
+                                  input.value = '';
+                                }
+                              }
+                            }}
+                          />
+                        </div>
                       </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
-          {/* Flights/Transports Preview */}
-          {(editingTravel?.flights?.length > 0 || editingTravel?.transports?.length > 0) && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Vluchten/Vervoer ({(editingTravel.flights?.length || 0) + (editingTravel.transports?.length || 0)})
-              </label>
-              <div className="space-y-2">
-                {/* Show transports from raw TC data */}
-                {editingTravel.transports?.map((transport: any, idx: number) => (
-                  <div key={`t-${idx}`} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <Plane className="w-4 h-4 text-blue-600" />
-                      <span className="font-medium">
-                        {transport.originCode || transport.originDestinationCode || transport.from || 'Vertrek'}
-                      </span>
-                      <span>→</span>
-                      <span className="font-medium">
-                        {transport.targetCode || transport.targetDestinationCode || transport.to || 'Aankomst'}
-                      </span>
+                      {/* Images */}
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-1">Foto's ({dest.images?.length || 0})</label>
+                        <div className="flex flex-wrap gap-2">
+                          {(dest.images || []).slice(0, 6).map((img: string, i: number) => (
+                            <div key={i} className="relative group">
+                              <img src={img} alt="" className="w-16 h-12 object-cover rounded" />
+                              <button
+                                onClick={() => {
+                                  const newDests = [...formData.destinations];
+                                  newDests[idx] = { 
+                                    ...newDests[idx], 
+                                    images: (newDests[idx].images || []).filter((_: any, ii: number) => ii !== i) 
+                                  };
+                                  setFormData({ ...formData, destinations: newDests });
+                                }}
+                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs opacity-0 group-hover:opacity-100"
+                              >×</button>
+                            </div>
+                          ))}
+                          {(dest.images?.length || 0) > 6 && (
+                            <span className="text-xs text-gray-400 self-center">+{dest.images.length - 6} meer</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-sm text-gray-600 mt-1">
-                      {transport.company && <span className="mr-2">✈️ {transport.company}</span>}
-                      {transport.transportNumber && <span className="mr-2">{transport.transportNumber}</span>}
-                      {transport.marketingAirlineCode && <span className="mr-2">({transport.marketingAirlineCode})</span>}
-                      {transport.departureDate && <span className="mr-2">📅 {transport.departureDate}</span>}
-                      {transport.departureTime && <span className="mr-2">🕐 {transport.departureTime}</span>}
-                      {transport.duration && <span className="text-gray-400">({transport.duration})</span>}
-                    </div>
-                    {transport.fare && <p className="text-xs text-gray-500 mt-1">Klasse: {transport.fare}</p>}
-                  </div>
-                ))}
-                {/* Fallback to flights if no transports */}
-                {!editingTravel.transports?.length && editingTravel.flights?.map((flight: any, idx: number) => (
-                  <div key={`f-${idx}`} className="p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-3">
-                    <Plane className="w-4 h-4 text-blue-600" />
-                    <div>
-                      <span className="font-medium">{flight.departureAirport || flight.departureCity}</span>
-                      <span className="mx-2">→</span>
-                      <span className="font-medium">{flight.arrivalAirport || flight.arrivalCity}</span>
-                      {flight.carrier && <span className="ml-2 text-sm text-gray-500">({flight.carrier} {flight.flightNumber})</span>}
-                    </div>
-                    {flight.departureDate && <span className="text-sm text-gray-500">{flight.departureDate}</span>}
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* Car Rentals Preview */}
-          {editingTravel?.car_rentals?.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Huurauto's ({editingTravel.car_rentals.length})</label>
-              <div className="space-y-2">
-                {editingTravel.car_rentals.map((car: any, idx: number) => (
-                  <div key={idx} className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                    <div className="flex items-center gap-2">
-                      <Car className="w-4 h-4 text-orange-600" />
-                      <span className="font-medium">
-                        {car.company || car.supplier || car.carData?.company || 'Huurauto'}
-                        {(car.category || car.carType || car.carData?.category || car.carData?.name) && 
-                          ` - ${car.category || car.carType || car.carData?.category || car.carData?.name}`}
-                      </span>
-                      {(car.days || car.rentalDays || car.numberOfDays) && 
-                        <span className="text-sm text-gray-500">({car.days || car.rentalDays || car.numberOfDays} dagen)</span>}
+              {/* Editable Hotels */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Hotel className="w-4 h-4 inline mr-1" />
+                  Hotels ({formData.hotels.length})
+                </label>
+                <div className="space-y-4">
+                  {formData.hotels.map((hotel: any, idx: number) => (
+                    <div key={idx} className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Hotel className="w-5 h-5 text-green-600" />
+                          <input
+                            type="text"
+                            value={hotel.name || ''}
+                            onChange={(e) => {
+                              const newHotels = [...formData.hotels];
+                              newHotels[idx] = { ...newHotels[idx], name: e.target.value };
+                              setFormData({ ...formData, hotels: newHotels });
+                            }}
+                            className="font-medium bg-white px-2 py-1 border rounded"
+                            placeholder="Naam hotel"
+                          />
+                          {hotel.stars && <span className="text-yellow-500">{'★'.repeat(hotel.stars)}</span>}
+                          {hotel.nights && <span className="text-sm text-gray-500">({hotel.nights} nachten)</span>}
+                        </div>
+                        {hotel.city && <span className="text-sm text-gray-500">� {hotel.city}</span>}
+                      </div>
+
+                      {/* Description */}
+                      <div className="mb-3">
+                        <label className="text-xs text-gray-500 block mb-1">Beschrijving</label>
+                        <textarea
+                          value={hotel.description || ''}
+                          onChange={(e) => {
+                            const newHotels = [...formData.hotels];
+                            newHotels[idx] = { ...newHotels[idx], description: e.target.value };
+                            setFormData({ ...formData, hotels: newHotels });
+                          }}
+                          className="w-full px-3 py-2 border rounded-lg text-sm"
+                          rows={3}
+                          placeholder="Beschrijving van het hotel..."
+                        />
+                      </div>
+
+                      {/* Meal Plan */}
+                      {hotel.mealPlan && (
+                        <p className="text-sm text-gray-600 mb-2">🍽️ {hotel.mealPlanDescription || hotel.mealPlan}</p>
+                      )}
+
+                      {/* Images */}
+                      <div>
+                        <label className="text-xs text-gray-500 block mb-1">Foto's ({hotel.images?.length || 0})</label>
+                        <div className="flex flex-wrap gap-2">
+                          {(hotel.images || []).slice(0, 6).map((img: string, i: number) => (
+                            <div key={i} className="relative group">
+                              <img src={img} alt="" className="w-16 h-12 object-cover rounded" />
+                              <button
+                                onClick={() => {
+                                  const newHotels = [...formData.hotels];
+                                  newHotels[idx] = { 
+                                    ...newHotels[idx], 
+                                    images: (newHotels[idx].images || []).filter((_: any, ii: number) => ii !== i) 
+                                  };
+                                  setFormData({ ...formData, hotels: newHotels });
+                                }}
+                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-4 h-4 text-xs opacity-0 group-hover:opacity-100"
+                              >×</button>
+                            </div>
+                          ))}
+                          {(hotel.images?.length || 0) > 6 && (
+                            <span className="text-xs text-gray-400 self-center">+{hotel.images.length - 6} meer</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                    {/* Pickup location - TC uses pickUpDestinationCode or pickUpLocation */}
-                    {(car.pickUpDestinationCode || car.pickUpLocation || car.pickupLocation || car.pickUp) && (
-                      <p className="text-sm text-gray-600 mt-1">
-                        📍 Ophalen: {car.pickUpDestinationCode || car.pickUpLocation || car.pickupLocation || car.pickUp}
-                        {car.pickUpDate && ` (${car.pickUpDate})`}
-                        {car.pickUpTime && ` ${car.pickUpTime}`}
-                      </p>
-                    )}
-                    {/* Dropoff location */}
-                    {(car.dropOffDestinationCode || car.dropOffLocation || car.dropoffLocation || car.dropOff) && (
-                      <p className="text-sm text-gray-600">
-                        📍 Inleveren: {car.dropOffDestinationCode || car.dropOffLocation || car.dropoffLocation || car.dropOff}
-                        {car.dropOffDate && ` (${car.dropOffDate})`}
-                      </p>
-                    )}
-                    {/* Car details from carData */}
-                    {car.carData?.name && <p className="text-sm text-gray-600">🚗 {car.carData.name}</p>}
-                    {(car.transmission || car.carData?.transmission) && 
-                      <p className="text-sm text-gray-500">⚙️ {car.transmission || car.carData?.transmission}</p>}
-                    {car.carData?.doors && <p className="text-sm text-gray-500">🚪 {car.carData.doors} deuren</p>}
-                    {car.carData?.passengers && <p className="text-sm text-gray-500">� {car.carData.passengers} personen</p>}
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
 
-          {/* Images Gallery */}
-          {editingTravel?.images?.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Afbeeldingen ({editingTravel.images.length})</label>
-              <div className="grid grid-cols-6 gap-2">
-                {editingTravel.images.slice(0, 12).map((img: string, idx: number) => (
-                  <img key={idx} src={img} alt="" className="w-full h-20 object-cover rounded-lg" />
-                ))}
-                {editingTravel.images.length > 12 && (
-                  <div className="w-full h-20 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500 text-sm">
-                    +{editingTravel.images.length - 12} meer
+              {/* Flights/Transports (read-only) */}
+              {(editingTravel?.transports?.length > 0 || editingTravel?.flights?.length > 0) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Plane className="w-4 h-4 inline mr-1" />
+                    Vluchten/Vervoer ({(editingTravel?.transports?.length || 0) + (editingTravel?.flights?.length || 0)})
+                  </label>
+                  <div className="space-y-2">
+                    {editingTravel?.transports?.map((transport: any, idx: number) => (
+                      <div key={`t-${idx}`} className="p-3 bg-sky-50 border border-sky-200 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <Plane className="w-4 h-4 text-sky-600" />
+                          <span className="font-medium">
+                            {transport.originCode || transport.from || 'Vertrek'} → {transport.targetCode || transport.to || 'Aankomst'}
+                          </span>
+                          {transport.company && <span className="text-sm text-gray-500">({transport.company})</span>}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">
+                          {transport.departureDate && <span className="mr-2">📅 {transport.departureDate}</span>}
+                          {transport.departureTime && <span>🕐 {transport.departureTime}</span>}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                )}
-              </div>
-            </div>
-          )}
+                </div>
+              )}
 
-          {/* Itinerary Preview */}
-          {editingTravel?.itinerary?.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Dagprogramma ({editingTravel.itinerary.length} dagen)</label>
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {editingTravel.itinerary.map((day: any, idx: number) => (
-                  <div key={idx} className="p-2 bg-gray-50 border rounded-lg">
-                    <span className="font-medium text-sm">Dag {day.dayNumber || idx + 1}: {day.title || day.destination || ''}</span>
-                    {day.description && <p className="text-xs text-gray-500 line-clamp-1">{day.description}</p>}
+              {/* Car Rentals (read-only) */}
+              {editingTravel?.car_rentals?.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <Car className="w-4 h-4 inline mr-1" />
+                    Huurauto's ({editingTravel?.car_rentals?.length || 0})
+                  </label>
+                  <div className="space-y-2">
+                    {editingTravel?.car_rentals?.map((car: any, idx: number) => (
+                      <div key={idx} className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                        <div className="flex items-center gap-2">
+                          <Car className="w-4 h-4 text-orange-600" />
+                          <span className="font-medium">
+                            {car.company || car.supplier || 'Huurauto'}
+                            {car.category && ` - ${car.category}`}
+                          </span>
+                          {car.days && <span className="text-sm text-gray-500">({car.days} dagen)</span>}
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              )}
             </div>
           )}
         </div>
