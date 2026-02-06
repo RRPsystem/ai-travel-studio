@@ -66,7 +66,23 @@ interface TravelAssignment {
 }
 
 type ViewMode = 'list' | 'create' | 'edit' | 'assignments';
-type EditTab = 'general' | 'texts' | 'photos' | 'components';
+type EditTab = 'general' | 'photos' | 'components' | 'categories';
+type HeroStyle = 'slideshow' | 'grid' | 'single' | 'video' | 'wide';
+
+// Helper function to strip HTML tags
+const stripHtml = (html: string): string => {
+  if (!html) return '';
+  return html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
 
 export function TravelManagement() {
   const { user } = useAuth();
@@ -101,13 +117,17 @@ export function TravelManagement() {
     images: [] as string[],
     hero_image: '',
     hero_video_url: '',
+    hero_style: 'slideshow' as HeroStyle,
     route_map_url: '',
     itinerary: [] as any[],
     included: [] as string[],
     excluded: [] as string[],
     highlights: [] as string[],
+    categories: [] as string[],
+    themes: [] as string[],
     practical_info: {}
   });
+  const [componentMediaSelector, setComponentMediaSelector] = useState<{type: 'destination' | 'hotel', index: number} | null>(null);
 
   useEffect(() => {
     loadData();
@@ -250,23 +270,33 @@ export function TravelManagement() {
       travel_compositor_id: travel.travel_compositor_id,
       title: travel.title,
       slug: travel.slug,
-      description: travel.description || '',
-      intro_text: travel.intro_text || '',
+      description: stripHtml(travel.description || ''),
+      intro_text: stripHtml(travel.intro_text || ''),
       number_of_nights: travel.number_of_nights || 0,
       number_of_days: travel.number_of_days || 0,
       price_per_person: travel.price_per_person || 0,
       price_description: travel.price_description || '',
-      destinations: travel.destinations || [],
+      destinations: (travel.destinations || []).map((d: any) => ({
+        ...d,
+        description: stripHtml(d.description || ''),
+        highlights: d.highlights || []
+      })),
       countries: travel.countries || [],
-      hotels: travel.hotels || [],
+      hotels: (travel.hotels || []).map((h: any) => ({
+        ...h,
+        description: stripHtml(h.description || '')
+      })),
       images: travel.images || [],
       hero_image: travel.hero_image || '',
       hero_video_url: travel.hero_video_url || '',
+      hero_style: (travel as any).hero_style || 'slideshow',
       route_map_url: travel.route_map_url || '',
       itinerary: travel.itinerary || [],
       included: travel.included || [],
       excluded: travel.excluded || [],
       highlights: travel.highlights || [],
+      categories: (travel as any).categories || [],
+      themes: (travel as any).themes || [],
       practical_info: travel.practical_info || {}
     });
     setViewMode('edit');
@@ -395,9 +425,9 @@ export function TravelManagement() {
   if (viewMode === 'edit' && editingTravel) {
     const tabs = [
       { id: 'general', label: 'Algemeen', icon: '📋' },
-      { id: 'texts', label: 'Teksten', icon: '📝' },
-      { id: 'photos', label: 'Foto\'s', icon: '🖼️' },
+      { id: 'photos', label: 'Header & Foto\'s', icon: '�️' },
       { id: 'components', label: 'Componenten', icon: '🧩' },
+      { id: 'categories', label: 'Categorieën', icon: '🏷️' },
     ];
 
     return (
@@ -526,146 +556,37 @@ export function TravelManagement() {
             </div>
           )}
 
-          {/* TAB: Teksten */}
-          {editTab === 'texts' && (
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Intro Tekst</label>
-                <textarea
-                  value={formData.intro_text}
-                  onChange={(e) => setFormData({ ...formData, intro_text: e.target.value })}
-                  rows={4}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="Korte introductie van de reis..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Volledige Beschrijving</label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  rows={10}
-                  className="w-full px-3 py-2 border rounded-lg"
-                  placeholder="Uitgebreide beschrijving van de reis..."
-                />
-              </div>
-
-              {/* Highlights Editor */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Highlights</label>
-                <div className="space-y-2">
-                  {formData.highlights.map((highlight, idx) => (
-                    <div key={idx} className="flex gap-2">
-                      <input
-                        type="text"
-                        value={highlight}
-                        onChange={(e) => {
-                          const newHighlights = [...formData.highlights];
-                          newHighlights[idx] = e.target.value;
-                          setFormData({ ...formData, highlights: newHighlights });
-                        }}
-                        className="flex-1 px-3 py-2 border rounded-lg"
-                      />
-                      <button
-                        onClick={() => {
-                          const newHighlights = formData.highlights.filter((_, i) => i !== idx);
-                          setFormData({ ...formData, highlights: newHighlights });
-                        }}
-                        className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => setFormData({ ...formData, highlights: [...formData.highlights, ''] })}
-                    className="px-4 py-2 text-blue-600 border border-blue-300 rounded-lg hover:bg-blue-50"
-                  >
-                    + Highlight toevoegen
-                  </button>
-                </div>
-              </div>
-
-              {/* Included Editor */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Inclusief</label>
-                <div className="space-y-2">
-                  {formData.included.map((item, idx) => (
-                    <div key={idx} className="flex gap-2">
-                      <span className="px-3 py-2 text-green-600"><Check className="w-4 h-4" /></span>
-                      <input
-                        type="text"
-                        value={typeof item === 'string' ? item : (item as any).description || ''}
-                        onChange={(e) => {
-                          const newIncluded = [...formData.included];
-                          newIncluded[idx] = e.target.value;
-                          setFormData({ ...formData, included: newIncluded });
-                        }}
-                        className="flex-1 px-3 py-2 border rounded-lg"
-                      />
-                      <button
-                        onClick={() => {
-                          const newIncluded = formData.included.filter((_, i) => i !== idx);
-                          setFormData({ ...formData, included: newIncluded });
-                        }}
-                        className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => setFormData({ ...formData, included: [...formData.included, ''] })}
-                    className="px-4 py-2 text-green-600 border border-green-300 rounded-lg hover:bg-green-50"
-                  >
-                    + Inclusief toevoegen
-                  </button>
-                </div>
-              </div>
-
-              {/* Excluded Editor */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Exclusief</label>
-                <div className="space-y-2">
-                  {formData.excluded.map((item, idx) => (
-                    <div key={idx} className="flex gap-2">
-                      <span className="px-3 py-2 text-red-600"><X className="w-4 h-4" /></span>
-                      <input
-                        type="text"
-                        value={typeof item === 'string' ? item : (item as any).description || ''}
-                        onChange={(e) => {
-                          const newExcluded = [...formData.excluded];
-                          newExcluded[idx] = e.target.value;
-                          setFormData({ ...formData, excluded: newExcluded });
-                        }}
-                        className="flex-1 px-3 py-2 border rounded-lg"
-                      />
-                      <button
-                        onClick={() => {
-                          const newExcluded = formData.excluded.filter((_, i) => i !== idx);
-                          setFormData({ ...formData, excluded: newExcluded });
-                        }}
-                        className="px-3 py-2 text-red-600 hover:bg-red-50 rounded-lg"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => setFormData({ ...formData, excluded: [...formData.excluded, ''] })}
-                    className="px-4 py-2 text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
-                  >
-                    + Exclusief toevoegen
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TAB: Foto's */}
+          {/* TAB: Header & Foto's */}
           {editTab === 'photos' && (
             <div className="space-y-6">
+              {/* Hero Style Selector */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">🎨 Kies een Hero Stijl</label>
+                <div className="grid grid-cols-5 gap-3">
+                  {[
+                    { id: 'slideshow', label: 'Foto Slideshow', desc: 'Automatische slideshow met alle bestemmingsfoto\'s', icon: '▶️' },
+                    { id: 'grid', label: 'Foto Grid', desc: '4 foto\'s naast elkaar', icon: '🖼️' },
+                    { id: 'single', label: 'Enkele Grote Foto', desc: 'Eén grote foto met titel eronder', icon: '🖼️' },
+                    { id: 'video', label: 'YouTube Video', desc: 'Embedded YouTube video als hero', icon: '📺' },
+                    { id: 'wide', label: 'Breed Formaat', desc: 'Brede foto, minder hoog', icon: '🌅' },
+                  ].map(style => (
+                    <button
+                      key={style.id}
+                      onClick={() => setFormData({ ...formData, hero_style: style.id as HeroStyle })}
+                      className={`p-4 rounded-lg border-2 text-left transition-all ${
+                        formData.hero_style === style.id 
+                          ? 'border-blue-500 bg-blue-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="text-2xl mb-2">{style.icon}</div>
+                      <div className="font-medium text-sm">{style.label}</div>
+                      <div className="text-xs text-gray-500 mt-1">{style.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Hero Image */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Hero Afbeelding</label>
@@ -904,7 +825,15 @@ export function TravelManagement() {
 
                       {/* Images */}
                       <div>
-                        <label className="text-xs text-gray-500 block mb-1">Foto's ({dest.images?.length || 0})</label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs text-gray-500">Foto's ({dest.images?.length || 0})</label>
+                          <button
+                            onClick={() => setComponentMediaSelector({ type: 'destination', index: idx })}
+                            className="text-xs px-2 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200"
+                          >
+                            + Foto toevoegen
+                          </button>
+                        </div>
                         <div className="flex flex-wrap gap-2">
                           {(dest.images || []).slice(0, 6).map((img: string, i: number) => (
                             <div key={i} className="relative group">
@@ -984,7 +913,15 @@ export function TravelManagement() {
 
                       {/* Images */}
                       <div>
-                        <label className="text-xs text-gray-500 block mb-1">Foto's ({hotel.images?.length || 0})</label>
+                        <div className="flex items-center justify-between mb-1">
+                          <label className="text-xs text-gray-500">Foto's ({hotel.images?.length || 0})</label>
+                          <button
+                            onClick={() => setComponentMediaSelector({ type: 'hotel', index: idx })}
+                            className="text-xs px-2 py-1 bg-green-100 text-green-600 rounded hover:bg-green-200"
+                          >
+                            + Foto toevoegen
+                          </button>
+                        </div>
                         <div className="flex flex-wrap gap-2">
                           {(hotel.images || []).slice(0, 6).map((img: string, i: number) => (
                             <div key={i} className="relative group">
@@ -1011,6 +948,33 @@ export function TravelManagement() {
                   ))}
                 </div>
               </div>
+
+              {/* Component Media Selector */}
+              <SlidingMediaSelector
+                isOpen={componentMediaSelector !== null}
+                onClose={() => setComponentMediaSelector(null)}
+                onSelect={(imageUrl) => {
+                  if (componentMediaSelector) {
+                    if (componentMediaSelector.type === 'destination') {
+                      const newDests = [...formData.destinations];
+                      newDests[componentMediaSelector.index] = {
+                        ...newDests[componentMediaSelector.index],
+                        images: [...(newDests[componentMediaSelector.index].images || []), imageUrl]
+                      };
+                      setFormData({ ...formData, destinations: newDests });
+                    } else {
+                      const newHotels = [...formData.hotels];
+                      newHotels[componentMediaSelector.index] = {
+                        ...newHotels[componentMediaSelector.index],
+                        images: [...(newHotels[componentMediaSelector.index].images || []), imageUrl]
+                      };
+                      setFormData({ ...formData, hotels: newHotels });
+                    }
+                  }
+                  setComponentMediaSelector(null);
+                }}
+                title={componentMediaSelector?.type === 'destination' ? 'Foto toevoegen aan bestemming' : 'Foto toevoegen aan hotel'}
+              />
 
               {/* Flights/Transports (read-only) */}
               {(editingTravel?.transports?.length > 0 || editingTravel?.flights?.length > 0) && (
@@ -1062,6 +1026,69 @@ export function TravelManagement() {
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* TAB: Categorieën */}
+          {editTab === 'categories' && (
+            <div className="space-y-6">
+              {/* Themes from TC */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  🏷️ Thema's (uit Travel Compositor)
+                </label>
+                <div className="flex flex-wrap gap-2 p-4 bg-gray-50 rounded-lg min-h-16">
+                  {formData.themes.length > 0 ? formData.themes.map((theme, idx) => (
+                    <span key={idx} className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm">
+                      {theme}
+                    </span>
+                  )) : (
+                    <span className="text-gray-400 text-sm">Geen thema's geïmporteerd</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Custom Categories */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  📂 Categorieën (voor filters)
+                </label>
+                <div className="space-y-2">
+                  {['Rondreis', 'Fly & Drive', 'Stedentrip', 'Strandvakantie', 'Avontuur', 'Luxe', 'Budget', 'Familie', 'Romantisch', 'Actief'].map(cat => (
+                    <label key={cat} className="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.categories.includes(cat)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData({ ...formData, categories: [...formData.categories, cat] });
+                          } else {
+                            setFormData({ ...formData, categories: formData.categories.filter(c => c !== cat) });
+                          }
+                        }}
+                        className="w-4 h-4 text-blue-600 rounded"
+                      />
+                      <span>{cat}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Countries */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  🌍 Landen
+                </label>
+                <div className="flex flex-wrap gap-2 p-4 bg-gray-50 rounded-lg">
+                  {formData.countries.length > 0 ? formData.countries.map((country, idx) => (
+                    <span key={idx} className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm">
+                      {country}
+                    </span>
+                  )) : (
+                    <span className="text-gray-400 text-sm">Geen landen</span>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
