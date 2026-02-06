@@ -254,6 +254,9 @@ export function TravelManagement() {
         transports: data.transports || [],
         car_rentals: data.carRentals || [],
         activities: data.activities || [],
+        cruises: data.cruises || [],
+        transfers: data.transfers || [],
+        excursions: data.excursions || [],
         images: data.images || [],
         hero_image: data.heroImage || data.images?.[0] || '',
         hero_video_url: data.heroVideoUrl || '',
@@ -1164,7 +1167,7 @@ export function TravelManagement() {
                 </div>
               )}
 
-              {/* Car Rentals (read-only) */}
+              {/* Car Rentals (read-only) - TC fields: product, imageUrl, pickupDate/Location/Time, dropoffDate/Location/Time, transmissionType, mileage */}
               {editingTravel?.car_rentals?.length > 0 && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1174,13 +1177,20 @@ export function TravelManagement() {
                   <div className="space-y-2">
                     {editingTravel?.car_rentals?.map((car: any, idx: number) => (
                       <div key={idx} className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                        <div className="flex items-center gap-2">
-                          <Car className="w-4 h-4 text-orange-600" />
-                          <span className="font-medium">
-                            {car.company || car.supplier || 'Huurauto'}
-                            {car.category && ` - ${car.category}`}
-                          </span>
-                          {car.days && <span className="text-sm text-gray-500">({car.days} dagen)</span>}
+                        <div className="flex items-center gap-3">
+                          {car.imageUrl && <img src={car.imageUrl} alt={car.product} className="w-20 h-14 object-contain rounded" />}
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <Car className="w-4 h-4 text-orange-600" />
+                              <span className="font-medium">{car.product || car.company || 'Huurauto'}</span>
+                              {car.transmissionType && <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">{car.transmissionType}</span>}
+                            </div>
+                            <div className="text-sm text-gray-600 mt-1">
+                              <div>📍 Ophalen: {car.pickupLocation || '?'} — {car.pickupDate} {car.pickupTime && `om ${car.pickupTime.substring(0,5)}`}</div>
+                              <div>📍 Inleveren: {car.dropoffLocation || '?'} — {car.dropoffDate} {car.dropoffTime && `om ${car.dropoffTime.substring(0,5)}`}</div>
+                              {car.depositDescription && <div>⛽ {car.depositDescription}</div>}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     ))}
