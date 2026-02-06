@@ -114,6 +114,10 @@ export function TravelManagement() {
   const [importing, setImporting] = useState(false);
   const [importTcId, setImportTcId] = useState('');
   const [importError, setImportError] = useState('');
+  const [micrositeId, setMicrositeId] = useState('rondreis-planner');
+  const [microsites, setMicrosites] = useState<Array<{id: string, name: string, hasCredentials: boolean}>>([]);
+  const [loadingMicrosites, setLoadingMicrosites] = useState(false);
+  const [bulkImporting, setBulkImporting] = useState(false);
   const [selectedImages, setSelectedImages] = useState<Set<number>>(new Set());
   const [showMediaSelector, setShowMediaSelector] = useState(false);
   const [mediaSelectorMode, setMediaSelectorMode] = useState<'hero' | 'gallery'>('gallery');
@@ -151,7 +155,36 @@ export function TravelManagement() {
 
   useEffect(() => {
     loadData();
+    loadMicrosites();
   }, []);
+
+  const loadMicrosites = async () => {
+    setLoadingMicrosites(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-external-api`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          url: 'https://www.ai-websitestudio.nl/api/config/microsites',
+          method: 'GET'
+        })
+      });
+      const result = await response.json();
+      if (result.success && result.data?.microsites) {
+        setMicrosites(result.data.microsites);
+        if (result.data.microsites.length > 0) setMicrositeId(result.data.microsites[0].id);
+      }
+    } catch (error) {
+      console.log('Using default microsites');
+      setMicrosites([{ id: 'rondreis-planner', name: 'Rondreis Planner', hasCredentials: true }]);
+    } finally {
+      setLoadingMicrosites(false);
+    }
+  };
 
   const loadData = async () => {
     setLoading(true);
@@ -226,9 +259,9 @@ export function TravelManagement() {
         return;
       }
 
-      // Call Travel Compositor API via edge function
+      // Call Travel Compositor API via edge function with micrositeId
       const { data, error } = await supabase.functions.invoke('import-travel-compositor', {
-        body: { travelId: importTcId.trim() }
+        body: { travelId: importTcId.trim(), micrositeId: micrositeId }
       });
 
       if (error) throw error;
@@ -1413,6 +1446,27 @@ export function TravelManagement() {
           <Download className="w-5 h-5 text-blue-600" />
           Importeer van Travel Compositor
         </h3>
+        <div className="mb-3">
+          <label className="block text-xs font-medium text-gray-600 mb-1">Microsite</label>
+          <select
+            value={micrositeId}
+            onChange={(e) => setMicrositeId(e.target.value)}
+            disabled={loadingMicrosites}
+            className="w-full max-w-md px-4 py-2 border rounded-lg bg-white disabled:bg-gray-100"
+          >
+            {loadingMicrosites ? (
+              <option>Laden...</option>
+            ) : microsites.length > 0 ? (
+              microsites.map((ms) => (
+                <option key={ms.id} value={ms.id}>
+                  {ms.name} {ms.hasCredentials ? '✓' : ''}
+                </option>
+              ))
+            ) : (
+              <option value="rondreis-planner">Rondreis Planner</option>
+            )}
+          </select>
+        </div>
         <div className="flex gap-3">
           <input
             type="text"

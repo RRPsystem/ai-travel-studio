@@ -193,7 +193,7 @@ export function BrandTravelCReizen() {
       const res = await fetch(`${apiBase}?action=import-travel`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tc_id: importTcId.trim(), author_id: user?.id, author_type: 'brand' }),
+        body: JSON.stringify({ tc_id: importTcId.trim(), author_id: user?.id, author_type: 'brand', microsite_id: 'reisbureaunederland' }),
       });
       const result = await res.json();
       if (!result.success) { setImportError(result.error || 'Fout bij importeren'); return; }
@@ -942,6 +942,7 @@ export function BrandTravelCReizen() {
           <Download className="w-5 h-5 text-orange-600" />
           Importeer van Travel Compositor
         </h3>
+        <p className="text-sm text-gray-600 mb-3">Importeer reizen van de microsite <strong>Reisbureau Nederland</strong> via het TC ID nummer.</p>
         <div className="flex gap-3">
           <input type="text" value={importTcId} onChange={(e) => { setImportTcId(e.target.value); setImportError(''); }}
             placeholder="Travel Compositor ID (bijv. 35338738)" className="flex-1 px-4 py-2 border rounded-lg" />

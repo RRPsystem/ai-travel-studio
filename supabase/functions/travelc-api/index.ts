@@ -280,7 +280,7 @@ Deno.serve(async (req: Request) => {
     // ============================================
     if (action === "import-travel" && req.method === "POST") {
       const body = await req.json();
-      const { tc_id, author_id, author_type } = body;
+      const { tc_id, author_id, author_type, microsite_id } = body;
 
       if (!tc_id) {
         return new Response(
@@ -303,14 +303,14 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      // Call import edge function
+      // Call import edge function with micrositeId
       const importRes = await fetch(`${supabaseUrl}/functions/v1/import-travel-compositor`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${supabaseKey}`,
         },
-        body: JSON.stringify({ travelId: tc_id }),
+        body: JSON.stringify({ travelId: tc_id, micrositeId: microsite_id || "rondreis-planner" }),
       });
 
       const importData = await importRes.json();
