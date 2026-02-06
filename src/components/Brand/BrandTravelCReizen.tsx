@@ -74,6 +74,8 @@ export function BrandTravelCReizen() {
     if (brandId) loadData();
   }, [brandId]);
 
+  const apiBase = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/travelc-api`;
+
   const loadData = async () => {
     if (!brandId) return;
     setLoading(true);
@@ -88,13 +90,10 @@ export function BrandTravelCReizen() {
       if (travelsError) throw travelsError;
       setTravels(travelsData || []);
 
-      // Load brand assignments
-      const { data: assignmentsData } = await supabase!
-        .from('travelc_travel_brand_assignments')
-        .select('*')
-        .eq('brand_id', brandId);
-
-      setAssignments(assignmentsData || []);
+      // Load brand assignments via Edge Function (bypasses RLS)
+      const res = await fetch(`${apiBase}?action=assignments&brand_id=${brandId}`);
+      const result = await res.json();
+      setAssignments(result.assignments || []);
     } catch (error) {
       console.error('Error loading data:', error);
     } finally {
@@ -111,61 +110,32 @@ export function BrandTravelCReizen() {
     return assignment?.is_active || false;
   };
 
-  const handleToggleActive = async (travelId: string) => {
+  const callToggleApi = async (travelId: string, field?: string, value?: any) => {
     if (!brandId) return;
     try {
-      const existing = getAssignment(travelId);
-      if (existing) {
-        await supabase!
-          .from('travelc_travel_brand_assignments')
-          .update({ is_active: !existing.is_active })
-          .eq('id', existing.id);
-      } else {
-        await supabase!
-          .from('travelc_travel_brand_assignments')
-          .insert([{
-            travel_id: travelId,
-            brand_id: brandId,
-            is_active: true,
-            is_featured: false,
-            show_hotels: true,
-            show_prices: true,
-            show_itinerary: true,
-            header_type: 'image',
-            display_order: 0,
-            status: 'accepted'
-          }]);
-      }
+      const res = await fetch(`${apiBase}?action=toggle-assignment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ travel_id: travelId, brand_id: brandId, field, value }),
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
       await loadData();
     } catch (error) {
       console.error('Error toggling:', error);
     }
   };
 
-  const handleToggleFeatured = async (travelId: string) => {
-    const assignment = getAssignment(travelId);
-    if (!assignment) return;
-    try {
-      await supabase!
-        .from('travelc_travel_brand_assignments')
-        .update({ is_featured: !assignment.is_featured })
-        .eq('id', assignment.id);
-      await loadData();
-    } catch (error) {
-      console.error('Error:', error);
-    }
+  const handleToggleActive = async (travelId: string) => {
+    await callToggleApi(travelId, 'is_active');
   };
 
-  const handleToggleSetting = async (assignmentId: string, field: string, value: any) => {
-    try {
-      await supabase!
-        .from('travelc_travel_brand_assignments')
-        .update({ [field]: value })
-        .eq('id', assignmentId);
-      await loadData();
-    } catch (error) {
-      console.error('Error:', error);
-    }
+  const handleToggleFeatured = async (travelId: string) => {
+    await callToggleApi(travelId, 'is_featured');
+  };
+
+  const handleToggleSetting = async (travelId: string, field: string, value: any) => {
+    await callToggleApi(travelId, field, value);
   };
 
   // Filter travels
@@ -246,7 +216,7 @@ export function BrandTravelCReizen() {
                   <input
                     type="checkbox"
                     checked={assignment?.show_hotels ?? true}
-                    onChange={() => assignment && handleToggleSetting(assignment.id, 'show_hotels', !(assignment.show_hotels ?? true))}
+                    onChange={() => handleToggleSetting(travel.id, 'show_hotels', !(assignment?.show_hotels ?? true))}
                     className="w-4 h-4 text-orange-600 rounded"
                   />
                   <span className="text-sm">Toon hotels</span>
@@ -255,7 +225,7 @@ export function BrandTravelCReizen() {
                   <input
                     type="checkbox"
                     checked={assignment?.show_prices ?? true}
-                    onChange={() => assignment && handleToggleSetting(assignment.id, 'show_prices', !(assignment.show_prices ?? true))}
+                    onChange={() => handleToggleSetting(travel.id, 'show_prices', !(assignment?.show_prices ?? true))}
                     className="w-4 h-4 text-orange-600 rounded"
                   />
                   <span className="text-sm">Toon prijzen</span>

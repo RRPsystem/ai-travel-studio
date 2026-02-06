@@ -3,7 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Content-Type": "application/json",
 };
@@ -13,9 +13,9 @@ Deno.serve(async (req: Request) => {
     return new Response(null, { status: 200, headers: corsHeaders });
   }
 
-  if (req.method !== "GET") {
+  if (req.method !== "GET" && req.method !== "POST") {
     return new Response(
-      JSON.stringify({ error: "Only GET requests allowed" }),
+      JSON.stringify({ error: "Only GET and POST requests allowed" }),
       { status: 405, headers: corsHeaders }
     );
   }
@@ -187,8 +187,96 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // ============================================
+    // ACTION: toggle-assignment (POST) - Toggle brand assignment
+    // ============================================
+    if (action === "toggle-assignment" && req.method === "POST") {
+      const body = await req.json();
+      const { travel_id, brand_id: bodyBrandId, field, value } = body;
+      const targetBrandId = bodyBrandId || brandId;
+
+      if (!travel_id || !targetBrandId) {
+        return new Response(
+          JSON.stringify({ error: "travel_id and brand_id are required" }),
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      // Check if assignment exists
+      const { data: existing } = await supabase
+        .from("travelc_travel_brand_assignments")
+        .select("*")
+        .eq("travel_id", travel_id)
+        .eq("brand_id", targetBrandId)
+        .maybeSingle();
+
+      if (existing) {
+        // Update existing assignment
+        const updateField = field || "is_active";
+        const updateValue = value !== undefined ? value : !existing[updateField];
+        const { error } = await supabase
+          .from("travelc_travel_brand_assignments")
+          .update({ [updateField]: updateValue })
+          .eq("id", existing.id);
+
+        if (error) throw error;
+
+        return new Response(
+          JSON.stringify({ success: true, action: "updated", field: updateField, value: updateValue }),
+          { status: 200, headers: corsHeaders }
+        );
+      } else {
+        // Create new assignment (activate)
+        const { error } = await supabase
+          .from("travelc_travel_brand_assignments")
+          .insert([{
+            travel_id,
+            brand_id: targetBrandId,
+            is_active: true,
+            is_featured: false,
+            show_hotels: true,
+            show_prices: true,
+            show_itinerary: true,
+            header_type: "image",
+            display_order: 0,
+            status: "accepted"
+          }]);
+
+        if (error) throw error;
+
+        return new Response(
+          JSON.stringify({ success: true, action: "created" }),
+          { status: 200, headers: corsHeaders }
+        );
+      }
+    }
+
+    // ============================================
+    // ACTION: assignments (GET) - Get assignments for a brand
+    // ============================================
+    if (action === "assignments") {
+      if (!brandId) {
+        return new Response(
+          JSON.stringify({ error: "brand_id is required" }),
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      const { data, error } = await supabase
+        .from("travelc_travel_brand_assignments")
+        .select("*")
+        .eq("brand_id", brandId);
+
+      if (error) throw error;
+
+      return new Response(
+        JSON.stringify({ success: true, assignments: data || [] }),
+        { status: 200, headers: corsHeaders }
+      );
+    }
+
     return new Response(
-      JSON.stringify({ error: "Unknown action. Use: list, get, categories" }),
+      JSON.stringify({ error: "Unknown action. Use: list, get, categories, toggle-assignment, assignments" }),
       { status: 400, headers: corsHeaders }
     );
 
