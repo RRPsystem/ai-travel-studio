@@ -77,55 +77,79 @@ Deno.serve(async (req: Request) => {
 });
 
 function processAndReturnTravel(data: any, travelId: string) {
-  // Normalize the response to our format
+  // Log raw data for debugging
+  console.log(`[Import TC] Raw data keys:`, Object.keys(data));
+  
+  // Map builder API response to our format
+  // Builder API uses: featured_image, all_images, duration_nights, duration_days, 
+  // intro_text, short_description, trip_highlights, price_per_person, etc.
   const travel = {
-    id: data.id || travelId,
+    id: data.tc_idea_id || data.id || travelId,
     title: data.title || data.name || `Reis ${travelId}`,
-    description: data.description || data.longDescription || "",
-    introText: data.introText || data.shortDescription || data.intro || "",
-    numberOfNights: data.numberOfNights || data.nights || data.counters?.nights || 0,
-    numberOfDays: data.numberOfDays || data.days || (data.numberOfNights ? data.numberOfNights + 1 : 0),
-    pricePerPerson: data.pricePerPerson || data.price || data.startingPrice || 0,
-    priceDescription: data.priceDescription || data.priceInfo || "",
-    heroImage: data.imageUrl || data.heroImage || data.mainImage || data.images?.[0] || "",
-    heroVideoUrl: data.videoUrl || data.heroVideoUrl || "",
+    description: data.description || data.long_description || "",
+    introText: data.intro_text || data.short_description || "",
+    numberOfNights: data.duration_nights || data.numberOfNights || 0,
+    numberOfDays: data.duration_days || data.numberOfDays || 0,
+    pricePerPerson: data.price_per_person || data.total_price || 0,
+    priceDescription: data.price_description || "",
+    heroImage: data.featured_image || data.imageUrl || data.all_images?.[0] || "",
+    heroVideoUrl: data.video_url || data.heroVideoUrl || "",
     
-    // Destinations
-    destinations: normalizeDestinations(data.destinations || data.cities || data.stops || []),
+    // All images
+    images: data.all_images || data.images || [],
+    
+    // Destinations - builder uses destination_names array and destinations array
+    destinations: data.destinations || [],
+    destinationNames: data.destination_names || [],
     
     // Countries
-    countries: extractCountries(data),
+    countries: data.countries || [],
     
-    // Hotels
-    hotels: normalizeHotels(data.hotels || data.accommodations || []),
+    // Hotels with full details
+    hotels: data.hotels || [],
     
-    // Images
-    images: data.images || data.gallery || [],
+    // Flights
+    flights: data.flights || [],
     
-    // Itinerary
-    itinerary: normalizeItinerary(data.itinerary || data.days || data.program || []),
+    // Car rentals
+    carRentals: data.car_rentals || [],
+    
+    // Activities
+    activities: data.activities || [],
+    
+    // Itinerary / day program
+    itinerary: data.itinerary || data.day_by_day || [],
     
     // Included/Excluded
-    included: data.included || data.inclusions || [],
-    excluded: data.excluded || data.exclusions || [],
+    included: data.included || [],
+    excluded: data.not_included || data.excluded || [],
     
-    // Highlights
-    highlights: data.highlights || data.features || [],
+    // Highlights and selling points
+    highlights: data.trip_highlights || data.highlights || [],
+    sellingPoints: data.selling_points || [],
     
     // Practical info
-    practicalInfo: {
-      bestTimeToVisit: data.bestTimeToVisit || data.bestSeason || "",
-      climate: data.climate || "",
-      visaInfo: data.visaInfo || data.visa || "",
-      currency: data.currency || "",
-      language: data.language || "",
-    },
+    practicalInfo: data.practical_info || {},
+    
+    // Price breakdown
+    priceBreakdown: data.price_breakdown || {},
+    currency: data.currency || "EUR",
+    
+    // Travelers info
+    travelers: data.travelers || {},
+    
+    // AI summary for quick reference
+    aiSummary: data.ai_summary || "",
+    
+    // All texts bundled
+    allTexts: data.all_texts || {},
     
     // Route map
-    routeMapUrl: data.routeMapUrl || data.mapUrl || "",
+    routeMapUrl: data.route_map_url || data.routeMapUrl || "",
   };
 
-  console.log(`Successfully processed travel: ${travel.title}`);
+  console.log(`[Import TC] Processed travel: ${travel.title}`);
+  console.log(`[Import TC] Hotels: ${travel.hotels?.length || 0}, Images: ${travel.images?.length || 0}`);
 
   return new Response(
     JSON.stringify(travel),

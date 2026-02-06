@@ -173,7 +173,7 @@ export function TravelManagement() {
         return;
       }
 
-      // Insert into database
+      // Insert into database - map all fields from builder API
       const travelData = {
         travel_compositor_id: importTcId.trim(),
         title: data.title,
@@ -181,12 +181,16 @@ export function TravelManagement() {
         description: data.description || '',
         intro_text: data.introText || '',
         number_of_nights: data.numberOfNights || 0,
-        number_of_days: data.numberOfDays || data.numberOfNights + 1 || 0,
+        number_of_days: data.numberOfDays || (data.numberOfNights ? data.numberOfNights + 1 : 0),
         price_per_person: data.pricePerPerson || 0,
         price_description: data.priceDescription || '',
+        currency: data.currency || 'EUR',
         destinations: data.destinations || [],
         countries: data.countries || [],
         hotels: data.hotels || [],
+        flights: data.flights || [],
+        car_rentals: data.carRentals || [],
+        activities: data.activities || [],
         images: data.images || [],
         hero_image: data.heroImage || data.images?.[0] || '',
         hero_video_url: data.heroVideoUrl || '',
@@ -195,7 +199,12 @@ export function TravelManagement() {
         included: data.included || [],
         excluded: data.excluded || [],
         highlights: data.highlights || [],
+        selling_points: data.sellingPoints || [],
         practical_info: data.practicalInfo || {},
+        price_breakdown: data.priceBreakdown || {},
+        travelers: data.travelers || {},
+        ai_summary: data.aiSummary || '',
+        all_texts: data.allTexts || {},
         raw_tc_data: data,
         author_id: user?.id
       };
