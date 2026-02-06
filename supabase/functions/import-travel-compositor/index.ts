@@ -69,7 +69,7 @@ Deno.serve(async (req: Request) => {
     const travelData = result.data;
     const rawTcData = result.raw?.detail || {};
     
-    return processAndReturnTravel(travelData, rawTcData, travelId);
+    return await processAndReturnTravel(travelData, rawTcData, travelId);
 
   } catch (error) {
     console.error("Import error:", error);
@@ -95,7 +95,56 @@ function stripHtml(html: string): string {
     .trim();
 }
 
-function processAndReturnTravel(data: any, rawTcData: any, travelId: string) {
+// Geocode a destination name using Nominatim (free, no API key)
+async function geocodeAddress(address: string): Promise<{ latitude: number; longitude: number } | null> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`;
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'TravelCStudio/1.0' }
+    });
+    const data = await response.json();
+    if (data && data.length > 0) {
+      return { latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon) };
+    }
+    return null;
+  } catch (error) {
+    console.error(`[Geocode] Error for "${address}":`, error);
+    return null;
+  }
+}
+
+// Geocode all destinations that don't have coordinates
+async function geocodeDestinations(destinations: any[]): Promise<any[]> {
+  if (!Array.isArray(destinations) || destinations.length === 0) return destinations;
+
+  const results = [];
+  for (const dest of destinations) {
+    // Skip if already has valid coordinates
+    if (dest.geolocation?.latitude && dest.geolocation?.longitude) {
+      results.push(dest);
+      continue;
+    }
+
+    const searchQuery = dest.country ? `${dest.name}, ${dest.country}` : dest.name;
+    console.log(`[Geocode] Looking up: ${searchQuery}`);
+    const coords = await geocodeAddress(searchQuery);
+
+    if (coords) {
+      console.log(`[Geocode] Found: ${searchQuery} → ${coords.latitude}, ${coords.longitude}`);
+      results.push({ ...dest, geolocation: coords });
+    } else {
+      console.warn(`[Geocode] Not found: ${searchQuery}`);
+      results.push(dest);
+    }
+
+    // Nominatim rate limit: 1 request per second
+    await new Promise(resolve => setTimeout(resolve, 1100));
+  }
+
+  return results;
+}
+
+async function processAndReturnTravel(data: any, rawTcData: any, travelId: string) {
   // Log raw data for debugging
   console.log(`[Import TC] Formatted data keys:`, Object.keys(data));
   console.log(`[Import TC] Raw TC data keys:`, Object.keys(rawTcData));
@@ -119,7 +168,7 @@ function processAndReturnTravel(data: any, rawTcData: any, travelId: string) {
     // All images
     images: data.all_images || data.images || [],
     
-    // Destinations - from formatted data (has descriptions)
+    // Destinations - from formatted data (has descriptions) - geocoded below
     destinations: data.destinations || rawTcData.destinations || [],
     destinationNames: data.destination_names || [],
     
@@ -192,6 +241,14 @@ function processAndReturnTravel(data: any, rawTcData: any, travelId: string) {
   console.log(`[Import TC] Hotels: ${travel.hotels?.length || 0}, Flights: ${travel.flights?.length || 0}, Cars: ${travel.carRentals?.length || 0}, Images: ${travel.images?.length || 0}`);
   console.log(`[Import TC] Cruises: ${travel.cruises?.length || 0}, Transfers: ${travel.transfers?.length || 0}, Activities: ${travel.activities?.length || 0}`);
   console.log(`[Import TC] Destinations with descriptions: ${travel.destinations?.filter((d: any) => d.description)?.length || 0}`);
+
+  // Geocode destinations server-side so the client gets lat/lng immediately
+  if (travel.destinations && travel.destinations.length > 0) {
+    console.log(`[Import TC] Geocoding ${travel.destinations.length} destinations...`);
+    travel.destinations = await geocodeDestinations(travel.destinations);
+    const geocoded = travel.destinations.filter((d: any) => d.geolocation?.latitude).length;
+    console.log(`[Import TC] Geocoded ${geocoded}/${travel.destinations.length} destinations`);
+  }
 
   return new Response(
     JSON.stringify(travel),
