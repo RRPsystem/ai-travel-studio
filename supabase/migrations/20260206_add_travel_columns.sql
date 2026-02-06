@@ -24,3 +24,8 @@ ALTER TABLE travelc_travels ADD COLUMN IF NOT EXISTS video_end_time INTEGER;
 ALTER TABLE travelc_travels ADD COLUMN IF NOT EXISTS cruises JSONB DEFAULT '[]';
 ALTER TABLE travelc_travels ADD COLUMN IF NOT EXISTS transfers JSONB DEFAULT '[]';
 ALTER TABLE travelc_travels ADD COLUMN IF NOT EXISTS excursions JSONB DEFAULT '[]';
+
+-- Brand assignment toggles (same pattern as destinations)
+ALTER TABLE travelc_travels ADD COLUMN IF NOT EXISTS enabled_for_brands BOOLEAN DEFAULT false;
+ALTER TABLE travelc_travels ADD COLUMN IF NOT EXISTS enabled_for_franchise BOOLEAN DEFAULT false;
+ALTER TABLE travelc_travels ADD COLUMN IF NOT EXISTS is_mandatory BOOLEAN DEFAULT false;

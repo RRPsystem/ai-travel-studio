@@ -41,6 +41,9 @@ interface Travel {
   ai_summary?: string;
   all_texts?: any;
   raw_tc_data?: any;
+  enabled_for_brands: boolean;
+  enabled_for_franchise: boolean;
+  is_mandatory: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -438,6 +441,27 @@ export function TravelManagement() {
 
   const getAssignment = (travelId: string, brandId: string) => {
     return assignments.find(a => a.travel_id === travelId && a.brand_id === brandId);
+  };
+
+  const handleToggleBrands = async (id: string, current: boolean) => {
+    try {
+      await supabase!.from('travelc_travels').update({ enabled_for_brands: !current }).eq('id', id);
+      await loadData();
+    } catch (error) { console.error('Error:', error); }
+  };
+
+  const handleToggleFranchise = async (id: string, current: boolean) => {
+    try {
+      await supabase!.from('travelc_travels').update({ enabled_for_franchise: !current }).eq('id', id);
+      await loadData();
+    } catch (error) { console.error('Error:', error); }
+  };
+
+  const handleToggleMandatory = async (id: string, current: boolean) => {
+    try {
+      await supabase!.from('travelc_travels').update({ is_mandatory: !current }).eq('id', id);
+      await loadData();
+    } catch (error) { console.error('Error:', error); }
   };
 
   const getActiveCount = (travelId: string) => {
@@ -1335,164 +1359,95 @@ export function TravelManagement() {
 
       {/* Travels List */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
-        <div className="p-4 border-b bg-gray-50">
-          <h3 className="font-semibold">{travels.length} Reizen</h3>
-        </div>
-
-        {travels.length === 0 ? (
-          <div className="p-12 text-center text-gray-500">
-            <Plane className="w-12 h-12 mx-auto mb-4 opacity-50" />
-            <p>Nog geen reizen geïmporteerd</p>
-            <p className="text-sm">Gebruik het import veld hierboven om een reis toe te voegen</p>
-          </div>
-        ) : (
-          <div className="divide-y">
-            {travels.map((travel) => (
-              <div key={travel.id} className="p-4 hover:bg-gray-50">
-                <div className="flex items-start gap-4">
-                  {/* Image */}
-                  <div className="w-32 h-20 bg-gray-200 rounded-lg overflow-hidden flex-shrink-0">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Afbeelding</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reis</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Details</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Brands</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Franchise</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Verplicht</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acties</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {travels.map((travel) => (
+                <tr key={travel.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 whitespace-nowrap">
                     {travel.hero_image ? (
-                      <img src={travel.hero_image} alt={travel.title} className="w-full h-full object-cover" />
+                      <img src={travel.hero_image} alt={travel.title} className="w-20 h-14 object-cover rounded-lg" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <ImageIcon className="w-8 h-8 text-gray-400" />
+                      <div className="w-20 h-14 bg-gray-200 rounded-lg flex items-center justify-center">
+                        <ImageIcon className="w-5 h-5 text-gray-400" />
                       </div>
                     )}
-                  </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-lg">{travel.title}</h4>
-                    <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="text-sm font-medium text-gray-900">{travel.title}</div>
+                    <div className="text-xs text-gray-500">TC: {travel.travel_compositor_id}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3 text-xs text-gray-600">
                       <span className="flex items-center gap-1">
-                        <Calendar className="w-4 h-4" />
-                        {travel.number_of_nights} nachten
+                        <Calendar className="w-3 h-3" />
+                        {travel.number_of_nights}n
                       </span>
-                      {travel.price_per_person && (
+                      {travel.price_per_person ? (
                         <span className="flex items-center gap-1">
-                          <Euro className="w-4 h-4" />
-                          €{travel.price_per_person.toLocaleString()}
+                          <Euro className="w-3 h-3" />
+                          €{Number(travel.price_per_person).toLocaleString()}
                         </span>
-                      )}
+                      ) : null}
                       <span className="flex items-center gap-1">
-                        <MapPin className="w-4 h-4" />
-                        {travel.destinations?.length || 0} bestemmingen
-                      </span>
-                      <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
-                        TC: {travel.travel_compositor_id}
+                        <MapPin className="w-3 h-3" />
+                        {travel.destinations?.length || 0}
                       </span>
                     </div>
-
-                    {/* Brand Assignments */}
-                    <div className="mt-3">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-gray-500">Actief voor:</span>
-                        {brands.slice(0, 5).map((brand) => {
-                          const assignment = getAssignment(travel.id, brand.id);
-                          const isActive = assignment?.is_active;
-                          return (
-                            <button
-                              key={brand.id}
-                              onClick={() => handleAssignToBrand(travel.id, brand.id)}
-                              className={`text-xs px-2 py-1 rounded-full transition-colors ${
-                                isActive
-                                  ? 'bg-green-100 text-green-800 border border-green-300'
-                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                              }`}
-                            >
-                              {brand.name}
-                            </button>
-                          );
-                        })}
-                        {brands.length > 5 && (
-                          <span className="text-xs text-gray-400">+{brands.length - 5} meer</span>
-                        )}
-                      </div>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" checked={travel.enabled_for_brands || false} onChange={() => handleToggleBrands(travel.id, travel.enabled_for_brands)} className="sr-only peer" />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" checked={travel.enabled_for_franchise || false} onChange={() => handleToggleFranchise(travel.id, travel.enabled_for_franchise)} className="sr-only peer" />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-center">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input type="checkbox" checked={travel.is_mandatory || false} onChange={() => handleToggleMandatory(travel.id, travel.is_mandatory)} className="sr-only peer" />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
+                    </label>
+                  </td>
+                  <td className="px-4 py-3 whitespace-nowrap text-right">
+                    <div className="flex items-center justify-end space-x-2">
+                      <button onClick={() => handleEdit(travel)} className="text-blue-600 hover:text-blue-900 p-1" title="Bewerken">
+                        <Edit2 size={16} />
+                      </button>
+                      <button onClick={() => handleDelete(travel)} className="text-red-600 hover:text-red-900 p-1" title="Verwijderen">
+                        <Trash2 size={16} />
+                      </button>
                     </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => handleEdit(travel)}
-                      className="p-2 hover:bg-blue-100 rounded-lg text-blue-600"
-                      title="Bewerken"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(travel)}
-                      className="p-2 hover:bg-red-100 rounded-lg text-red-600"
-                      title="Verwijderen"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* Expanded Assignment Settings */}
-                {getActiveCount(travel.id) > 0 && (
-                  <div className="mt-4 pt-4 border-t">
-                    <h5 className="text-sm font-medium text-gray-700 mb-2">Brand Instellingen:</h5>
-                    <div className="space-y-2">
-                      {assignments
-                        .filter(a => a.travel_id === travel.id && a.is_active)
-                        .map((assignment) => {
-                          const brand = brands.find(b => b.id === assignment.brand_id);
-                          return (
-                            <div key={assignment.id} className="flex items-center gap-4 text-sm bg-gray-50 p-2 rounded-lg">
-                              <span className="font-medium w-32">{brand?.name}</span>
-                              
-                              <label className="flex items-center gap-1 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={assignment.show_hotels}
-                                  onChange={(e) => handleToggleAssignmentSetting(assignment.id, 'show_hotels', e.target.checked)}
-                                  className="rounded"
-                                />
-                                <Hotel className="w-3 h-3" /> Hotels
-                              </label>
-
-                              <label className="flex items-center gap-1 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={assignment.show_prices}
-                                  onChange={(e) => handleToggleAssignmentSetting(assignment.id, 'show_prices', e.target.checked)}
-                                  className="rounded"
-                                />
-                                <Euro className="w-3 h-3" /> Prijzen
-                              </label>
-
-                              <label className="flex items-center gap-1 cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={assignment.is_featured}
-                                  onChange={(e) => handleToggleAssignmentSetting(assignment.id, 'is_featured', e.target.checked)}
-                                  className="rounded"
-                                />
-                                <Star className="w-3 h-3" /> Featured
-                              </label>
-
-                              <select
-                                value={assignment.header_type}
-                                onChange={(e) => handleToggleAssignmentSetting(assignment.id, 'header_type', e.target.value)}
-                                className="text-xs border rounded px-2 py-1"
-                              >
-                                <option value="image">Header: Foto</option>
-                                <option value="video">Header: Video</option>
-                                <option value="slideshow">Header: Slideshow</option>
-                              </select>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+                  </td>
+                </tr>
+              ))}
+              {travels.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                    <Plane className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>Nog geen reizen geïmporteerd</p>
+                    <p className="text-sm">Gebruik het import veld hierboven om een reis toe te voegen</p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
