@@ -509,12 +509,31 @@ export function TravelManagement() {
           {formData.destinations.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Bestemmingen ({formData.destinations.length})</label>
-              <div className="flex flex-wrap gap-2">
+              <div className="space-y-2">
                 {formData.destinations.map((dest: any, idx: number) => (
-                  <span key={idx} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                    {dest.name || dest.city || dest}
-                    {dest.nights && ` (${dest.nights} nachten)`}
-                  </span>
+                  <div key={idx} className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-blue-600" />
+                      <span className="font-medium">{dest.name || dest.city || dest}</span>
+                      {dest.country && <span className="text-sm text-gray-500">({dest.country})</span>}
+                      {dest.nights && <span className="text-sm text-gray-500">• {dest.nights} nachten</span>}
+                    </div>
+                    {dest.description && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{dest.description}</p>}
+                    {dest.highlights?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {dest.highlights.slice(0, 3).map((h: string, i: number) => (
+                          <span key={i} className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">{h}</span>
+                        ))}
+                      </div>
+                    )}
+                    {dest.images?.length > 0 && (
+                      <div className="flex gap-2 mt-2">
+                        {dest.images.slice(0, 3).map((img: string, i: number) => (
+                          <img key={i} src={img} alt="" className="w-16 h-12 object-cover rounded" />
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 ))}
               </div>
             </div>
@@ -580,13 +599,20 @@ export function TravelManagement() {
                   <div key={idx} className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
                     <div className="flex items-center gap-2">
                       <Car className="w-4 h-4 text-orange-600" />
-                      <span className="font-medium">{car.company} - {car.category || car.carType}</span>
-                      {car.days && <span className="text-sm text-gray-500">({car.days} dagen)</span>}
+                      <span className="font-medium">
+                        {car.company || car.supplier || 'Huurauto'} 
+                        {(car.category || car.carType || car.vehicle) && ` - ${car.category || car.carType || car.vehicle}`}
+                      </span>
+                      {(car.days || car.rentalDays) && <span className="text-sm text-gray-500">({car.days || car.rentalDays} dagen)</span>}
                     </div>
-                    {car.pickupLocation && <p className="text-sm text-gray-600 mt-1">📍 Ophalen: {car.pickupLocation}</p>}
-                    {car.dropoffLocation && car.dropoffLocation !== car.pickupLocation && (
-                      <p className="text-sm text-gray-600">📍 Inleveren: {car.dropoffLocation}</p>
+                    {(car.pickupLocation || car.pickUp || car.pickup) && (
+                      <p className="text-sm text-gray-600 mt-1">📍 Ophalen: {car.pickupLocation || car.pickUp || car.pickup}</p>
                     )}
+                    {(car.dropoffLocation || car.dropOff || car.dropoff) && (car.dropoffLocation || car.dropOff || car.dropoff) !== (car.pickupLocation || car.pickUp || car.pickup) && (
+                      <p className="text-sm text-gray-600">📍 Inleveren: {car.dropoffLocation || car.dropOff || car.dropoff}</p>
+                    )}
+                    {car.transmission && <p className="text-sm text-gray-500">⚙️ {car.transmission}</p>}
+                    {car.price && <p className="text-sm text-gray-500">💰 €{car.price}</p>}
                   </div>
                 ))}
               </div>

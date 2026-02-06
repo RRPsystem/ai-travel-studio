@@ -108,11 +108,14 @@ function processAndReturnTravel(data: any, travelId: string) {
     // Hotels with full details
     hotels: data.hotels || [],
     
-    // Flights
-    flights: data.flights || [],
+    // Flights - check multiple possible locations
+    flights: data.flights || data.transports?.filter((t: any) => t.type === 'flight' || t.type === 'FLIGHT') || [],
     
-    // Car rentals
-    carRentals: data.car_rentals || [],
+    // Other transports (trains, ferries, etc.)
+    otherTransports: data.other_transports || [],
+    
+    // Car rentals - map from cars array if car_rentals is empty
+    carRentals: data.car_rentals || data.cars || [],
     
     // Activities
     activities: data.activities || [],
@@ -149,7 +152,8 @@ function processAndReturnTravel(data: any, travelId: string) {
   };
 
   console.log(`[Import TC] Processed travel: ${travel.title}`);
-  console.log(`[Import TC] Hotels: ${travel.hotels?.length || 0}, Images: ${travel.images?.length || 0}`);
+  console.log(`[Import TC] Hotels: ${travel.hotels?.length || 0}, Flights: ${travel.flights?.length || 0}, Cars: ${travel.carRentals?.length || 0}, Images: ${travel.images?.length || 0}`);
+  console.log(`[Import TC] Destinations with descriptions: ${travel.destinations?.filter((d: any) => d.description)?.length || 0}`);
 
   return new Response(
     JSON.stringify(travel),
