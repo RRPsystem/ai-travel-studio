@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Plane, Edit2, Trash2, ArrowLeft, Save, Loader2, Download, Hotel, MapPin, Car, Check, X, Image as ImageIcon, Calendar, Euro, Star } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { SlidingMediaSelector } from '../shared/SlidingMediaSelector';
 
 interface Travel {
   id: string;
@@ -81,6 +82,8 @@ export function TravelManagement() {
   const [importTcId, setImportTcId] = useState('');
   const [importError, setImportError] = useState('');
   const [selectedImages, setSelectedImages] = useState<Set<number>>(new Set());
+  const [showMediaSelector, setShowMediaSelector] = useState(false);
+  const [mediaSelectorMode, setMediaSelectorMode] = useState<'hero' | 'gallery'>('gallery');
 
   const [formData, setFormData] = useState({
     travel_compositor_id: '',
@@ -666,21 +669,33 @@ export function TravelManagement() {
               {/* Hero Image */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Hero Afbeelding</label>
-                <div className="flex gap-4">
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      value={formData.hero_image}
-                      onChange={(e) => setFormData({ ...formData, hero_image: e.target.value })}
-                      className="w-full px-3 py-2 border rounded-lg"
-                      placeholder="URL van hero afbeelding..."
-                    />
-                  </div>
-                  {formData.hero_image && (
-                    <img src={formData.hero_image} alt="Hero" className="h-20 w-32 object-cover rounded-lg" />
+                <div className="flex gap-4 items-start">
+                  {formData.hero_image ? (
+                    <div className="relative">
+                      <img src={formData.hero_image} alt="Hero" className="h-32 w-48 object-cover rounded-lg" />
+                      <button
+                        onClick={() => setFormData({ ...formData, hero_image: '' })}
+                        className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="h-32 w-48 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400">
+                      <ImageIcon className="w-8 h-8" />
+                    </div>
                   )}
+                  <div className="flex flex-col gap-2">
+                    <button
+                      onClick={() => { setMediaSelectorMode('hero'); setShowMediaSelector(true); }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                      Kies Hero Afbeelding
+                    </button>
+                    <p className="text-xs text-gray-500">Of klik op een foto in de galerij hieronder</p>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Klik op een foto hieronder om deze als hero te selecteren</p>
               </div>
 
               {/* Image Gallery */}
@@ -690,7 +705,13 @@ export function TravelManagement() {
                     Foto Galerij ({formData.images.length} foto's)
                   </label>
                   <div className="flex gap-2">
-                    <span className="text-xs text-gray-500">{selectedImages.size} geselecteerd</span>
+                    <button
+                      onClick={() => { setMediaSelectorMode('gallery'); setShowMediaSelector(true); }}
+                      className="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm flex items-center gap-1"
+                    >
+                      <ImageIcon className="w-3 h-3" />
+                      Foto's Toevoegen
+                    </button>
                     {selectedImages.size > 0 && (
                       <button
                         onClick={() => {
@@ -698,9 +719,9 @@ export function TravelManagement() {
                           setFormData({ ...formData, images: newImages });
                           setSelectedImages(new Set());
                         }}
-                        className="text-xs text-red-600 hover:underline"
+                        className="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
                       >
-                        Verwijder geselecteerde
+                        Verwijder ({selectedImages.size})
                       </button>
                     )}
                   </div>
@@ -756,38 +777,25 @@ export function TravelManagement() {
                 </div>
               </div>
 
-              {/* Add Image URL */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Foto URL toevoegen</label>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="https://..."
-                    className="flex-1 px-3 py-2 border rounded-lg"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        const input = e.target as HTMLInputElement;
-                        if (input.value) {
-                          setFormData({ ...formData, images: [...formData.images, input.value] });
-                          input.value = '';
-                        }
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={(e) => {
-                      const input = (e.target as HTMLElement).previousElementSibling as HTMLInputElement;
-                      if (input.value) {
-                        setFormData({ ...formData, images: [...formData.images, input.value] });
-                        input.value = '';
-                      }
-                    }}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                  >
-                    Toevoegen
-                  </button>
-                </div>
-              </div>
+              {/* SlidingMediaSelector */}
+              <SlidingMediaSelector
+                isOpen={showMediaSelector}
+                onClose={() => setShowMediaSelector(false)}
+                onSelect={(imageUrl) => {
+                  if (mediaSelectorMode === 'hero') {
+                    setFormData({ ...formData, hero_image: imageUrl });
+                  } else {
+                    setFormData({ ...formData, images: [...formData.images, imageUrl] });
+                  }
+                  setShowMediaSelector(false);
+                }}
+                onSelectMultiple={(imageUrls) => {
+                  setFormData({ ...formData, images: [...formData.images, ...imageUrls] });
+                  setShowMediaSelector(false);
+                }}
+                title={mediaSelectorMode === 'hero' ? 'Kies Hero Afbeelding' : 'Foto\'s Toevoegen'}
+                allowMultiple={mediaSelectorMode === 'gallery'}
+              />
             </div>
           )}
 
