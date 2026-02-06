@@ -3,6 +3,7 @@ import { Plane, Edit2, Trash2, ArrowLeft, Save, Loader2, Download, Hotel, MapPin
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { SlidingMediaSelector } from '../shared/SlidingMediaSelector';
+import { RouteMap } from '../shared/RouteMap';
 
 interface Travel {
   id: string;
@@ -72,7 +73,7 @@ interface TravelAssignment {
 }
 
 type ViewMode = 'list' | 'create' | 'edit' | 'assignments';
-type EditTab = 'general' | 'photos' | 'components';
+type EditTab = 'general' | 'photos' | 'components' | 'routemap';
 type HeroStyle = 'slideshow' | 'grid' | 'single' | 'video' | 'wide';
 
 // Helper function to strip HTML tags
@@ -482,6 +483,7 @@ export function TravelManagement() {
       { id: 'general', label: 'Algemeen', icon: '📋' },
       { id: 'photos', label: 'Header & Foto\'s', icon: '🖼️' },
       { id: 'components', label: 'Componenten', icon: '🧩' },
+      { id: 'routemap', label: 'Routekaart', icon: '🗺️' },
     ];
 
     return (
@@ -1310,6 +1312,78 @@ export function TravelManagement() {
                           {activity.date && <span className="mr-2">📅 {activity.date}</span>}
                           {activity.day && <span className="mr-2">� Dag {activity.day}</span>}
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB: Routekaart */}
+          {editTab === 'routemap' && (
+            <div className="space-y-6">
+              <div>
+                <h3 className="text-lg font-semibold mb-2 flex items-center gap-2">
+                  🗺️ Routekaart
+                </h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Kaart met genummerde markers per bestemming en een route-lijn. Coördinaten worden automatisch opgezocht.
+                </p>
+              </div>
+
+              {formData.destinations && formData.destinations.length >= 2 ? (
+                <RouteMap
+                  destinations={formData.destinations.map((d: any) => ({
+                    name: d.name || d.title || '',
+                    country: d.country || '',
+                    lat: d.geolocation?.latitude || d.lat || 0,
+                    lng: d.geolocation?.longitude || d.lng || 0,
+                    image: d.imageUrls?.[0] || d.images?.[0] || d.image || '',
+                    description: d.description || '',
+                    nights: d.nights || 0,
+                  }))}
+                  height="500px"
+                  onGeocodingComplete={(geocoded) => {
+                    // Save geocoded coordinates back to destinations
+                    const updatedDests = formData.destinations.map((d: any, i: number) => {
+                      const geo = geocoded.find((g: any) => g.name === (d.name || d.title));
+                      if (geo && geo.lat && geo.lng) {
+                        return {
+                          ...d,
+                          geolocation: { latitude: geo.lat, longitude: geo.lng }
+                        };
+                      }
+                      return d;
+                    });
+                    setFormData({ ...formData, destinations: updatedDests });
+                  }}
+                />
+              ) : (
+                <div className="flex items-center justify-center bg-gray-100 rounded-lg h-64">
+                  <p className="text-gray-500 text-sm">Minimaal 2 bestemmingen nodig voor een routekaart</p>
+                </div>
+              )}
+
+              {/* Destination list with coordinates */}
+              {formData.destinations && formData.destinations.length > 0 && (
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Bestemmingen ({formData.destinations.length})</h4>
+                  <div className="space-y-1">
+                    {formData.destinations.map((d: any, idx: number) => (
+                      <div key={idx} className="flex items-center gap-3 text-sm p-2 bg-gray-50 rounded">
+                        <span className="w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0">
+                          {idx + 1}
+                        </span>
+                        <span className="font-medium">{d.name || d.title}</span>
+                        {d.nights > 0 && <span className="text-gray-500">({d.nights}n)</span>}
+                        {d.geolocation?.latitude ? (
+                          <span className="text-xs text-green-600 ml-auto">
+                            📍 {d.geolocation.latitude.toFixed(2)}, {d.geolocation.longitude.toFixed(2)}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-orange-500 ml-auto">⏳ Wordt opgezocht...</span>
+                        )}
                       </div>
                     ))}
                   </div>
