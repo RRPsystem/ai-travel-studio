@@ -120,6 +120,7 @@ ksort($all_categories);
         }
     ?>
     <div class="travelc-tcard" 
+         data-id="<?php echo esc_attr($travel['id'] ?? ''); ?>"
          data-title="<?php echo esc_attr(strtolower($title)); ?>"
          data-countries="<?php echo esc_attr(strtolower(implode(',', $countries))); ?>"
          data-destinations="<?php echo esc_attr(strtolower(implode(',', $dest_names))); ?>"
@@ -320,6 +321,60 @@ ksort($all_categories);
             var title = btn.getAttribute('data-title') || 'Routekaart';
             openRoutePanel(dests, title);
         } catch(err) { console.error('Route parse error:', err); }
+    });
+
+    // ============================================
+    // Favorites (heart) — localStorage
+    // ============================================
+    var STORAGE_KEY = 'travelc_favorites';
+
+    function getFavorites() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+        catch(e) { return []; }
+    }
+
+    function saveFavorites(favs) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(favs));
+    }
+
+    function toggleFavorite(id) {
+        var favs = getFavorites();
+        var idx = favs.indexOf(id);
+        if (idx === -1) { favs.push(id); } else { favs.splice(idx, 1); }
+        saveFavorites(favs);
+        return idx === -1;
+    }
+
+    // Init: mark saved favorites
+    function initFavorites() {
+        var favs = getFavorites();
+        var cards = list.querySelectorAll('.travelc-tcard');
+        cards.forEach(function(card) {
+            var id = card.getAttribute('data-id');
+            var heart = card.querySelector('.travelc-tcard__heart');
+            if (heart && id && favs.indexOf(id) !== -1) {
+                heart.classList.add('is-liked');
+            }
+        });
+    }
+    initFavorites();
+
+    // Heart click handler
+    list.addEventListener('click', function(e) {
+        var heart = e.target.closest('.travelc-tcard__heart');
+        if (!heart) return;
+        e.preventDefault();
+        e.stopPropagation();
+        var card = heart.closest('.travelc-tcard');
+        if (!card) return;
+        var id = card.getAttribute('data-id');
+        if (!id) return;
+        var isNowLiked = toggleFavorite(id);
+        if (isNowLiked) {
+            heart.classList.add('is-liked');
+        } else {
+            heart.classList.remove('is-liked');
+        }
     });
 })();
 </script>
