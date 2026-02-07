@@ -84,15 +84,38 @@ ksort($all_categories);
             $first_cat = $categories[0];
             $travel_type = is_array($first_cat) ? ($first_cat['name'] ?? '') : $first_cat;
         }
+        // Auto-detect travel type from title if categories empty
+        if (empty($travel_type)) {
+            $title_lower = strtolower($title);
+            if (strpos($title_lower, 'rondreis') !== false) $travel_type = 'Autorondreis';
+            elseif (strpos($title_lower, 'fly & drive') !== false || strpos($title_lower, 'fly and drive') !== false) $travel_type = 'Fly & Drive';
+            elseif (strpos($title_lower, 'cruise') !== false) $travel_type = 'Cruise';
+            elseif (strpos($title_lower, 'strandvakantie') !== false || strpos($title_lower, 'beach') !== false) $travel_type = 'Strandvakantie';
+            elseif (strpos($title_lower, 'stedentrip') !== false) $travel_type = 'Stedentrip';
+            elseif (strpos($title_lower, 'safari') !== false) $travel_type = 'Safari';
+            elseif (strpos($title_lower, 'treinreis') !== false) $travel_type = 'Treinreis';
+        }
+        // Intro text: fallback to description if empty
+        $intro = $travel['intro_text'] ?? '';
+        if (empty($intro)) $intro = $travel['description'] ?? '';
         // Build destinations JSON for routekaart panel
+        // Support multiple coordinate formats: lat/lng, latitude/longitude, geolocation.latitude/longitude
         $dest_json = [];
         foreach ($destinations as $d) {
-            if (!empty($d['name']) && (isset($d['latitude']) || isset($d['lat']))) {
-                $dest_json[] = [
-                    'name' => $d['name'],
-                    'lat' => floatval($d['latitude'] ?? $d['lat'] ?? 0),
-                    'lng' => floatval($d['longitude'] ?? $d['lng'] ?? $d['lon'] ?? 0),
-                ];
+            if (empty($d['name'])) continue;
+            $lat = 0; $lng = 0;
+            if (!empty($d['geolocation']['latitude'])) {
+                $lat = floatval($d['geolocation']['latitude']);
+                $lng = floatval($d['geolocation']['longitude'] ?? 0);
+            } elseif (!empty($d['latitude'])) {
+                $lat = floatval($d['latitude']);
+                $lng = floatval($d['longitude'] ?? 0);
+            } elseif (!empty($d['lat'])) {
+                $lat = floatval($d['lat']);
+                $lng = floatval($d['lng'] ?? $d['lon'] ?? 0);
+            }
+            if ($lat != 0 && $lng != 0) {
+                $dest_json[] = ['name' => $d['name'], 'lat' => $lat, 'lng' => $lng];
             }
         }
     ?>
@@ -136,8 +159,8 @@ ksort($all_categories);
                 </div>
             <?php endif; ?>
 
-            <?php if (!empty($travel['intro_text'])): ?>
-                <p class="travelc-tcard__excerpt"><?php echo esc_html(wp_trim_words(strip_tags($travel['intro_text']), 30)); ?></p>
+            <?php if (!empty($intro)): ?>
+                <p class="travelc-tcard__excerpt"><?php echo esc_html(wp_trim_words(strip_tags($intro), 30)); ?></p>
             <?php endif; ?>
 
             <?php if ($nights > 0): ?>
