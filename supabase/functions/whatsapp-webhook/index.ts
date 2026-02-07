@@ -84,127 +84,35 @@ async function transcribeAudio(audioUrl: string, openaiApiKey: string, twilioAcc
   }
 }
 
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 200, headers: corsHeaders });
-  }
+// ============================================
+// ASYNC PROCESSING - runs after Twilio gets its response
+// This is the key to stability: Twilio has a 15s timeout,
+// but OpenAI can take 5-20s. By responding immediately and
+// processing async, we never timeout.
+// ============================================
+async function processMessageAsync(
+  from: string,
+  userMessage: string,
+  imageUrl: string | undefined,
+  mediaContentType: string | undefined,
+  sessionData: any,
+  trip: any,
+  twilioAccountSid: string,
+  twilioAuthToken: string,
+  twilioWhatsAppNumber: string,
+) {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   try {
-    console.log('=== WHATSAPP WEBHOOK CALLED ===');
-
-    const formData = await req.formData();
-    const from = formData.get('From')?.toString().replace('whatsapp:', '') || '';
-    const body = formData.get('Body')?.toString() || '';
-    const numMedia = parseInt(formData.get('NumMedia')?.toString() || '0');
-    const mediaUrl = numMedia > 0 ? formData.get('MediaUrl0')?.toString() : undefined;
-    const mediaContentType = numMedia > 0 ? formData.get('MediaContentType0')?.toString() : undefined;
-    
-    // Get location data if user shared their location
-    const latitude = formData.get('Latitude')?.toString();
-    const longitude = formData.get('Longitude')?.toString();
-    const hasLocation = latitude && longitude;
-
-    console.log('Received:', { from, body: body.substring(0, 50), numMedia, hasLocation });
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    // Get session with trip data
-    const { data: sessionData } = await supabase
-      .from('travel_whatsapp_sessions')
-      .select(`*, travel_trips (id, name, parsed_data, source_urls, custom_context, gpt_model, gpt_temperature, brand_id)`)
-      .eq('phone_number', from)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!sessionData) {
-      console.error('❌ NO SESSION FOR:', from);
-      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-        headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
-      });
-    }
-
-    const trip = sessionData.travel_trips;
-    if (!trip) {
-      console.error('❌ NO TRIP for session:', sessionData.id);
-      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-        headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
-      });
-    }
-
-    console.log('✅ Trip:', trip.name);
-
-    // Get Twilio settings
-    const { data: twilioSettings } = await supabase
-      .from('api_settings')
-      .select('twilio_account_sid, twilio_auth_token, twilio_whatsapp_number')
-      .or(`brand_id.eq.${trip.brand_id},provider.eq.system`)
-      .order('brand_id', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!twilioSettings?.twilio_account_sid) {
-      console.error('Twilio credentials not found');
-      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-        headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
-      });
-    }
-
-    const twilioAccountSid = twilioSettings.twilio_account_sid;
-    const twilioAuthToken = twilioSettings.twilio_auth_token;
-    const twilioWhatsAppNumber = twilioSettings.twilio_whatsapp_number || '+14155238886';
-
-    let userMessage = body;
-    let imageUrl: string | undefined = undefined;
-
-    // Handle image messages - store URL for vision API
-    if (mediaContentType?.startsWith('image/') && mediaUrl) {
-      console.log('📷 Image received:', mediaContentType);
-      imageUrl = mediaUrl;
-      if (!userMessage) {
-        userMessage = '[Gebruiker stuurde een afbeelding]';
-      }
-    }
-
-    // Handle location messages - user shared their location
-    if (hasLocation) {
-      console.log('📍 Location received:', latitude, longitude);
-      // Add location context to the message
-      const locationContext = `[Gebruiker deelde locatie: ${latitude}, ${longitude}]`;
-      if (!userMessage) {
-        userMessage = locationContext + ' Geef me een wandelroute vanaf deze locatie.';
-      } else {
-        userMessage = locationContext + ' ' + userMessage;
-      }
-    }
-
-    // Handle audio messages
-    if (mediaContentType?.startsWith('audio/')) {
-      const { data: audioOpenaiSettings } = await supabase
-        .from('api_settings')
-        .select('api_key')
-        .eq('provider', 'OpenAI')
-        .eq('service_name', 'OpenAI API')
-        .maybeSingle();
-
-      if (audioOpenaiSettings?.api_key && mediaUrl) {
-        try {
-          userMessage = await transcribeAudio(mediaUrl, audioOpenaiSettings.api_key, twilioAccountSid, twilioAuthToken);
-        } catch (e) {
-          console.error('Transcription failed:', e);
-        }
-      }
-    }
-
-    // Get conversation history (individual messages from travel_conversations table)
+    // Get conversation history
     const { data: recentMessages } = await supabase
       .from('travel_conversations')
       .select('role, message')
       .eq('session_token', sessionData.session_token)
       .order('created_at', { ascending: false })
-      .limit(6);
+      .limit(10);
 
     const conversationHistory = (recentMessages || []).reverse().map((m: any) => ({ role: m.role, content: m.message }));
     conversationHistory.push({ role: 'user', content: userMessage });
@@ -226,10 +134,9 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (!openaiSettings?.api_key) {
-      await sendWhatsAppMessage(from, 'Sorry, ik kan momenteel geen berichten verwerken.', twilioAccountSid, twilioAuthToken, twilioWhatsAppNumber);
-      return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-        headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
-      });
+      console.error('❌ No OpenAI API key');
+      await sendWhatsAppMessage(from, 'Sorry, ik kan momenteel geen berichten verwerken. Probeer het later opnieuw.', twilioAccountSid, twilioAuthToken, twilioWhatsAppNumber);
+      return;
     }
 
     // Prepare trip info - REMOVE raw_compositor_data to reduce tokens
@@ -323,12 +230,11 @@ ${tripInfo}
     // Build messages - add image if present
     let messages: any[] = [
       { role: 'system', content: systemPrompt },
-      ...conversationHistory.slice(-6)
+      ...conversationHistory.slice(-10)
     ];
 
     // If image is present, modify the last user message to include the image
     if (imageUrl) {
-      // Fetch image and convert to base64 (Twilio requires auth)
       try {
         const imgResponse = await fetch(imageUrl, {
           headers: { 'Authorization': 'Basic ' + btoa(`${twilioAccountSid}:${twilioAuthToken}`) }
@@ -339,7 +245,6 @@ ${tripInfo}
           const base64Image = btoa(String.fromCharCode(...new Uint8Array(imgBuffer)));
           const mimeType = mediaContentType || 'image/jpeg';
           
-          // Replace last message with vision format
           const lastMsg = messages[messages.length - 1];
           messages[messages.length - 1] = {
             role: 'user',
@@ -355,30 +260,47 @@ ${tripInfo}
       }
     }
 
-    console.log('Calling OpenAI:', gptModel, imageUrl ? '(with vision)' : '');
+    console.log('🤖 Calling OpenAI:', gptModel, 'messages:', messages.length);
 
-    const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiSettings.api_key}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: gptModel,
-        messages: messages,
-        temperature: 0.7,
-        max_tokens: 500,
-      }),
-    });
+    // Call OpenAI with retry
+    let aiMessage = '';
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiSettings.api_key}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: gptModel,
+            messages: messages,
+            temperature: 0.7,
+            max_tokens: 1000,
+          }),
+        });
 
-    if (!openaiResponse.ok) {
-      const error = await openaiResponse.text();
-      console.error('OpenAI error:', error);
-      throw new Error('OpenAI failed');
+        if (!openaiResponse.ok) {
+          const error = await openaiResponse.text();
+          console.error(`❌ OpenAI error (attempt ${attempt}):`, error);
+          if (attempt === 2) throw new Error('OpenAI failed after 2 attempts');
+          continue;
+        }
+
+        const aiResult = await openaiResponse.json();
+        aiMessage = aiResult.choices[0].message.content;
+        break;
+      } catch (e) {
+        console.error(`❌ OpenAI exception (attempt ${attempt}):`, e);
+        if (attempt === 2) throw e;
+        // Wait 1s before retry
+        await new Promise(r => setTimeout(r, 1000));
+      }
     }
 
-    const aiResult = await openaiResponse.json();
-    const aiMessage = aiResult.choices[0].message.content;
+    if (!aiMessage) {
+      throw new Error('No AI response generated');
+    }
 
     // Save assistant response
     await supabase.from('travel_conversations').insert({
@@ -394,18 +316,204 @@ ${tripInfo}
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', sessionData.id);
 
-    // Send WhatsApp response
-    await sendWhatsAppMessage(from, aiMessage, twilioAccountSid, twilioAuthToken, twilioWhatsAppNumber);
-    console.log('✅ Response sent');
+    // Split long messages for WhatsApp (max ~1600 chars per message for readability)
+    const MAX_WA_LENGTH = 1500;
+    if (aiMessage.length > MAX_WA_LENGTH) {
+      const parts = splitMessage(aiMessage, MAX_WA_LENGTH);
+      for (const part of parts) {
+        await sendWhatsAppMessage(from, part, twilioAccountSid, twilioAuthToken, twilioWhatsAppNumber);
+        // Small delay between parts to maintain order
+        await new Promise(r => setTimeout(r, 500));
+      }
+    } else {
+      await sendWhatsAppMessage(from, aiMessage, twilioAccountSid, twilioAuthToken, twilioWhatsAppNumber);
+    }
 
-    return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
+    console.log('✅ Response sent to', from);
+
+  } catch (error) {
+    console.error('❌ Async processing error:', error);
+    // ALWAYS try to send a fallback message so the user isn't left hanging
+    try {
+      await sendWhatsAppMessage(
+        from,
+        'Sorry, er ging iets mis bij het verwerken van je bericht. Probeer het nog een keer! 🙏',
+        twilioAccountSid,
+        twilioAuthToken,
+        twilioWhatsAppNumber
+      );
+    } catch (sendError) {
+      console.error('❌ Failed to send fallback message:', sendError);
+    }
+  }
+}
+
+// Split a long message into parts at paragraph/sentence boundaries
+function splitMessage(text: string, maxLength: number): string[] {
+  const parts: string[] = [];
+  let remaining = text;
+
+  while (remaining.length > maxLength) {
+    // Try to split at double newline (paragraph)
+    let splitIdx = remaining.lastIndexOf('\n\n', maxLength);
+    if (splitIdx < maxLength * 0.3) {
+      // Try single newline
+      splitIdx = remaining.lastIndexOf('\n', maxLength);
+    }
+    if (splitIdx < maxLength * 0.3) {
+      // Try period + space
+      splitIdx = remaining.lastIndexOf('. ', maxLength);
+      if (splitIdx > 0) splitIdx += 1; // include the period
+    }
+    if (splitIdx < maxLength * 0.3) {
+      // Hard split
+      splitIdx = maxLength;
+    }
+
+    parts.push(remaining.substring(0, splitIdx).trim());
+    remaining = remaining.substring(splitIdx).trim();
+  }
+
+  if (remaining) parts.push(remaining);
+  return parts;
+}
+
+// ============================================
+// MAIN WEBHOOK HANDLER
+// Returns immediately to Twilio, processes async
+// ============================================
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { status: 200, headers: corsHeaders });
+  }
+
+  // Immediately parse the incoming message and return 200 to Twilio
+  // All heavy processing happens async after the response
+  const emptyTwiml = '<?xml version="1.0" encoding="UTF-8"?><Response></Response>';
+
+  try {
+    console.log('=== WHATSAPP WEBHOOK CALLED ===');
+
+    const formData = await req.formData();
+    const from = formData.get('From')?.toString().replace('whatsapp:', '') || '';
+    const body = formData.get('Body')?.toString() || '';
+    const numMedia = parseInt(formData.get('NumMedia')?.toString() || '0');
+    const mediaUrl = numMedia > 0 ? formData.get('MediaUrl0')?.toString() : undefined;
+    const mediaContentType = numMedia > 0 ? formData.get('MediaContentType0')?.toString() : undefined;
+    
+    const latitude = formData.get('Latitude')?.toString();
+    const longitude = formData.get('Longitude')?.toString();
+    const hasLocation = latitude && longitude;
+
+    console.log('📩 Received:', { from, body: body.substring(0, 50), numMedia, hasLocation });
+
+    if (!from) {
+      return new Response(emptyTwiml, { headers: { ...corsHeaders, 'Content-Type': 'text/xml' } });
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Quick lookups needed before we can go async
+    const { data: sessionData } = await supabase
+      .from('travel_whatsapp_sessions')
+      .select(`*, travel_trips (id, name, parsed_data, source_urls, custom_context, gpt_model, gpt_temperature, brand_id)`)
+      .eq('phone_number', from)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!sessionData?.travel_trips) {
+      console.error('❌ No session/trip for:', from);
+      return new Response(emptyTwiml, { headers: { ...corsHeaders, 'Content-Type': 'text/xml' } });
+    }
+
+    const trip = sessionData.travel_trips;
+
+    // Get Twilio settings
+    const { data: twilioSettings } = await supabase
+      .from('api_settings')
+      .select('twilio_account_sid, twilio_auth_token, twilio_whatsapp_number')
+      .or(`brand_id.eq.${trip.brand_id},provider.eq.system`)
+      .order('brand_id', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!twilioSettings?.twilio_account_sid) {
+      console.error('❌ Twilio credentials not found');
+      return new Response(emptyTwiml, { headers: { ...corsHeaders, 'Content-Type': 'text/xml' } });
+    }
+
+    const twilioAccountSid = twilioSettings.twilio_account_sid;
+    const twilioAuthToken = twilioSettings.twilio_auth_token;
+    const twilioWhatsAppNumber = twilioSettings.twilio_whatsapp_number || '+14155238886';
+
+    // Build user message from various input types
+    let userMessage = body;
+    let imageUrl: string | undefined = undefined;
+
+    if (mediaContentType?.startsWith('image/') && mediaUrl) {
+      imageUrl = mediaUrl;
+      if (!userMessage) userMessage = '[Gebruiker stuurde een afbeelding]';
+    }
+
+    if (hasLocation) {
+      const locationContext = `[Gebruiker deelde locatie: ${latitude}, ${longitude}]`;
+      userMessage = userMessage ? locationContext + ' ' + userMessage : locationContext + ' Geef me een wandelroute vanaf deze locatie.';
+    }
+
+    // Handle audio - this needs to happen before async since we need the transcription
+    if (mediaContentType?.startsWith('audio/') && mediaUrl) {
+      const { data: audioSettings } = await supabase
+        .from('api_settings')
+        .select('api_key')
+        .eq('provider', 'OpenAI')
+        .eq('service_name', 'OpenAI API')
+        .maybeSingle();
+
+      if (audioSettings?.api_key) {
+        try {
+          userMessage = await transcribeAudio(mediaUrl, audioSettings.api_key, twilioAccountSid, twilioAuthToken);
+        } catch (e) {
+          console.error('Transcription failed:', e);
+          userMessage = userMessage || '[Spraakbericht kon niet worden verwerkt]';
+        }
+      }
+    }
+
+    if (!userMessage) {
+      return new Response(emptyTwiml, { headers: { ...corsHeaders, 'Content-Type': 'text/xml' } });
+    }
+
+    console.log('✅ Trip:', trip.name, '| Processing async...');
+
+    // Fire-and-forget: process the message asynchronously
+    // EdgeRuntime.waitUntil keeps the function alive after response is sent
+    const asyncPromise = processMessageAsync(
+      from, userMessage, imageUrl, mediaContentType,
+      sessionData, trip,
+      twilioAccountSid, twilioAuthToken, twilioWhatsAppNumber
+    );
+
+    // Use EdgeRuntime.waitUntil if available (Supabase Edge Functions support this)
+    // This ensures the async work completes even after we return the response
+    if (typeof (globalThis as any).EdgeRuntime !== 'undefined' && (globalThis as any).EdgeRuntime.waitUntil) {
+      (globalThis as any).EdgeRuntime.waitUntil(asyncPromise);
+    } else {
+      // Fallback: just fire and don't await
+      asyncPromise.catch(e => console.error('Async processing failed:', e));
+    }
+
+    // Return immediately to Twilio - no timeout!
+    return new Response(emptyTwiml, {
       headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
     });
 
   } catch (error) {
-    console.error('Webhook error:', error);
-    return new Response('<?xml version="1.0" encoding="UTF-8"?><Response></Response>', {
-      status: 500,
+    console.error('❌ Webhook parse error:', error);
+    return new Response(emptyTwiml, {
+      status: 200, // Still return 200 to Twilio to prevent retries
       headers: { ...corsHeaders, 'Content-Type': 'text/xml' },
     });
   }
