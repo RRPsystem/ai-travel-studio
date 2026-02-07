@@ -8,11 +8,9 @@ import { DestinationManagement } from './DestinationManagement';
 import { TravelManagement } from './TravelManagement';
 import { CategoryManagement } from './CategoryManagement';
 import { TemplateManager } from './TemplateManager';
-import { TripCatalogManager } from './TripCatalogManager';
 import RoadmapBoard from '../Brand/RoadmapBoard';
 import TestDashboard from '../Testing/TestDashboard';
 import { HelpBot } from '../shared/HelpBot';
-import { WordPressCatalogSync } from '../Operator/WordPressCatalogSync';
 import PodcastManagement from '../Podcast/PodcastManagement';
 import { GPTManagement } from '../Operator/GPTManagement';
 import { AIContentGenerator } from '../Brand/AIContentGenerator';
@@ -48,7 +46,7 @@ export function AdminDashboard() {
     if (['template-manager'].includes(activeSection)) {
       setShowWebsiteSubmenu(true);
     }
-    if (['admin-news', 'destinations', 'trips', 'trip-catalog', 'wordpress-catalog'].includes(activeSection)) {
+    if (['admin-news', 'destinations', 'trips'].includes(activeSection)) {
       setShowContentSubmenu(true);
     }
     if (['gpt-management', 'ai-content-generator'].includes(activeSection)) {
@@ -197,8 +195,6 @@ export function AdminDashboard() {
     { id: 'destinations', label: 'Bestemmingen', icon: MapPin },
     { id: 'trips', label: 'Reizen', icon: Plane },
     { id: 'categories', label: 'Categorieën', icon: Filter },
-    { id: 'trip-catalog', label: 'Reizen Catalogus', icon: BookOpen },
-    { id: 'wordpress-catalog', label: 'WordPress Catalogus', icon: Globe },
   ];
 
   const aiToolsItems = [
@@ -449,7 +445,7 @@ export function AdminDashboard() {
               <button
                 onClick={() => setShowContentSubmenu(!showContentSubmenu)}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
-                  ['admin-news', 'destinations', 'trips', 'trip-catalog', 'wordpress-catalog'].includes(activeSection)
+                  ['admin-news', 'destinations', 'trips'].includes(activeSection)
                     ? 'bg-slate-700 text-white'
                     : 'text-slate-300 hover:text-white hover:bg-slate-700'
                 }`}
@@ -603,18 +599,13 @@ export function AdminDashboard() {
                 {activeSection === 'agents' && 'Agent Management'}
                 {activeSection === 'admin-news' && 'Admin News Management'}
                 {activeSection === 'destinations' && 'Bestemmingen Beheer'}
-                {activeSection === 'trip-catalog' && 'Reizen Catalogus'}
-                {activeSection === 'wordpress-catalog' && 'WordPress Catalogus'}
                 {activeSection === 'podcast' && 'Podcast Beheer'}
                 {activeSection === 'deeplink-tester' && 'Deeplink Tester'}
                 {activeSection === 'template-manager' && 'Template Manager'}
                 {activeSection === 'gpt-management' && 'GPT Management'}
                 {activeSection === 'ai-content-generator' && 'AI Content Generator'}
-                {activeSection === 'ai-video-generator' && 'AI Video Generator'}
-                {activeSection === 'travel-bro' && 'Travel Bro'}
                 {activeSection === 'roadmap' && 'Roadmap'}
                 {activeSection === 'test-dashboard' && 'Test Dashboard'}
-                {activeSection === 'settings' && 'Settings'}
                 {activeSection === 'travel-journal' && 'TravelC Talk'}
               </h1>
               <p className="text-gray-600 mt-1">
@@ -622,15 +613,14 @@ export function AdminDashboard() {
                 {activeSection === 'dashboard' && 'System overview and statistics'}
                 {activeSection === 'admin-news' && 'Create and manage news items for all brands'}
                 {activeSection === 'destinations' && 'Beheer bestemmingen voor alle brands'}
-                {activeSection === 'trip-catalog' && 'Beoordeel tour operator reizen en wijs ze toe aan brands'}
-                {activeSection === 'wordpress-catalog' && 'Import reizen vanuit WordPress RBS Travel catalogus'}
                 {activeSection === 'podcast' && 'Plan en beheer podcast afleveringen, vragen en host notities'}
                 {activeSection === 'deeplink-tester' && 'Test external builder integration'}
                 {activeSection === 'template-manager' && 'Maak en beheer pagina templates voor brands'}
                 {activeSection === 'gpt-management' && 'Configureer custom GPTs en content generatie instellingen'}
                 {activeSection === 'ai-content-generator' && 'Genereer AI content voor bestemmingen, reizen en nieuws'}
-                {activeSection === 'settings' && 'Systeeminstellingen en configuratie'}
-                {activeSection === 'travel-journal' && 'Houd een dagboek bij van je reizen en deel je ervaringen'}
+                {activeSection === 'roadmap' && 'Roadmap'}
+                {activeSection === 'test-dashboard' && 'Test Dashboard'}
+                {activeSection === 'travel-journal' && 'TravelC Talk'}
               </p>
             </div>
             
@@ -654,8 +644,6 @@ export function AdminDashboard() {
           {activeSection === 'destinations' && <DestinationManagement />}
           {activeSection === 'trips' && <TravelManagement />}
           {activeSection === 'categories' && <CategoryManagement />}
-          {activeSection === 'trip-catalog' && <TripCatalogManager />}
-          {activeSection === 'wordpress-catalog' && <WordPressCatalogSync />}
           {activeSection === 'podcast' && <PodcastManagement />}
           {activeSection === 'roadmap' && <RoadmapBoard />}
           {activeSection === 'test-dashboard' && <TestDashboard />}
@@ -808,7 +796,7 @@ export function AdminDashboard() {
                   </div>
                 </button>
                 <button
-                  onClick={() => setActiveSection('trip-catalog')}
+                  onClick={() => setActiveSection('trips')}
                   className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-cyan-300 transition-all text-left group"
                 >
                   <div className="flex items-center gap-4">
@@ -816,8 +804,8 @@ export function AdminDashboard() {
                       <Plane className="h-6 w-6 text-cyan-600" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-gray-900">Reizen Catalogus</h3>
-                      <p className="text-sm text-gray-500">Beheer en wijs reizen toe</p>
+                      <h3 className="font-semibold text-gray-900">Reizen</h3>
+                      <p className="text-sm text-gray-500">Import en beheer reizen</p>
                     </div>
                   </div>
                 </button>

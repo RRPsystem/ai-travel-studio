@@ -16,7 +16,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { travelId, micrositeId } = await req.json();
+    const { travelId, micrositeId, skipGeocode } = await req.json();
 
     if (!travelId) {
       return new Response(
@@ -69,7 +69,7 @@ Deno.serve(async (req: Request) => {
     const travelData = result.data;
     const rawTcData = result.raw?.detail || {};
     
-    return await processAndReturnTravel(travelData, rawTcData, travelId);
+    return await processAndReturnTravel(travelData, rawTcData, travelId, skipGeocode);
 
   } catch (error) {
     console.error("Import error:", error);
@@ -144,7 +144,7 @@ async function geocodeDestinations(destinations: any[]): Promise<any[]> {
   return results;
 }
 
-async function processAndReturnTravel(data: any, rawTcData: any, travelId: string) {
+async function processAndReturnTravel(data: any, rawTcData: any, travelId: string, skipGeocode?: boolean) {
   // Log raw data for debugging
   console.log(`[Import TC] Formatted data keys:`, Object.keys(data));
   console.log(`[Import TC] Raw TC data keys:`, Object.keys(rawTcData));
@@ -243,11 +243,14 @@ async function processAndReturnTravel(data: any, rawTcData: any, travelId: strin
   console.log(`[Import TC] Destinations with descriptions: ${travel.destinations?.filter((d: any) => d.description)?.length || 0}`);
 
   // Geocode destinations server-side so the client gets lat/lng immediately
-  if (travel.destinations && travel.destinations.length > 0) {
+  // Skip geocoding during bulk imports to prevent timeouts
+  if (!skipGeocode && travel.destinations && travel.destinations.length > 0) {
     console.log(`[Import TC] Geocoding ${travel.destinations.length} destinations...`);
     travel.destinations = await geocodeDestinations(travel.destinations);
     const geocoded = travel.destinations.filter((d: any) => d.geolocation?.latitude).length;
     console.log(`[Import TC] Geocoded ${geocoded}/${travel.destinations.length} destinations`);
+  } else if (skipGeocode) {
+    console.log(`[Import TC] Skipping geocoding (bulk import mode)`);
   }
 
   return new Response(

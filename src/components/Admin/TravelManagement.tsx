@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plane, Edit2, Trash2, ArrowLeft, Save, Loader2, Download, Hotel, MapPin, Car, Check, X, Image as ImageIcon, Calendar, Euro, Star } from 'lucide-react';
+import { Plane, Edit2, Trash2, ArrowLeft, Save, Loader2, Download, Hotel, MapPin, Car, Check, X, Image as ImageIcon, Calendar, Euro, Star, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { SlidingMediaSelector } from '../shared/SlidingMediaSelector';
@@ -124,6 +124,8 @@ export function TravelManagement() {
   const [bulkProgress, setBulkProgress] = useState<{current: number, total: number, results: Array<{id: string, status: string, title?: string}>} | null>(null);
   const [selectedTravels, setSelectedTravels] = useState<Set<string>>(new Set());
   const [selectedImages, setSelectedImages] = useState<Set<number>>(new Set());
+  const [searchFilter, setSearchFilter] = useState('');
+  const [micrositeFilter, setMicrositeFilter] = useState('all');
 
   // Touroperator logo mapping per microsite
   const micrositeLogos: Record<string, {name: string, logo: string, color: string}> = {
@@ -465,7 +467,7 @@ export function TravelManagement() {
           } else {
             // Fetch full travel data
             const { data, error } = await supabase!.functions.invoke('import-travel-compositor', {
-              body: { travelId: tcId, micrositeId: micrositeId }
+              body: { travelId: tcId, micrositeId: micrositeId, skipGeocode: true }
             });
             if (error || !data?.title) {
               results.push({ id: tcId, status: 'error', title: error?.message || 'Kon niet ophalen' });
@@ -539,6 +541,17 @@ export function TravelManagement() {
     if (next.has(id)) next.delete(id); else next.add(id);
     setSelectedTravels(next);
   };
+
+  // Filter travels by search text and microsite
+  const filteredTravels = travels.filter((t) => {
+    const search = searchFilter.toLowerCase();
+    const matchesSearch = !search || 
+      t.title?.toLowerCase().includes(search) || 
+      t.travel_compositor_id?.toLowerCase().includes(search);
+    const matchesMicrosite = micrositeFilter === 'all' || 
+      (micrositeFilter === 'none' ? !t.source_microsite : t.source_microsite === micrositeFilter);
+    return matchesSearch && matchesMicrosite;
+  });
 
   const getMicrositeBadge = (microsite?: string) => {
     if (!microsite) return null;
@@ -1754,6 +1767,34 @@ export function TravelManagement() {
         </div>
       )}
 
+      {/* Filter Bar */}
+      <div className="bg-white rounded-xl shadow-sm border p-4 flex flex-wrap items-center gap-4">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input
+            type="text"
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            placeholder="Zoek op titel of TC ID..."
+            className="w-full pl-10 pr-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <select
+          value={micrositeFilter}
+          onChange={(e) => setMicrositeFilter(e.target.value)}
+          className="px-3 py-2 border rounded-lg text-sm bg-white"
+        >
+          <option value="all">Alle microsites</option>
+          <option value="none">Zonder microsite</option>
+          {Object.entries(micrositeLogos).map(([id, ms]) => (
+            <option key={id} value={id}>{ms.logo} {ms.name}</option>
+          ))}
+        </select>
+        <span className="text-sm text-gray-500">
+          {filteredTravels.length} van {travels.length} reizen
+        </span>
+      </div>
+
       {/* Travels List */}
       <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
         <div className="overflow-x-auto">
@@ -1761,7 +1802,7 @@ export function TravelManagement() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-3 py-3 text-center w-10">
-                  <input type="checkbox" checked={selectedTravels.size === travels.length && travels.length > 0}
+                  <input type="checkbox" checked={selectedTravels.size === filteredTravels.length && filteredTravels.length > 0}
                     onChange={toggleSelectAll} className="rounded border-gray-300" />
                 </th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Afbeelding</th>
@@ -1774,7 +1815,7 @@ export function TravelManagement() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {travels.map((travel) => (
+              {filteredTravels.map((travel) => (
                 <tr key={travel.id} className={`hover:bg-gray-50 ${selectedTravels.has(travel.id) ? 'bg-blue-50' : ''}`}>
                   <td className="px-3 py-3 text-center">
                     <input type="checkbox" checked={selectedTravels.has(travel.id)}
