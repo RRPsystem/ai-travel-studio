@@ -1,0 +1,94 @@
+
+<button type="button" id="test-geocoder" name="geocoder_test" value="1" class="button-secondary">TEMP: geocoder test</button>
+
+<script src="https://api.mapbox.com/mapbox-gl-js/v2.9.2/mapbox-gl.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.js"></script>
+
+
+<script>
+    // document.getElementById('test-geocoder').addEventListener('click', () => {
+    //     // mapboxgl.accessToken = 'your_mapbox_access_token';
+    //     // const geocoder = new MapboxGeocoder({
+    //     //     accessToken: mapboxgl.accessToken,
+    //     //     types: 'place'
+    //     //     });
+
+    //     //     geocoder.on('result', function(e) {
+    //     //     const country = e.result.context.find(c => c.id.includes('country'));
+    //     //     console.log(country); // Contains the country data
+    //     // });   
+
+
+    //     // Initialize the MapboxGeocoder
+    //     const geocoder = new MapboxGeocoder({
+    //         accessToken: mapboxgl.accessToken,
+    //         types: 'place', // Limit to places
+    //         mapboxgl: mapboxgl // Pass mapboxgl to the geocoder
+    //     });
+
+    //     const location = 'berlin'; // Hardcoded location name
+
+    //     // Perform geocoding using the MapboxGeocoder API
+    //     geocoder.query(location, function(error, data) {
+    //         if (error) {
+    //             console.error('Geocoding error:', error);
+    //             return;
+    //         }
+
+    //         // Log the full geocoded result to see what data is returned
+    //         console.log('Geocoded result:', data);
+
+    //         // Extract country information from the result context
+    //         const country = data.result.context.find(c => c.id.includes('country'));
+            
+    //         if (country) {
+    //             console.log('Country:', country.text); // Country name
+    //             alert('Country: ' + country.text); // Show alert with country name
+    //         } else {
+    //             console.log('Country not found');
+    //             alert('Country not found');
+    //         }
+    //     });        
+    // })
+
+
+    // Set your Mapbox access token
+    const mapboxToken = accessToken;
+
+    // Function to perform geocoding using the Mapbox Geocoding API
+    function geocodeLocation(location) {
+      // Create the URL for the geocoding API request
+      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(location)}.json?access_token=${mapboxToken}`;
+
+      // Fetch geocoding data from Mapbox API
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          // Check if the geocoding returned any results
+          if (data.features && data.features.length > 0) {
+
+            console.log('geocodeLocation', data);
+
+            const country = data.features[0].context.find(c => c.id.includes('country'));
+            if (country) {
+              alert('Country: ' + country.text); // Display country name in an alert
+            } else {
+              alert('Country not found');
+            }
+          } else {
+            alert('No results found for the location');
+          }
+        })
+        .catch(error => {
+          console.error('Error fetching geocoding data:', error);
+          alert('Error geocoding location');
+        });
+    }
+
+    // Add event listener for button click
+    document.getElementById('test-geocoder').addEventListener('click', function() {
+      const location = 'berlin'; // Hardcoded location name
+      geocodeLocation(location);
+    });    
+
+</script>  

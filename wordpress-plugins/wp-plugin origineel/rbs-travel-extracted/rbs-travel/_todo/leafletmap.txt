@@ -1,0 +1,179 @@
+    $strHtml = '<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>';        
+    $strHtml .= '<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>';
+    // echo '<script src="https://unpkg.com/nlmaps/dist/nlmaps.iife.js"></script>';
+    $strHtml .= '<script src="https://rawgit.com/mapbox/leaflet-image/gh-pages/leaflet-image.js"></script>';            
+
+    $strHtml .= '<script>const accessToken = \'' . $api_key . '\';</script>';
+
+
+
+
+
+
+function createMap(mapId, centerLocation, markerLocations, options = {}) {
+    let addLines = false;
+    if (typeof options.addLines !== 'undefined') {
+        addLines = options.addLines;
+    }
+
+    let showDistance = false;
+    if (typeof options.showDistance !== 'undefined') {
+        showDistance = options.showDistance;
+    }    
+
+    let defaultZoom = 10;
+    if (typeof options.defaultZoom !== 'undefined') {
+        defaultZoom = options.defaultZoom;
+    }    
+    // console.log(options.defaultZoom, defaultZoom);
+
+    let scrollWheelZoom = true;
+    if (typeof options.scrollWheelZoom !== 'undefined') {
+        scrollWheelZoom = options.scrollWheelZoom;
+    }        
+
+    //preferCanvas: true i
+    const map = L.map(mapId, {scrollWheelZoom: scrollWheelZoom, preferCanvas: true}).setView(centerLocation, defaultZoom);
+
+
+    // // Add a basic tile layer from nlmaps
+    // var nlmapsLayer = nlmaps.createMap({
+    //     target: mapId,
+    //     center: {
+    //         latitude: 52.3676,
+    //         longitude: 4.9041
+    //     },
+    //     zoom: 13
+    // });
+
+    // // Add the nlmaps tile layer to the Leaflet map
+    // nlmapsLayer.addTo(map);    
+
+
+    // ORIG: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+    // TEST / NL: 'https://{s}.tile.openstreetmap.nl/osm/{z}/{x}/{y}.png'           // !! Werkt niet, lege kaart (tiles)
+
+    // let tiletset = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+    // let attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
+
+
+
+    let accessToken = 'pk.eyJ1Ijoicm9iYXMtaGlua28iLCJhIjoiY2x5cjdtdnI2MDNkejJqczc0dDdoN216MSJ9.ELUSsxcj4M_vOm1HVW-JpA'; // 'pk.eyJ1Ijoicm9iYXMtaGlua28iLCJhIjoiY2x5cjdzODBwMDNsejJyczduanZ3dDhoYiJ9.8IvRvuKO92noH6OK4fYJQg';
+    let tiletset = `https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=${accessToken}&language=nl`;
+    let attribution = '&copy; <a href="https://www.mapbox.com/about/maps/">Mapbox</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+
+
+    L.tileLayer(tiletset, {
+        maxZoom: 19,
+        attribution: attribution,
+        // language: 'nl'
+    }).addTo(map);    
+
+
+    let markerGroup = L.featureGroup();
+
+    for (const latLng of markerLocations) {
+        // var marker = L.marker(latLng).addTo(map).bindPopup(`<b>${latLng}</b>`);
+        L.marker(latLng).addTo(markerGroup).bindPopup(`<b>${latLng}</b>`);
+    }    
+
+
+    markerGroup.addTo(map);
+    map.fitBounds(markerGroup.getBounds());
+
+
+    if (addLines) {
+        for (var j = 0; j < markerLocations.length - 1; j++) {
+            var lineCoords = [markerLocations[j], markerLocations[j+1]];
+            // lineCoords.push(markerLocations[j], markerLocations[j + 1]);
+            var polyline = L.polyline(lineCoords, {color: 'blue'}).addTo(map);
+            
+            //map.fitBounds(polyline.getBounds());    
+        }
+
+        // var polyline = L.polyline(markerLocations, {color: 'blue'}).addTo(map);
+        // map.fitBounds(polyline.getBounds());    
+    }
+
+    let distanceKm = null;
+    if (showDistance) {
+        let distance = map.distance(markerLocations[0], markerLocations[1]);
+        // console.log('Distance', distance / 1000);
+        distanceKm = distance / 1000;
+
+        // let elDistance = document.createElement('span');
+        // elDistance.style.position = 'absolute';
+        // elDistance.style.zIndex = 100000;
+        // elDistance.style.fontSize = '20px';
+        // elDistance.style.width = '100%';
+        // elDistance.style.textAlign = 'center';
+        // elDistance.style.bottom = 0;
+        // elDistance.innerText = 'Afstand: ' + distanceKm.toFixed(2) + ' KM';
+        // document.getElementById(mapId).append(elDistance);        
+
+        var DistanceControl = L.Control.extend({
+            options: {
+                position: 'bottomleft'
+            },
+
+            onAdd: function (map) {
+                var container = L.DomUtil.create('div', 'leaflet-control distance-info');
+                container.innerHTML = 'Distance: ' + distanceKm.toFixed(2) + ' kilometers';
+                return container;
+            }
+        });
+
+        // Add the distance control to the map
+        map.addControl(new DistanceControl());        
+    }
+
+    // document.addEventListener("resize", function() {
+    //     console.log('test map resize');
+    //     map.invalidateSize();
+    // });
+
+
+
+    
+
+    
+    
+    
+    map.on('zoomend', function() {
+        //document.getElementById('zoomLevel').innerHTML = 'Zoom: ' + map.getZoom();
+        console.log('Zoom: ' + map.getZoom());
+    });
+
+    map.invalidateSize(true);
+
+
+    if (paramPdfDebug === 'true') {                 //paramDevMode === 'true' &&
+        // console.log('AAA', distanceKm);
+        map.invalidateSize();
+        map.whenReady(function() {
+            // console.log('BBB', distanceKm);
+            // console.log('map ready');
+            // console.log(map);
+            setTimeout(() => {
+                // console.log('CCC', distanceKm);
+                
+                generateMapImage(map, distanceKm);
+            }, 1000);
+            
+    
+        });
+    }
+
+
+    var leafletMap = {
+        'map' : map,
+        'markerGroup' : markerGroup
+    };
+
+    // leafletMaps.push(map);
+    leafletMaps.push(leafletMap);
+
+    
+    
+}     

@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Travel Ideas - Listing Page Preview</title>
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f5f7fa;
+            padding: 2rem 1rem;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header Section */
+        .page-header {
+            text-align: center;
+            background: white;
+            border-radius: 24px;
+            padding: 4rem 2rem;
+            margin-bottom: 3rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+
+        .page-header h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-header p {
+            font-size: 1.3rem;
+            color: #6b7280;
+        }
+
+        /* Filter Bar */
+        .filter-bar {
+            background: white;
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.15);
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-item {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .filter-item label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .filter-item select,
+        .filter-item input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .filter-item select:focus,
+        .filter-item input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .filter-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.3s ease;
+        }
+
+        .filter-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Results Info */
+        .results-info {
+            color: #1f2937;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .view-btn {
+            background: white;
+            border: 2px solid #e5e7eb;
+            color: #6b7280;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .view-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+        }
+
+        /* Travel Cards Grid */
+        .travel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .travel-card {
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.08);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            position: relative;
+            transform-style: preserve-3d;
+        }
+
+        .travel-card:hover {
+            transform: translateY(-12px) scale(1.02);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2), 0 8px 16px rgba(0,0,0,0.12);
+        }
+
+        .travel-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .travel-card:hover::after {
+            opacity: 1;
+        }
+
+        .card-image {
+            width: 100%;
+            height: 260px;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card-image-photo {
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            transition: opacity 0.4s ease;
+        }
+
+        .card-route-map {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            pointer-events: none;
+        }
+
+        .travel-card:hover .card-route-map {
+            opacity: 0.97;
+        }
+
+        .card-map-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .card-map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .card-map-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0,0,0,0.85));
+            padding: 1.5rem;
+            color: white;
+            z-index: 1000;
+        }
+
+        .route-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .route-path {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .route-arrow {
+            font-size: 1.5rem;
+            color: #10b981;
+        }
+
+        .route-stops {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+
+        .card-badge {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.875rem;
+            color: #667eea;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .card-favorite {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            width: 45px;
+            height: 45px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .card-favorite:hover {
+            transform: scale(1.1);
+            background: #ff6b6b;
+        }
+
+        .card-favorite:hover::before {
+            content: '❤️';
+        }
+
+        .card-favorite::before {
+            content: '🤍';
+            font-size: 1.3rem;
+        }
+
+        .card-content {
+            padding: 1.75rem;
+        }
+
+        .card-destination {
+            font-size: 0.875rem;
+            color: #667eea;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #1f2937;
+            margin-bottom: 1rem;
+            line-height: 1.3;
+        }
+
+        .card-description {
+            font-size: 0.95rem;
+            color: #6b7280;
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .card-meta {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 2px solid #f3f4f6;
+        }
+
+        .meta-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            color: #4b5563;
+        }
+
+        .meta-icon {
+            font-size: 1.2rem;
+        }
+
+        .card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-price {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .price-label {
+            font-size: 0.75rem;
+            color: #9ca3af;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .price-amount {
+            font-size: 1.75rem;
+            font-weight: 800;
+            color: #1f2937;
+        }
+
+        .price-currency {
+            font-size: 1rem;
+            color: #6b7280;
+        }
+
+        .card-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 0.875rem 1.75rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .card-btn:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Pagination */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            margin-top: 3rem;
+        }
+
+        .page-btn {
+            background: white;
+            color: #667eea;
+            border: 2px solid #e5e7eb;
+            padding: 0.75rem 1.25rem;
+            border-radius: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .page-btn:hover,
+        .page-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .page-header h1 {
+                font-size: 2.5rem;
+            }
+
+            .travel-grid {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .filter-bar {
+                flex-direction: column;
+            }
+
+            .filter-item {
+                width: 100%;
+            }
+        }
+
+        /* Loading Animation */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .travel-card {
+            animation: fadeInUp 0.6s ease forwards;
+        }
+
+        .travel-card:nth-child(1) { animation-delay: 0.1s; }
+        .travel-card:nth-child(2) { animation-delay: 0.2s; }
+        .travel-card:nth-child(3) { animation-delay: 0.3s; }
+        .travel-card:nth-child(4) { animation-delay: 0.4s; }
+        .travel-card:nth-child(5) { animation-delay: 0.5s; }
+        .travel-card:nth-child(6) { animation-delay: 0.6s; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="page-header">
+            <h1>✈️ Ontdek Jouw Droomreis</h1>
+            <p>Exclusieve reizen samengesteld door experts</p>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar">
+            <div class="filter-item">
+                <label>Bestemming</label>
+                <select>
+                    <option>Alle bestemmingen</option>
+                    <option>Europa</option>
+                    <option>Azië</option>
+                    <option>Amerika</option>
+                    <option>Afrika</option>
+                </select>
+            </div>
+            <div class="filter-item">
+                <label>Duur</label>
+                <select>
+                    <option>Alle</option>
+                    <option>1-5 dagen</option>
+                    <option>6-10 dagen</option>
+                    <option>10+ dagen</option>
+                </select>
+            </div>
+            <div class="filter-item">
+                <label>Budget</label>
+                <select>
+                    <option>Alle prijzen</option>
+                    <option>€0 - €500</option>
+                    <option>€500 - €1000</option>
+                    <option>€1000+</option>
+                </select>
+            </div>
+            <button class="filter-btn">🔍 Zoeken</button>
+        </div>
+
+        <!-- Results Info -->
+        <div class="results-info">
+            <span><strong>24</strong> reizen gevonden</span>
+            <div class="view-toggle">
+                <button class="view-btn active">📊 Grid</button>
+                <button class="view-btn">📋 List</button>
+            </div>
+        </div>
+
+        <!-- Travel Cards Grid -->
+        <div class="travel-grid">
+            <!-- Card 1 -->
+            <div class="travel-card">
+                <div class="card-image">
+                    <div class="card-image-photo" style="background-image: url('https://images.unsplash.com/photo-1583422409516-2895a77efded?w=800&q=80');"></div>
+                    <div class="card-route-map" data-start="Amsterdam" data-end="Santorini" data-start-coords="52.3676,4.9041" data-end-coords="36.3932,25.4615">
+                        <div class="card-map-container">
+                            <div class="card-map" id="map-santorini"></div>
+                            <div class="card-map-overlay">
+                                <div class="route-title">🗺️ Jouw Reis Route</div>
+                                <div class="route-path">
+                                    <span>Amsterdam</span>
+                                    <span class="route-arrow">✈️</span>
+                                    <span>Santorini</span>
+                                </div>
+                                <div class="route-stops">Direct vlucht • 3.5 uur</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-favorite"></div>
+                    <div class="card-badge">🔥 Populair</div>
+                </div>
+                <div class="card-content">
+                    <div class="card-destination">🌍 Griekenland</div>
+                    <h3 class="card-title">Santorini Sunset Experience</h3>
+                    <p class="card-description">
+                        Ontdek de betoverende witte dorpjes en iconische blauwe koepels van Santorini. 
+                        Geniet van adembenemende zonsondergangen en authentieke Griekse cuisine.
+                    </p>
+                    <div class="card-meta">
+                        <div class="meta-item">
+                            <span class="meta-icon">⏱️</span>
+                            <span>7 dagen</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">🌙</span>
+                            <span>6 nachten</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">✈️</span>
+                            <span>Vliegreis</span>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="card-price">
+                            <span class="price-label">Vanaf</span>
+                            <span class="price-amount">€899 <span class="price-currency">p.p.</span></span>
+                        </div>
+                        <a href="#" class="card-btn">Bekijk reis →</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="travel-card">
+                <div class="card-image">
+                    <div class="card-image-photo" style="background-image: url('https://images.unsplash.com/photo-1528181304800-259b08848526?w=800&q=80');"></div>
+                    <div class="card-route-map" data-start="Amsterdam" data-end="Tokyo" data-start-coords="52.3676,4.9041" data-end-coords="35.6762,139.6503">
+                        <div class="card-map-container">
+                            <div class="card-map" id="map-tokyo"></div>
+                            <div class="card-map-overlay">
+                                <div class="route-title">🗺️ Jouw Reis Route</div>
+                                <div class="route-path">
+                                    <span>Amsterdam</span>
+                                    <span class="route-arrow">✈️</span>
+                                    <span>Tokyo</span>
+                                </div>
+                                <div class="route-stops">1 tussenstop • 12 uur</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-favorite"></div>
+                    <div class="card-badge">⭐ Top-rated</div>
+                </div>
+                <div class="card-content">
+                    <div class="card-destination">🗾 Japan</div>
+                    <h3 class="card-title">Tokyo & Kyoto Discovery</h3>
+                    <p class="card-description">
+                        Ervaar de perfecte mix van moderne technologie en oude tradities. 
+                        Van neon-verlichte straten tot serene tempels en zen-tuinen.
+                    </p>
+                    <div class="card-meta">
+                        <div class="meta-item">
+                            <span class="meta-icon">⏱️</span>
+                            <span>12 dagen</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">🌙</span>
+                            <span>11 nachten</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">✈️</span>
+                            <span>Vliegreis</span>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="card-price">
+                            <span class="price-label">Vanaf</span>
+                            <span class="price-amount">€2.499 <span class="price-currency">p.p.</span></span>
+                        </div>
+                        <a href="#" class="card-btn">Bekijk reis →</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="travel-card">
+                <div class="card-image">
+                    <div class="card-image-photo" style="background-image: url('https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=800&q=80');"></div>
+                    <div class="card-route-map" data-start="Amsterdam" data-end="Oslo" data-start-coords="52.3676,4.9041" data-end-coords="59.9139,10.7522">
+                        <div class="card-map-container">
+                            <div class="card-map" id="map-oslo"></div>
+                            <div class="card-map-overlay">
+                                <div class="route-title">🗺️ Jouw Reis Route</div>
+                                <div class="route-path">
+                                    <span>Amsterdam</span>
+                                    <span class="route-arrow">✈️</span>
+                                    <span>Oslo</span>
+                                </div>
+                                <div class="route-stops">Direct vlucht • 2 uur</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-favorite"></div>
+                    <div class="card-badge">🆕 Nieuw</div>
+                </div>
+                <div class="card-content">
+                    <div class="card-destination">🏔️ Noorwegen</div>
+                    <h3 class="card-title">Northern Lights Adventure</h3>
+                    <p class="card-description">
+                        Jacht op het noorderlicht in de magische Noorse winter. 
+                        Inclusief huskytocht, overnachting in Aurora lodge en fjorden cruise.
+                    </p>
+                    <div class="card-meta">
+                        <div class="meta-item">
+                            <span class="meta-icon">⏱️</span>
+                            <span>5 dagen</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">🌙</span>
+                            <span>4 nachten</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">✈️</span>
+                            <span>Vliegreis</span>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="card-price">
+                            <span class="price-label">Vanaf</span>
+                            <span class="price-amount">€1.299 <span class="price-currency">p.p.</span></span>
+                        </div>
+                        <a href="#" class="card-btn">Bekijk reis →</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 4 -->
+            <div class="travel-card">
+                <div class="card-image">
+                    <div class="card-image-photo" style="background-image: url('https://images.unsplash.com/photo-1539037116277-4db20889f2d4?w=800&q=80');"></div>
+                    <div class="card-route-map" data-start="Amsterdam" data-end="Male" data-start-coords="52.3676,4.9041" data-end-coords="4.1755,73.5093">
+                        <div class="card-map-container">
+                            <div class="card-map" id="map-male"></div>
+                            <div class="card-map-overlay">
+                                <div class="route-title">🗺️ Jouw Reis Route</div>
+                                <div class="route-path">
+                                    <span>Amsterdam</span>
+                                    <span class="route-arrow">✈️</span>
+                                    <span>Male</span>
+                                </div>
+                                <div class="route-stops">1 tussenstop • 10 uur</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-favorite"></div>
+                    <div class="card-badge">💎 Luxury</div>
+                </div>
+                <div class="card-content">
+                    <div class="card-destination">🏝️ Malediven</div>
+                    <h3 class="card-title">Paradise Island Retreat</h3>
+                    <p class="card-description">
+                        Ultieme luxe in een overwater villa. Kristalhelder water, privé strand, 
+                        wereldklasse spa en fine dining onder de sterrenhemel.
+                    </p>
+                    <div class="card-meta">
+                        <div class="meta-item">
+                            <span class="meta-icon">⏱️</span>
+                            <span>10 dagen</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">🌙</span>
+                            <span>9 nachten</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">✈️</span>
+                            <span>Vliegreis</span>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="card-price">
+                            <span class="price-label">Vanaf</span>
+                            <span class="price-amount">€3.999 <span class="price-currency">p.p.</span></span>
+                        </div>
+                        <a href="#" class="card-btn">Bekijk reis →</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 5 -->
+            <div class="travel-card">
+                <div class="card-image">
+                    <div class="card-image-photo" style="background-image: url('https://images.unsplash.com/photo-1502602898657-3e91760cbb34?w=800&q=80');"></div>
+                    <div class="card-route-map" data-start="Amsterdam" data-end="Paris" data-start-coords="52.3676,4.9041" data-end-coords="48.8566,2.3522">
+                        <div class="card-map-container">
+                            <div class="card-map" id="map-paris"></div>
+                            <div class="card-map-overlay">
+                                <div class="route-title">🗺️ Jouw Reis Route</div>
+                                <div class="route-path">
+                                    <span>Amsterdam</span>
+                                    <span class="route-arrow">🚄</span>
+                                    <span>Paris</span>
+                                </div>
+                                <div class="route-stops">Thalys trein • 3.5 uur</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-favorite"></div>
+                    <div class="card-badge">🌟 Aanbieding</div>
+                </div>
+                <div class="card-content">
+                    <div class="card-destination">🇫🇷 Frankrijk</div>
+                    <h3 class="card-title">Paris City of Love</h3>
+                    <p class="card-description">
+                        Ontdek de romantische hoofdstad van Frankrijk. Eiffeltoren, Louvre, 
+                        charmante bistro's en een boottocht over de Seine.
+                    </p>
+                    <div class="card-meta">
+                        <div class="meta-item">
+                            <span class="meta-icon">⏱️</span>
+                            <span>4 dagen</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">🌙</span>
+                            <span>3 nachten</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">🚄</span>
+                            <span>Trein</span>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="card-price">
+                            <span class="price-label">Vanaf</span>
+                            <span class="price-amount">€599 <span class="price-currency">p.p.</span></span>
+                        </div>
+                        <a href="#" class="card-btn">Bekijk reis →</a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 6 -->
+            <div class="travel-card">
+                <div class="card-image">
+                    <div class="card-image-photo" style="background-image: url('https://images.unsplash.com/photo-1524850011-0eeca7b2df72?w=800&q=80');"></div>
+                    <div class="card-route-map" data-start="Amsterdam" data-end="Rome" data-start-coords="52.3676,4.9041" data-end-coords="41.9028,12.4964">
+                        <div class="card-map-container">
+                            <div class="card-map" id="map-rome"></div>
+                            <div class="card-map-overlay">
+                                <div class="route-title">🗺️ Jouw Reis Route</div>
+                                <div class="route-path">
+                                    <span>Amsterdam</span>
+                                    <span class="route-arrow">✈️</span>
+                                    <span>Rome</span>
+                                </div>
+                                <div class="route-stops">Direct vlucht • 2.5 uur</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-favorite"></div>
+                    <div class="card-badge">🎨 Cultuur</div>
+                </div>
+                <div class="card-content">
+                    <div class="card-destination">🇮🇹 Italië</div>
+                    <h3 class="card-title">Italian Renaissance Tour</h3>
+                    <p class="card-description">
+                        Rome, Florence en Venetië. Eeuwenoude cultuur, Renaissance kunst, 
+                        heerlijke Italiaanse keuken en dolce vita lifestyle.
+                    </p>
+                    <div class="card-meta">
+                        <div class="meta-item">
+                            <span class="meta-icon">⏱️</span>
+                            <span>9 dagen</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">🌙</span>
+                            <span>8 nachten</span>
+                        </div>
+                        <div class="meta-item">
+                            <span class="meta-icon">✈️</span>
+                            <span>Vliegreis</span>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <div class="card-price">
+                            <span class="price-label">Vanaf</span>
+                            <span class="price-amount">€1.199 <span class="price-currency">p.p.</span></span>
+                        </div>
+                        <a href="#" class="card-btn">Bekijk reis →</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination">
+            <button class="page-btn">← Vorige</button>
+            <button class="page-btn active">1</button>
+            <button class="page-btn">2</button>
+            <button class="page-btn">3</button>
+            <button class="page-btn">4</button>
+            <button class="page-btn">Volgende →</button>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <script>
+        // Store initialized maps
+        const cardMaps = {};
+
+        // Function to initialize a card map
+        function initializeCardMap(mapId, startCoords, endCoords) {
+            if (cardMaps[mapId]) return cardMaps[mapId];
+
+            const mapElement = document.getElementById(mapId);
+            if (!mapElement) return null;
+
+            // Create map
+            const map = L.map(mapId, {
+                zoomControl: false,
+                scrollWheelZoom: false,
+                dragging: false,
+                doubleClickZoom: false,
+                touchZoom: false
+            });
+
+            // Add tiles
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 19
+            }).addTo(map);
+
+            // Parse coordinates
+            const start = startCoords.split(',').map(Number);
+            const end = endCoords.split(',').map(Number);
+
+            // Add markers
+            const startIcon = L.divIcon({
+                html: '<div style="background: #10b981; width: 20px; height: 20px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>',
+                className: '',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+
+            const endIcon = L.divIcon({
+                html: '<div style="background: #667eea; width: 24px; height: 24px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>',
+                className: '',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+
+            L.marker(start, { icon: startIcon }).addTo(map);
+            L.marker(end, { icon: endIcon }).addTo(map);
+
+            // Draw curved route line
+            const offsetX = (end[1] - start[1]) * 0.5;
+            const offsetY = (end[0] - start[0]) * 0.5;
+            const controlPoint = [
+                start[0] + offsetY * 0.3,
+                start[1] + offsetX
+            ];
+
+            const curve = [];
+            for (let i = 0; i <= 30; i++) {
+                const t = i / 30;
+                const lat = Math.pow(1 - t, 2) * start[0] + 
+                           2 * (1 - t) * t * controlPoint[0] + 
+                           Math.pow(t, 2) * end[0];
+                const lng = Math.pow(1 - t, 2) * start[1] + 
+                           2 * (1 - t) * t * controlPoint[1] + 
+                           Math.pow(t, 2) * end[1];
+                curve.push([lat, lng]);
+            }
+
+            L.polyline(curve, {
+                color: '#f59e0b',
+                weight: 3,
+                opacity: 0.7,
+                dashArray: '8, 8'
+            }).addTo(map);
+
+            // Fit bounds
+            map.fitBounds([start, end], { padding: [40, 40] });
+
+            cardMaps[mapId] = map;
+            return map;
+        }
+
+        // Initialize maps on hover
+        document.querySelectorAll('.travel-card').forEach(card => {
+            const routeMap = card.querySelector('.card-route-map');
+            if (!routeMap) return;
+
+            const mapDiv = routeMap.querySelector('.card-map');
+            if (!mapDiv) return;
+
+            const mapId = mapDiv.id;
+            const startCoords = routeMap.dataset.startCoords;
+            const endCoords = routeMap.dataset.endCoords;
+
+            let initialized = false;
+
+            card.addEventListener('mouseenter', () => {
+                if (!initialized) {
+                    setTimeout(() => {
+                        const map = initializeCardMap(mapId, startCoords, endCoords);
+                        if (map) {
+                            setTimeout(() => map.invalidateSize(), 100);
+                        }
+                    }, 100);
+                    initialized = true;
+                } else if (cardMaps[mapId]) {
+                    setTimeout(() => cardMaps[mapId].invalidateSize(), 100);
+                }
+            });
+        });
+
+        // Add interactivity
+        document.querySelectorAll('.card-favorite').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                btn.classList.toggle('active');
+            });
+        });
+
+        document.querySelectorAll('.travel-card').forEach(card => {
+            card.addEventListener('click', () => {
+                window.location.href = 'detail-page-v2.html';
+            });
+        });
+
+        document.querySelectorAll('.card-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        });
+    </script>
+</body>
+</html>

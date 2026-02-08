@@ -1,0 +1,506 @@
+/**
+ * Travel Compositor Widgets - CSS
+ * Version: 1.0.0
+ */
+
+:root {
+    --tc-primary: #066168;
+    --tc-primary-dark: #055058;
+    --tc-secondary: #85D200;
+    --tc-white: #ffffff;
+    --tc-light: #f8fafc;
+    --tc-dark: #1e293b;
+    --tc-gray: #64748b;
+    --tc-border: #e2e8f0;
+    --tc-radius: 12px;
+    --tc-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+
+/* ============================================
+   BASE WIDGET STYLES
+   ============================================ */
+
+.tc-widget {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    max-width: 900px;
+    margin: 0 auto;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(10px);
+    border-radius: var(--tc-radius);
+    box-shadow: var(--tc-shadow);
+    overflow: hidden;
+}
+
+.tc-widget * {
+    box-sizing: border-box;
+}
+
+.tc-widget-content {
+    padding: 24px;
+}
+
+.tc-widget-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 20px 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--tc-primary);
+}
+
+.tc-widget-title i {
+    font-size: 20px;
+}
+
+/* ============================================
+   TABS
+   ============================================ */
+
+.tc-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    background: var(--tc-light);
+    border-bottom: 1px solid var(--tc-border);
+    padding: 8px 8px 0;
+    gap: 4px;
+}
+
+.tc-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 16px;
+    background: transparent;
+    border: none;
+    border-radius: 8px 8px 0 0;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--tc-gray);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.tc-tab:hover {
+    background: rgba(6, 97, 104, 0.1);
+    color: var(--tc-primary);
+}
+
+.tc-tab.active {
+    background: var(--tc-white);
+    color: var(--tc-primary);
+    border: 1px solid var(--tc-border);
+    border-bottom-color: var(--tc-white);
+    margin-bottom: -1px;
+}
+
+.tc-tab i {
+    font-size: 14px;
+}
+
+/* ============================================
+   PANELS
+   ============================================ */
+
+.tc-panel {
+    display: none;
+}
+
+.tc-panel.active {
+    display: block;
+}
+
+/* ============================================
+   FORM ELEMENTS
+   ============================================ */
+
+.tc-form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.tc-form-row:last-child {
+    margin-bottom: 0;
+}
+
+.tc-form-group {
+    position: relative;
+}
+
+.tc-form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--tc-gray);
+    margin-bottom: 4px;
+}
+
+.tc-input-wrap {
+    position: relative;
+}
+
+.tc-input-wrap > i {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--tc-gray);
+    font-size: 14px;
+    pointer-events: none;
+    z-index: 1;
+}
+
+.tc-input {
+    width: 100%;
+    padding: 12px 12px 12px 38px;
+    border: 1px solid var(--tc-border);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--tc-dark);
+    background: var(--tc-white);
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.tc-input:focus {
+    outline: none;
+    border-color: var(--tc-primary);
+    box-shadow: 0 0 0 3px rgba(6, 97, 104, 0.1);
+}
+
+.tc-input::placeholder {
+    color: #94a3b8;
+}
+
+.tc-input-no-icon {
+    padding-left: 12px;
+}
+
+/* ============================================
+   ROOM SELECTOR
+   ============================================ */
+
+.tc-room-selector {
+    position: relative;
+}
+
+.tc-room-trigger {
+    width: 100%;
+    padding: 12px 12px 12px 38px;
+    border: 1px solid var(--tc-border);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--tc-dark);
+    background: var(--tc-white);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color 0.2s;
+}
+
+.tc-room-trigger:hover {
+    border-color: var(--tc-primary);
+}
+
+.tc-room-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--tc-white);
+    border: 1px solid var(--tc-border);
+    border-radius: 8px;
+    box-shadow: var(--tc-shadow);
+    padding: 16px;
+    z-index: 100;
+    margin-top: 4px;
+}
+
+.tc-room-dropdown.open {
+    display: block;
+}
+
+.tc-room-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--tc-border);
+}
+
+.tc-room-row:last-child {
+    border-bottom: none;
+}
+
+.tc-room-label {
+    font-size: 14px;
+    color: var(--tc-dark);
+}
+
+.tc-room-label small {
+    display: block;
+    color: var(--tc-gray);
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.tc-counter {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.tc-counter-btn {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--tc-border);
+    border-radius: 50%;
+    background: var(--tc-white);
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--tc-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.tc-counter-btn:hover {
+    background: var(--tc-primary);
+    color: var(--tc-white);
+    border-color: var(--tc-primary);
+}
+
+.tc-counter-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.tc-counter-value {
+    min-width: 24px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+/* ============================================
+   SUBMIT BUTTON
+   ============================================ */
+
+.tc-submit {
+    width: 100%;
+    padding: 14px 24px;
+    background: var(--tc-primary);
+    color: var(--tc-white);
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.tc-submit:hover {
+    background: var(--tc-primary-dark);
+}
+
+.tc-submit:active {
+    transform: scale(0.98);
+}
+
+.tc-submit-inline {
+    width: auto;
+    min-width: 140px;
+}
+
+/* ============================================
+   AI INPUT
+   ============================================ */
+
+.tc-ai-input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px dashed var(--tc-border);
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--tc-dark);
+    background: var(--tc-white);
+    transition: border-color 0.2s, border-style 0.2s;
+}
+
+.tc-ai-input:focus {
+    outline: none;
+    border-color: var(--tc-primary);
+    border-style: solid;
+}
+
+.tc-ai-input::placeholder {
+    color: #94a3b8;
+}
+
+/* ============================================
+   CHECKBOX / TOGGLE
+   ============================================ */
+
+.tc-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--tc-dark);
+}
+
+.tc-checkbox input {
+    display: none;
+}
+
+.tc-checkbox-box {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--tc-border);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.tc-checkbox input:checked + .tc-checkbox-box {
+    background: var(--tc-primary);
+    border-color: var(--tc-primary);
+}
+
+.tc-checkbox input:checked + .tc-checkbox-box::after {
+    content: '✓';
+    color: white;
+    font-size: 12px;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 768px) {
+    .tc-tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .tc-tab span {
+        display: none;
+    }
+    
+    .tc-tab {
+        padding: 10px 14px;
+    }
+}
+
+@media (max-width: 640px) {
+    .tc-widget {
+        border-radius: 8px;
+    }
+    
+    .tc-widget-content {
+        padding: 16px;
+    }
+    
+    .tc-form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .tc-widget-title {
+        font-size: 16px;
+    }
+    
+    .tc-submit-inline {
+        width: 100%;
+    }
+}
+
+/* ============================================
+   JQUERY UI OVERRIDES
+   ============================================ */
+
+.ui-datepicker {
+    font-family: inherit !important;
+    border-radius: 8px !important;
+    box-shadow: var(--tc-shadow) !important;
+    border: 1px solid var(--tc-border) !important;
+    padding: 8px !important;
+    z-index: 9999 !important;
+}
+
+.ui-datepicker-header {
+    background: var(--tc-primary) !important;
+    border: none !important;
+    border-radius: 6px 6px 0 0 !important;
+    padding: 8px !important;
+}
+
+.ui-datepicker-title {
+    color: white !important;
+}
+
+.ui-datepicker-prev,
+.ui-datepicker-next {
+    top: 10px !important;
+    cursor: pointer !important;
+}
+
+.ui-datepicker-prev span,
+.ui-datepicker-next span {
+    background-image: none !important;
+}
+
+.ui-datepicker-prev::after {
+    content: '←';
+    color: white;
+}
+
+.ui-datepicker-next::after {
+    content: '→';
+    color: white;
+}
+
+.ui-datepicker td a {
+    text-align: center !important;
+    padding: 6px !important;
+    border-radius: 4px !important;
+}
+
+.ui-datepicker td a.ui-state-active {
+    background: var(--tc-primary) !important;
+    color: white !important;
+}
+
+.ui-datepicker td a.ui-state-hover {
+    background: rgba(6, 97, 104, 0.1) !important;
+}
+
+/* Autocomplete */
+.ui-autocomplete {
+    max-height: 250px !important;
+    overflow-y: auto !important;
+    border-radius: 8px !important;
+    box-shadow: var(--tc-shadow) !important;
+    border: 1px solid var(--tc-border) !important;
+    z-index: 9999 !important;
+}
+
+.ui-menu-item-wrapper {
+    padding: 10px 14px !important;
+    font-size: 14px !important;
+}
+
+.ui-menu-item-wrapper.ui-state-active {
+    background: var(--tc-primary) !important;
+    color: white !important;
+}

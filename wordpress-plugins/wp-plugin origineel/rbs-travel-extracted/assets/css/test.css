@@ -1,0 +1,32 @@
+
+/** Marker, but with a "tail / triangle" at bottom: **/
+.numbered-marker {
+    background-color: #ff5722; /* Marker background color */
+    border-radius: 50%; /* Make the marker circular */
+    color: white; /* Text color */
+    text-align: center; /* Center the text */
+    line-height: 30px; /* Center text vertically */
+    width: 30px; /* Width of the marker */
+    height: 30px; /* Height of the marker */
+    font-size: 16px; /* Font size for the number */
+    border: 2px solid #fff; /* Optional border for visibility */
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5); /* Optional shadow for better visibility */
+    position: relative; /* To position the triangle */
+}
+.numbered-marker:after {
+    content: ''; /* Empty content */
+    position: absolute;
+    bottom: -10px; /* Position the triangle below the marker */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-top: 10px solid #ff5722; /* Triangle color matches the marker */
+}
+
+
+/* test {
+    color: #ff5722', '#4caf50', '#2196f3'    
+} */

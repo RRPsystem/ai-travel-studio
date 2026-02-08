@@ -1,0 +1,705 @@
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: rbsTravel\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-01-03 09:29+0000\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: \n"
+"Language: \n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Loco https://localise.biz/\n"
+"X-Loco-Version: 2.6.14; wp-6.7.1\n"
+"X-Domain: rbs-travel"
+
+#: includes/rbstravel-meta.class.php:28
+msgid " Creation Date"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:45
+msgid "(?Rental) Cars"
+msgstr ""
+
+#: includes/rbstravel-menus.class.php:40 templates/backend/about.html.php:7
+msgid "About"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:112
+msgid "Add New"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:111
+msgid "Add New Idea (remove)"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:315
+msgid "Add New Location"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:421
+msgid "Add New Tour Service"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:389
+msgid "Add New Tour Theme"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:357
+msgid "Add New Tour Type"
+msgstr ""
+
+#: includes/rbstravel-ajax.class.php:147
+#, php-format
+msgid "AJAX: Could not create post for: %s / Error: %s"
+msgstr ""
+
+#: includes/rbstravel-ajax.class.php:50 includes/rbstravel-ajax.class.php:87
+#: includes/rbstravel-ajax.class.php:124
+#, php-format
+msgid "AJAX: Invalid action: %s"
+msgstr ""
+
+#: includes/rbstravel-ajax.class.php:58 includes/rbstravel-ajax.class.php:95
+#: includes/rbstravel-ajax.class.php:132
+#, php-format
+msgid "AJAX: Invalid travel_id: %s"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:310
+msgid "All Locations"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:416
+msgid "All Tour Services"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:384
+msgid "All Tour Themes"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:352
+msgid "All Tour Types"
+msgstr ""
+
+#: templates/backend/settings.html.php:62
+msgid "API MicrositeID"
+msgstr ""
+
+#: includes/rbstravel-api.class.php:65
+msgid "API MicrositeId is not set."
+msgstr ""
+
+#: templates/backend/settings.html.php:53
+msgid "API Password"
+msgstr ""
+
+#: includes/rbstravel-api.class.php:61
+msgid "API Password is not set."
+msgstr ""
+
+#: includes/rbstravel-api.class.php:53
+msgid "API Url is not set."
+msgstr ""
+
+#: templates/backend/settings.html.php:44
+msgid "API Username"
+msgstr ""
+
+#: includes/rbstravel-api.class.php:57
+msgid "API Username is not set."
+msgstr ""
+
+#: templates/frontend/single-idea/tabs.html.php:15
+msgid "Bestemmingen"
+msgstr ""
+
+#: templates/frontend/parts/hotels.html.php:19
+#, php-format
+msgid "Check-in: %s - Check-out: %s"
+msgstr ""
+
+#: includes/rbstravel-remote-travels.class.php:158
+#: templates/backend/travel-details.html.php:2
+#: templates/backend/travel-info.html.php:2
+msgid "Close"
+msgstr ""
+
+#: templates/backend/meta_boxes/travel-idea-destinations.html.php:25
+msgid "Code"
+msgstr ""
+
+#: templates/backend/settings.html.php:93
+msgid "Contact Form"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:36
+msgid "Counters"
+msgstr ""
+
+#: templates/backend/meta_boxes/travel-idea-destinations.html.php:35
+msgid "Country"
+msgstr ""
+
+#: includes/rbstravel-remote-travels.class.php:42
+msgid "Creation Date"
+msgstr ""
+
+#: templates/backend/remote-travels.html.php:86
+#, php-format
+msgid "Current Page: %s"
+msgstr ""
+
+#: templates/frontend/parts/transfers.html.php:18
+#, php-format
+msgid "Day: %s - %s"
+msgstr ""
+
+#: templates/backend/settings.html.php:109
+msgid "Debug"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:29
+msgid "Departure Date"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:25 templates/backend/about.html.php:9
+#: templates/frontend/backup301024/single-rbs-travel-idea copy.php:1108
+#: templates/frontend/backup301024/single-rbs-travel-idea copy.php:1118
+#: templates/backend/meta_boxes/travel-idea-destinations.html.php:45
+msgid "Description"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:38
+#: includes/rbstravel-remote-travels.class.php:40
+#: includes/rbstravel-posttype.class.php:164
+#: templates/frontend/backup301024/single-rbs-travel-idea copy.php:1111
+#: templates/frontend/backup301024/single-rbs-travel-idea copy.php:1134
+msgid "Destinations"
+msgstr ""
+
+#: includes/rbstravel-remote-travels.class.php:136
+msgid "Edit import travel post"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:313
+msgid "Edit Location"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:419
+msgid "Edit Tour Service"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:387
+msgid "Edit Tour Theme"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:355
+msgid "Edit Tour Type"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:114
+msgid "Edit Travel Idea (disable)"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:22
+msgid "Email"
+msgstr ""
+
+#: templates/backend/settings.html.php:113
+msgid "Enable debugging"
+msgstr ""
+
+#: templates/backend/settings.html.php:123
+msgid "Enable logging"
+msgstr ""
+
+#: templates/backend/settings.html.php:97
+msgid "Enter shortcode"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:489
+msgid "Export Results"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:121
+msgid "Featured Image"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:129
+msgid "Filter Travel Idea list"
+msgstr ""
+
+#: templates/backend/remote-travels.html.php:96
+msgid "First"
+msgstr ""
+
+#: templates/frontend/parts/transfers.html.php:19
+#, php-format
+msgid "From: %s - To: %s"
+msgstr ""
+
+#: includes/rbstravel-api.class.php:69
+msgid "Goto Settings"
+msgstr ""
+
+#: includes/rbstravel-menus.class.php:39
+msgid "Help"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:43
+#: templates/frontend/backup301024/single-rbs-travel-idea copy.php:1112
+#: templates/frontend/backup301024/single-rbs-travel-idea copy.php:1139
+#: templates/frontend/single-idea/tabs.html.php:21
+msgid "Hotels"
+msgstr ""
+
+#. Author URI of the plugin
+msgid "https://www.robas.com/"
+msgstr ""
+
+#. URI of the plugin
+msgid "https://www.robas.com/plugins/wordpress/rbsTravel"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:20
+#: includes/rbstravel-remote-travels.class.php:38
+msgid "ID"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:163
+msgid "Idea ID"
+msgstr ""
+
+#: includes/rbstravel-api.class.php:277
+msgid "Idea Not Found."
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:30
+msgid "Idea URL"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:27
+msgid "Image URL"
+msgstr ""
+
+#: includes/rbstravel-remote-travels.class.php:168
+msgid "Import"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:477
+msgid "Import Cases"
+msgstr ""
+
+#: templates/backend/remote-travels.html.php:116
+msgid "Import selected travel ideas"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:125
+msgid "Insert into Travel Idea"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:107
+msgid "Item Archives"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:108
+msgid "Item Attributes"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:34
+msgid "Itinerary"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:24
+msgid "Large Title"
+msgstr ""
+
+#: templates/backend/remote-travels.html.php:105
+msgid "Last"
+msgstr ""
+
+#: includes/rbstravel-remote-travels.class.php:44
+msgid "Local"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:308
+msgid "Location"
+msgstr ""
+
+#: includes/rbstravel-menus.class.php:33
+#: includes/rbstravel-posttype.class.php:307
+#: includes/rbstravel-posttype.class.php:317
+msgid "Locations"
+msgstr ""
+
+#: templates/backend/settings.html.php:119
+msgid "Logging"
+msgstr ""
+
+#: templates/backend/settings.html.php:132
+msgid "Logging directory"
+msgstr ""
+
+#: templates/backend/settings.html.php:78
+msgid "Mapbox Token"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:56
+#: templates/backend/meta_boxes/travel-idea-details.html.php:14
+msgid "Maximum Persons"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:55
+#: templates/backend/meta_boxes/travel-idea-details.html.php:9
+msgid "Minimum Persons"
+msgstr ""
+
+#: templates/frontend/parts/hotels.html.php:60
+#: templates/frontend/parts/destinations.html.php:38
+msgid "More information"
+msgstr ""
+
+#: templates/backend/meta_boxes/travel-idea-destinations.html.php:15
+msgid "Name"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:316
+msgid "New Location Name"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:422
+msgid "New Tour Service"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:390
+msgid "New Tour Theme"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:358
+msgid "New Tour Type"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:113
+msgid "New Travel Idea (remove)"
+msgstr ""
+
+#: templates/backend/remote-travels.html.php:104
+msgid "Next"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:165
+msgid "Nights"
+msgstr ""
+
+#: includes/rbstravel-remote-travels.class.php:74
+msgid "None"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:119
+msgid "Not found"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:120
+msgid "Not found in Trash"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:54
+#: templates/backend/meta_boxes/travel-idea-details.html.php:19
+msgid "Number of Nights"
+msgstr ""
+
+#: includes/rbstravel-remote-travels.class.php:142
+msgid "Open remote link"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:109
+msgid "Parent Item:"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:311
+msgid "Parent Location"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:312
+msgid "Parent Location:"
+msgstr ""
+
+#: templates/backend/remote-travels.html.php:97
+msgid "Previous"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:32 includes/rbstravel-meta.class.php:52
+#: includes/rbstravel-posttype.class.php:166
+#: templates/backend/meta_boxes/travel-idea-prices.html.php:7
+msgid "Price per Person"
+msgstr ""
+
+#: templates/frontend/backup301024/single-rbs-travel-idea copy.php:1110
+#: templates/frontend/backup301024/single-rbs-travel-idea copy.php:1128
+msgid "Prices"
+msgstr ""
+
+#. Name of the plugin
+#: includes/rbstravel-posttype.class.php:105
+#: includes/rbstravel-posttype.class.php:106
+msgid "rbsTravel"
+msgstr ""
+
+#: templates/backend/settings.html.php:33
+msgid "rbsTravel - Settings"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:134
+msgid "rbsTravel local travel ideas"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:26
+#: templates/frontend/backup301024/single-rbs-travel-idea copy.php:1109
+#: templates/frontend/backup301024/single-rbs-travel-idea copy.php:1123
+msgid "Remarks"
+msgstr ""
+
+#: includes/rbstravel-menus.class.php:30
+msgid "Remote Travel Ideas"
+msgstr ""
+
+#: templates/backend/remote-travels.html.php:78
+msgid "Remote Travels"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:123
+msgid "Remove featured image"
+msgstr ""
+
+#: includes/rbstravel-remote-travels.class.php:138
+msgid "Remove travel post mapping"
+msgstr ""
+
+#. Author of the plugin
+msgid "Robas Internet Oplossingen"
+msgstr ""
+
+#: templates/backend/settings.html.php:143
+msgid "Save Settings"
+msgstr ""
+
+#: templates/backend/remote-travels.html.php:91
+msgid "Search"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:309
+msgid "Search Locations"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:415
+msgid "Search Tour Services"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:383
+msgid "Search Tour Themes"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:351
+msgid "Search Tour Types"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:118
+msgid "Search Travel Ideas"
+msgstr ""
+
+#: includes/rbstravel-menus.class.php:36
+msgid "Services"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:122
+msgid "Set featured image"
+msgstr ""
+
+#: includes/rbstravel-menus.class.php:38
+msgid "Settings"
+msgstr ""
+
+#: includes/rbstravel-menus.class.php:44
+msgid "TEST"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:31 includes/rbstravel-menus.class.php:35
+#: includes/rbstravel-menus.class.php:35
+msgid "Themes"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:23
+#: includes/rbstravel-remote-travels.class.php:39
+msgid "Title"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:33 includes/rbstravel-meta.class.php:51
+#: includes/rbstravel-remote-travels.class.php:41
+#: includes/rbstravel-posttype.class.php:167
+#: templates/backend/meta_boxes/travel-idea-prices.html.php:12
+msgid "Total Price"
+msgstr ""
+
+#: templates/backend/remote-travels.html.php:85
+#, php-format
+msgid "Total Travel Ideas: %s"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:414
+msgid "Tour Service"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:413
+#: includes/rbstravel-posttype.class.php:423
+msgid "Tour Services"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:382
+msgid "Tour Theme"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:381
+#: includes/rbstravel-posttype.class.php:391
+msgid "Tour Themes"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:350
+msgid "Tour Type"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:349
+#: includes/rbstravel-posttype.class.php:359
+msgid "Tour Types"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:42
+#: templates/frontend/backup301024/single-rbs-travel-idea copy.php:1113
+#: templates/frontend/backup301024/single-rbs-travel-idea copy.php:1144
+msgid "Transfers"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:41
+msgid "Transports / Transportation"
+msgstr ""
+
+#. Description of the plugin
+msgid "Travel and booking by API"
+msgstr ""
+
+#: templates/backend/travel-details.html.php:3
+msgid "Travel Details"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:104
+msgid "Travel Idea"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:454
+msgid "Travel Idea Destinations"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:459
+msgid "Travel Idea Details"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:455
+msgid "Travel Idea Fields"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:127
+msgid "Travel Idea list"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:128
+msgid "Travel Idea list navigation"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:456
+msgid "Travel Idea Maps"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:460
+msgid "Travel Idea Prices"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:103
+#: includes/rbstravel-posttype.class.php:110
+#: includes/rbstravel-posttype.class.php:133
+msgid "Travel Ideas"
+msgstr ""
+
+#: templates/backend/travel-info.html.php:3
+msgid "Travel Information"
+msgstr ""
+
+#: templates/frontend/backup301024/single-rbs-travel-idea copy.php:1152
+msgid "Travel Meta Fields"
+msgstr ""
+
+#: includes/rbstravel-menus.class.php:34
+msgid "Types"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:314
+msgid "Update Location"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:420
+msgid "Update Tour Service"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:388
+msgid "Update Tour Theme"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:356
+msgid "Update Tour Type"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:115
+msgid "Update Travel Idea (disable)"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:126
+msgid "Uploaded to this item"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:124
+msgid "Use as featured image"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:21
+#: includes/rbstravel-remote-travels.class.php:43
+msgid "User"
+msgstr ""
+
+#: includes/rbstravel-meta.class.php:35
+msgid "User B2C"
+msgstr ""
+
+#: templates/frontend/single-rbs-travel-idea.php:115
+#: templates/frontend/backup301024/single-rbs-travel-idea copy.php:255
+#: templates/frontend/parts/destinations.html.php:19
+#, php-format
+msgid "Van dag: %s - Tot dag: %s"
+msgstr ""
+
+#: includes/rbstravel-remote-travels.class.php:166
+msgid "View Details"
+msgstr ""
+
+#: includes/rbstravel-remote-travels.class.php:164
+msgid "View Info"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:116
+msgid "View Travel Idea"
+msgstr ""
+
+#: includes/rbstravel-posttype.class.php:117
+msgid "View Travel Ideas"
+msgstr ""

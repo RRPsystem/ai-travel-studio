@@ -1,0 +1,138 @@
+#rbstravel-settings .text-field,
+#idea-map-image-base64 {
+    width: 100%;
+}
+
+.rbstravel-remote-travels-header,
+.rbstravel-remote-travels-search, 
+.rbstravel-remote-travels-pagination {
+    margin-bottom: 15px;
+}
+
+
+#generate-image--wait {
+    display: inline;
+    font-weight: bold;
+    color: orange;
+    margin: 0 0 0 15px;
+    padding: 0;
+    line-height: 23px;    
+}
+
+
+.column-travel_destinations ul {
+    margin-top: 0;
+}
+
+.column-actions a {
+    display: inline-block;
+}
+.column-actions img {
+    width: 25px;
+    filter: grayscale(100%);
+    transition: 0.4s;
+}
+.column-actions a:hover img {
+    filter: grayscale(0%);
+}
+
+.rbstravel-import-busy {
+    width: 25px;
+    vertical-align: bottom;
+    display: none;
+}
+
+.rbstravel-remote-travel-row {
+    position: relative;
+}
+
+.rbstravel-import-error {
+    background: #ff9393;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 10;
+    display: none;
+}
+.rbstravel-import-error p {
+    padding: 25px;
+    color: #ff0000;
+    font-weight: bold;
+    font-size: 1.2em;    
+}
+.rbstravel-import-error-close {
+    position: absolute;
+    bottom: 25px;
+    left: 25px;    
+}
+
+
+#rbstravel-travel-ajax-response {
+    position: fixed;
+    left: 0;
+    top: 0;
+    background: rgba(0,0,0,0.7);
+    width: 100%;
+    bottom: 0;
+    z-index: 9999;
+    display: none;
+}
+
+.rbstravel-popup-window {
+    background: #fff;
+    width: 50%;
+    margin: 50px auto;
+    padding: 10px 25px;
+    border: 1px solid #000000;
+    max-height: 80vh;
+    overflow: scroll;
+}
+
+#rbstravel-travel-idea-meta-fields table {
+    width: 100%;
+}
+
+
+
+.rbstravel-side-metabox-label {
+    display: block;
+}
+
+
+
+
+
+
+.rbstravel-idea-meta-field_label {
+    width: 250px;
+}
+.rbstravel-idea-meta-field_value textarea,
+.rbstravel-idea-meta-field_value input {
+    width: 100%;
+}
+.rbstravel-idea-meta-field_value textarea {
+    min-height: 300px;
+}
+
+/* Fix for WordPress editor text color - ensure text is visible */
+.post-type-rbs-travel-idea .wp-editor-area,
+.post-type-rbs-travel-idea #content,
+.post-type-rbs-travel-idea .mce-content-body,
+.post-type-rbs-travel-idea #wp-content-editor-container textarea,
+.post-type-rbs-travel-idea .editor-styles-wrapper,
+.post-type-rbs-travel-idea .block-editor-rich-text__editable {
+    color: #1e1e1e !important;
+    background-color: #fff !important;
+}
+
+/* TinyMCE visual editor fix */
+.post-type-rbs-travel-idea #content_ifr {
+    background-color: #fff !important;
+}
+
+/* Ensure the visual editor body has dark text */
+body.mce-content-body {
+    color: #1e1e1e !important;
+}

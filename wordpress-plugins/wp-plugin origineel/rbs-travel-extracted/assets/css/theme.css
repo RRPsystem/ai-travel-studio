@@ -1,0 +1,24 @@
+/** Put all theme/company/etc... styles like 'colors, font-family, font-size, etc..'  here !!! **/
+/** Put only 'required' styling in the plugin and as 'plain' as possible **/
+
+:root {
+    --font-headers: "Work Sans", Helvetica;
+    --font-text: "Inter", Helvetica;
+
+    --font-size-base: 16pt;
+    --font-size-h1: 1.2rem;
+    --font-size-h2: 1.1rem;
+    --font-size-h3: 1rem;
+    --font-size-h4: 0.9rem;
+    --font-size-h5: 0.8rem;
+    --font-size-h6: 0.8rem;
+    --font-size-text: 0.8rem;
+
+    
+
+    --color-primary: rgba(255, 119, 0, 1);
+    --color-secondary: rgba(45, 48, 71, 1);
+    --color-light: #ffffff;
+    --color-dark: #232323;
+
+}

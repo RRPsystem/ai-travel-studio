@@ -1,0 +1,49 @@
+- [x] import, show message if import gives error 
+    >> wp_insert_post check + error message
+    - [ ] finetune...
+	
+- [ ] settings
+    - [ ] import all images
+    - [ ] default "post_author"							(current_user)
+    - [ ] default "post_status"							(draft)
+    - [ ] rewrite slug?
+    - [ ] frontend styling
+    - [ ] ?? number_of_results of remote travels				(50)
+    - [ ] frontend: 'show all travel_meta_fields' at bottom of post
+    - [ ] "services"
+            >> add multiple services
+            >> 'remote': add dropdown with services
+    - [ ] ...
+
+- [ ] create "travel" object 
+    >> for easier "getting" travel info/details/etc...
+
+- [x] add labels to "meta_keys"
+    >> RBS_TRAVEL_Meta::GetMetaKeys()
+
+- [ ]  Refine $fields / combined with 'RBS_TRAVEL_Meta::GetMetaKeys()'
+    >> in 'travel-idea-meta.html.php'
+
+- [ ] Api / Search
+    >> check if possible how to 'search' for travel ideas
+
+- [ ] fix 'pagination dropdown' select
+    >> pagenumber 'calculate/convert' to $first
+
+- [ ] add 'bookings' ?? (or only ideas)
+
+- [ ] single travel:
+    - [ ] remove 'parts menu' items, if not exists
+            >> example: remove 'transfers' if there are no transfers'
+    - [ ] ?? add 'simple' gallery (popup)            
+    - [ ] ...
+
+- [ ] 'refine' frontend layout/html
+    - [ ] add actions/filters
+
+- [ ] remote 'access' to rcs-travelstudio (in frontend)
+    >> link + login
+
+
+
+

@@ -1,0 +1,546 @@
+:root {
+    --xxl-font-family: "Work Sans", Helvetica;
+    --xxl-font-weight: 400;
+    --xxl-font-size: 32px;
+    --xxl-letter-spacing: 0px;
+    --xxl-line-height: normal;
+    --xxl-font-style: normal;
+    --normal-font-family: "Work Sans", Helvetica;
+    --normal-font-weight: 400;
+    --normal-font-size: 12px;
+    --normal-letter-spacing: 0px;
+    --normal-line-height: normal;
+    --normal-font-style: normal;
+    --XL-font-family: "Work Sans", Helvetica;
+    --XL-font-weight: 400;
+    --XL-font-size: 20px;
+    --XL-letter-spacing: 0px;
+    --XL-line-height: normal;
+    --XL-font-style: normal;
+    --headlines-headline-font-family: "Work Sans", Helvetica;
+    --headlines-headline-font-weight: 100;
+    --headlines-headline-font-size: 32px;
+    --headlines-headline-letter-spacing: 0px;
+    --headlines-headline-line-height: normal;
+    --headlines-headline-font-style: normal;
+    --headlines-headline-l-font-family: "Work Sans", Helvetica;
+    --headlines-headline-l-font-weight: 400;
+    --headlines-headline-l-font-size: 32px;
+    --headlines-headline-l-letter-spacing: 0px;
+    --headlines-headline-l-line-height: normal;
+    --headlines-headline-l-font-style: normal;
+    --headlines-headline-XL-font-family: "Work Sans", Helvetica;
+    --headlines-headline-XL-font-weight: 400;
+    --headlines-headline-XL-font-size: 96px;
+    --headlines-headline-XL-letter-spacing: 0px;
+    --headlines-headline-XL-line-height: normal;
+    --headlines-headline-XL-font-style: normal;
+    --default-default-strong-font-family: "Work Sans", Helvetica;
+    --default-default-strong-font-weight: 700;
+    --default-default-strong-font-size: 16px;
+    --default-default-strong-letter-spacing: 0px;
+    --default-default-strong-line-height: normal;
+    --default-default-strong-font-style: normal;
+    --default-default-font-family: "Work Sans", Helvetica;
+    --default-default-font-weight: 400;
+    --default-default-font-size: 16px;
+    --default-default-letter-spacing: 0px;
+    --default-default-line-height: normal;
+    --default-default-font-style: normal;
+    --brand-colors-primary-20: rgba(255, 119, 0, 1);
+    --brand-colors-primary-50: rgba(254, 90, 41, 1);
+    --brand-colors-secondary-80: rgba(45, 48, 71, 1);
+    --brand-colors-neutral-200: rgba(35, 35, 35, 1);
+    --brand-colors-neutral-220: rgba(183, 183, 183, 1);
+    --brand-colors-neutral-240: rgba(237, 239, 239, 1);
+    --brand-colors-neutral-260: rgba(255, 255, 255, 1);
+    --brand-colors-primary-30: rgba(11, 110, 79, 1);
+    --size-xxs: 8px;
+    --size-xs: 16px;
+    --size-normal: 32px;
+    --size-medium: 64px;
+    --size-large: 96px;
+}
+
+/* Favorites Notification */
+.rbs-travel-notification {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #333;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 9999;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: all 0.3s ease;
+}
+
+.rbs-travel-notification.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+#rbstravel-content .single-screen {
+    display: flex;
+
+}
+
+
+#rbstravel-content .single-screen .content-left {
+    width: 87vw;
+    display: flex;
+
+    flex-direction: column;
+
+}
+
+#rbstravel-content .single-screen .content-left .header-full-width {
+    width: 100%;
+    background: url('https://bilder.viamonda.de/pictures/fw_8rkhqzkjg7js.jpg');
+    background-position: center center;
+    background-size: cover;
+    min-height: 280px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-content: center;
+    align-items: left;  
+
+}
+
+.rbsd-day-crbottom-left {
+    width: 160px;
+}
+
+#rbstravel-content .single-screen .content-left .header-full-width h1,
+#rbstravel-content .single-screen .content-left .header-full-width h2 {
+    color: #ffffff;    
+}
+
+
+#rbstravel-content .single-screen .content-left  .single-screen-container {
+    /* background: red; */
+    display:flex;
+    justify-content: right;
+    align-content: right;
+    align-items: right;    
+}
+
+#rbstravel-content .single-screen .content-left  .single-screen-container .single-screen-container-inside {
+    width: 70%;
+    /* background: green; */
+}
+
+.destination-slider {
+    margin-top: 50px;
+    margin-bottom: 50px;
+    display: flex;
+    gap: 10px;
+}
+
+
+
+
+.destination-slider-item {
+    width: 20%;
+    height: 250px;
+    background-position: center !important;
+    background-size: cover !important;    
+    /* background: green; */
+}
+
+.intro-row {
+    display: flex;
+    gap: 50px;
+}
+
+.idea-contact-form {
+    padding: 20px;
+    width: 80%;
+    margin-right: 10px;
+    padding-right: 10px;
+
+}
+
+#rbstravel-content .single-screen .content-right {
+    width: 13vw;
+    background: var(--brand-colors-secondary-80);
+    min-height: 500px;
+}
+
+#rbstravel-content .single-screen .content-right-idea-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-content: center;
+    align-items: center;   
+}
+
+.idea-info-icon {
+    width: 50px;
+}
+
+.tour-type {
+    width: 200px;
+}
+
+.idea-contact-title {
+    color: white;
+}
+
+
+#rbstravel-content .single-screen .content-right-idea-info .idea-info-item {
+    display: flex;
+    color: #ffffff;
+    gap: 10px;
+    font-size: var(--XL-font-size);
+    margin-bottom: 50px;
+    width: 80%;
+}
+
+
+.rbsd-book-title {
+    color: #ffffff;
+    font-size: var(--XL-font-size);
+}
+
+.wpcf7-text {
+    height: 20px;
+    border: 0px solid #ffffff;
+    width: 100%;
+}
+
+.content-right .intro-map {
+    height: 280px !important;
+    width: 100% !important;
+    margin-bottom: 50px;
+    background-position: center !important;
+    background-size: cover !important; 
+}
+
+#rbstravel-content .single-screen .wpcf7-submit {
+    background: #ffffff;
+    padding: 5px;
+    color: var(--brand-colors-secondary-80);
+    display: block;
+    border: 0px solid #ffffff;
+
+}
+
+.rbsd-tabmenu {
+    margin-top: 60px !important;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    align-content: center;
+    align-items: left; 
+    margin-top: 30px;
+    border-top: 1px solid var(--brand-colors-secondary-80);
+    border-bottom: 1px solid var(--brand-colors-secondary-80);
+}
+
+.rbsd-tab {
+    display: flex;
+    width: 15%;
+    justify-content: left;
+    align-items: center; 
+    color: var(--brand-colors-secondary-80);
+}
+
+.rbsd-tab .img {
+    width: 15px !important;
+    margin-right: 20px;
+}
+
+.rbsd-tabtext {
+    width: 300px;
+
+}
+
+.rbsd-day-crbottom {
+    display: flex;
+    border: 1px solid (--brand-colors-secondary-80);
+    padding-left: 20px;
+    
+}
+
+.rbsd-day-contentrow {
+
+    width: 70%;
+ 
+    margin-bottom: 70px;
+ ;
+}
+
+.rbsd-day-crbottom-right {
+    display: flex;
+    flex-direction: column;
+    margin-left: 50px;
+    justify-content: center;
+    align-content: center;
+    align-items: center; ;
+
+}
+
+.rbsd-day-about {
+    display: flex;
+}
+
+.rbsd-day-about-left {
+    width: 50%;
+
+}
+.rbsd-day-about-image-gallery {
+    display: flex;
+    gap: 10px;
+    flex-wrap:wrap;
+}
+
+.days-column {
+    width: 80% !important;
+}
+
+.rbsd-day-about-image-gallery .rbsd-galleryitem {
+    width: 125px;
+    height: 125px;
+    background-position: center !important;
+    background-size: cover !important; 
+    margin-bottom: 10px;
+}
+
+.hotel-images {
+    display: flex;
+    gap: 10px;
+    flex-wrap:wrap;
+ 
+    width: 60%;
+
+}
+
+.hotel-image-item {
+    width: 150px;
+    height: 150px;
+    background-position: center !important;
+    background-size: cover !important; 
+    margin-bottom: 10px;
+}
+
+.rbsd-day-about-right {
+    width: 50%;
+}
+
+
+
+#rbstravel-content .overview-screen .overview-wrapper {
+    display: flex;
+    gap: 20px;
+}
+
+#rbstravel-content .overview-screen .content-left {
+    /* border: 1px solid red; */
+    width: 280px;
+
+}
+
+#rbstravel-content .overview-screen .content-left,
+#rbstravel-content .overview-screen .content-left .idealist_filter {
+    background: var(--brand-colors-secondary-80);
+   
+}
+
+#rbstravel-content .overview-screen .content-left,
+#rbstravel-content .overview-screen .content-left h3,
+#rbstravel-content .overview-screen .content-left h4,
+#rbstravel-content .overview-screen .content-left .idealist_filter {
+    color: #ffffff;
+   
+}
+
+.earth-americas {
+    /* display: none; */
+    height: 200px;
+    background-size: cover !important;
+    background-repeat: no-repeat !important;
+}
+
+
+#rbstravel-content .overview-screen .content-right {
+ 
+    /* padding-left: 20px; */
+    flex: 1;
+    /* border: 5px solid green; */
+}
+
+.intro-text {
+    width: 60%;
+    padding-right: 10px;
+}
+
+.rbsd-day-row {
+    border-bottom: 1px solid var(--brand-colors-secondary-80);
+}
+.intro-map {
+    width: 40%;
+}
+#rbstravel-content .overview-screen .content-right #rbstravel-overview-items {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+
+
+#rbstravel-content .overview-screen .content-right .idealist_overview_item {
+    /* border: 5px solid purple; */
+    display: flex;
+    width: 100%;
+    gap: 25px;
+    /* height: 500px; */
+
+    height: 388px;
+    border-bottom: 2px solid #ededed;
+    padding-bottom: 25px;
+}
+
+
+
+#rbstravel-content .overview-screen .content-right .rbs-travel-ovr-left {
+
+    /* border: 1px solid orange; */
+    width:30%;
+
+}
+
+#rbstravel-content .overview-screen .content-right .rbs-travel-ovr-left .left-image {
+    width: 100%;
+    height: 100%;
+    border: 1px solid black;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    background-size: cover !important;
+}
+
+#rbstravel-content .overview-screen .content-right .rbs-travel-ovr-middle {
+    /* border: 1px solid red; */
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    
+}
+#rbstravel-content .overview-screen .content-right .rbs-travel-ovr-middle .ovr-middle-features {
+    display: none;
+}
+
+#rbstravel-content .overview-screen .content-right .rbs-travel-ovr-middle .ovr-middle-title {
+    border-bottom: 1px solid rgba(55,53,58,.14);
+}
+
+#rbstravel-content .overview-screen .content-right .rbs-travel-ovr-middle .ovr-middle-title a {
+    /* color: red; */
+    text-decoration: none;
+    font-size: var(--headlines-headline-l-font-size);
+}
+#rbstravel-content .overview-screen .content-right .rbs-travel-ovr-right {
+    /* border: 2px solid yellow; */
+    width: 30%;
+    display: flex;
+    flex-direction: column;
+}
+
+#rbstravel-content .overview-screen .content-right .rbs-travel-ovr-right .ovr-right-top {
+    width: 100%;
+    height: 80%;
+    /* background: pink; */
+}
+
+#rbstravel-content .overview-screen .content-right .rbs-travel-ovr-right .ovr-right-top .ovr-right-map {
+    width: 100%;
+    height: 100%;
+    
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    background-size: cover !important;
+
+}
+
+#rbstravel-content .overview-screen .content-right .rbs-travel-ovr-right .ovr-right-bottom {
+    width: 100%;
+    height: 20%;
+    /* background: yellow; */
+    display: flex;
+
+}
+
+
+.ovr-right-cleft {
+    display: flex;
+    /* background: green; */
+    flex-direction: column;
+    width: 50%;
+    justify-content: right;
+    align-content: right;
+    align-items: right;
+}
+
+.ovr-right-price-text {
+    height: 50%;
+    /* background: purple; */
+    text-align: right;
+    justify-content: center;
+    align-content: center;
+    align-items: center;       
+
+}
+
+.ovr-right-price {
+    height: 50%;
+    /* background: green; */
+    text-align: right;
+    font-size: var(--headlines-headline-l-font-size);
+    justify-content: center;
+    align-content: center;
+    align-items: center;       
+
+}
+
+
+.ovr-right-cright {
+    display: flex;
+    /* background: orange; */
+    flex-direction: column;
+    justify-content: center;
+    align-content: center;
+    align-items: center;    
+    margin-left: 30px;
+    /* width: 50%;     */
+}
+.ovr-right-button{
+    /* background: red; */
+    width: 200px;
+    border: 1px solid var(--brand-colors-primary-20);
+    background: var(--brand-colors-primary-20);
+    
+    height: 50px;
+    
+    border-radius: 3px;
+}
+
+.ovr-right-button a {
+    color: #ffffff;
+    line-height: 50px;;
+    text-decoration: none;
+}
+
+.ovr-right-button {
+    text-align: center;
+}
+
+
+
+
+

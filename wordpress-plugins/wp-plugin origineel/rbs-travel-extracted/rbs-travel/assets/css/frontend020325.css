@@ -1,0 +1,404 @@
+
+.page-template-default #header,
+.rbs-travel-idea-template-default #header,
+#page > hr:nth-child(2) {
+    display: none;
+}
+
+
+.single-rbs-travel-idea {
+    width: 75%;
+    margin: 0 auto;
+}
+
+.rbs-travel-hide {
+      
+        visibility: hidden;
+        opacity: 0;
+        transition: visibility 0s 2s, opacity 2s linear;
+}
+
+
+.rbs-travel-remove {
+    display: none !important;
+
+    transition: display 3s linear;
+} 
+
+
+
+.rbs-travel-idea__subtitle {
+    margin-bottom: 15px;
+}
+
+
+.rbs-travel-idea__index ul {
+    display: inline-block;
+    text-align: center;
+    width: 100%;
+}
+.rbs-travel-idea__index ul li {
+    display: inline-block;
+    margin: 0 10px;
+}
+.rbs-travel-idea__index ul li a {
+    font-size: 20px;
+}
+
+.rbs-travel-idea__header,
+.rbs-travel-idea__thumbnail,
+.rbs-travel-idea__content,
+.rbs-travel-idea__meta,
+.rbs-travel-idea__index {
+    margin-bottom: 25px;
+}
+
+.rbs-travel-idea__thumbnail img {
+    max-width: 100%;
+}
+
+.rbs-travel-idea__content {
+    border-bottom: 1px solid #dfdfdf;
+    padding-bottom: 25px;
+}
+
+.rbs-travel-idea__header {
+    text-align: center;
+}
+
+.rbs-travel-idea__meta th,
+.rbs-travel-idea__meta td {
+    border: 1px solid #dfdfdf;
+    padding: 10px;
+}
+
+
+
+.rbs-travel-idea__part-row {
+    margin-bottom: 25px;
+}
+.rbs-travel-idea__gallery {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    /*grid-template-rows: repeat(4, 5vw);*/
+    grid-gap: 60px;  
+    
+    margin-top: 15px;
+}
+.rbs-travel-idea__gallery-image-link {
+    max-width: 100%;
+    height: 150px;  
+}
+.rbs-travel-idea__gallery-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* border-radius: 25px; */
+}
+.rbs-travel-idea__map {
+    margin-top: 15px;
+}
+
+
+
+
+.slider-container {
+position: relative;
+overflow-x: hidden;
+height: 400px;
+width: auto;
+padding: 0;
+margin: 0;
+}
+
+.slider-width {
+position: absolute;
+display: flex;
+align-items: start;
+justify-content: start;
+left: 0;
+top: 0;
+transition: 0.4s ease-in-out;
+}
+
+.item {
+background: rgb(23, 147, 83);
+width: 300px;
+height: 200px;
+margin: 0 10px;
+text-align: center;
+font-size: 40px;
+font-weight: 800;
+display: flex;
+align-items: center;
+justify-content: center;
+color: white;
+}
+
+.item img {
+    width: 100%;
+}
+
+.slider-nav {
+    background: #ededed;
+    height: 120px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 80px;
+    padding: 10px;
+
+}
+
+
+
+.slider-wrapper {
+    padding-top: 100px;
+    padding-bottom: 100px;
+}
+
+.slider-container {
+    margin: 0 auto;
+}
+
+.rbs-travel-idea__hotels {
+    width: auto;
+    /* border: 2px solid red; */
+    display: flex;
+    flex-wrap: wrap;
+    gap: 30px;
+
+
+
+}
+
+.rbs-travel-idea__hotel-row {
+    border-top: 2px solid #000000;
+    width: 100%;
+    margin-bottom: 100px;
+  
+}
+
+
+
+*, *::after, *::before {
+    box-sizing: border-box;
+  }
+  
+  .rbs-modal {
+    
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    transition: 200ms ease-in-out;
+    border: 1px solid black;
+    border-radius: 10px;
+    z-index: 10;
+    /* background-color: white; */
+    width: 100vw;
+    
+    height: 100vh;
+    background: red;  
+   
+  }
+  
+  .rbs-modal.active {
+    transform: translate(-50%, -50%) scale(1);
+    display: flex;
+    flex-direction: column;
+   
+   
+  }
+
+  .rbs-modal.active .rbs-slider-item {
+    min-width: 10% !important;
+    min-height: 100% !important;
+ 
+  }
+  
+  .rbs-modal-header {
+    padding: 10px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid black;
+  }
+  
+  .rbs-modal-header .rbs-modal-title {
+    font-size: 1.25rem;
+    font-weight: bold;
+  }
+  
+  .rbs-modal-header .rbs-modal-close {
+    cursor: pointer;
+    border: none;
+    outline: none;
+    background: none;
+    font-size: 1.25rem;
+    font-weight: bold;
+  }
+  
+  .rbs-modal-body {
+    padding: 10px 15px;
+  }
+  
+  #rbs-modal-overlay {
+    position: fixed;
+    opacity: 0;
+    transition: 200ms ease-in-out;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, .5);
+    pointer-events: none;
+  }
+  
+  #rbs-modal-overlay.active {
+    opacity: 1;
+    pointer-events: all;
+    z-index:6;
+  
+    background-color: pink;
+  }
+
+
+body {
+  padding: 0;
+  margin: 0;
+}
+
+.rbs-slider-container {
+  position: relative;
+  overflow-x: hidden;
+  height: 100%;
+  background: green;
+
+}
+
+.rbs-slider-width {
+  position: absolute;
+  display: flex;
+  align-items: start;
+  justify-content: start;
+  left: 0;
+  top: 0;
+  transition: 0.4s ease-in-out;
+}
+
+.rbs-slider-item {
+  
+  width: 50%;
+
+  margin: 0 10px;
+  text-align: center;
+  font-size: 40px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.rbs-slider-container .rbs-slider-item {
+  width: 100vw;
+  height: 100vh;
+}
+
+.bgsettings {
+  background-repeat: no-repeat !important;
+  background-size: cover !important;
+  background-position: center center;
+}
+
+.rbsd-day-crbottom-6 {
+  display: flex;
+  flex-direction: column;
+  gap: 50px;
+}
+
+.rbsd-day-crbottom-5 {
+  display: flex;
+  gap: 30px;
+  flex-direction: column;
+}
+
+
+ .image-gallery {
+  display: flex;
+
+  height: 200px;
+  background: white;
+  width: 100%;
+  height: 570px;
+  gap: 50px;
+  margin-bottom: 50px;
+}
+
+.gallery-item {
+  width: 50%;
+  background: green;
+}
+
+.rbs-modal-body {
+  height: 80%;
+}
+
+.text-wrapper-7 {
+  font-size: 24px;
+}
+
+p,
+.text-wrapper-8 {
+  font-size: 16px !important;
+}
+
+
+.work-sans-regular {
+  font-family: "Work Sans", serif;
+  font-optical-sizing: auto;
+  font-weight: 300;
+  font-style: normal;
+  font-size: var(--headlines-headline-font-size);
+  line-height: 26px
+ 
+}
+
+
+.work-sans-light {
+  font-family: "Work Sans", serif;
+  font-optical-sizing: auto;
+  font-weight: 100;
+  font-style: normal;
+}
+
+
+.work-sans-dark {
+    font-family: "Work Sans", serif;
+    font-optical-sizing: auto;
+    font-weight: 900;
+    font-style: normal;
+  }
+
+
+
+
+
+  .rbs-travel-link--primary {
+    color: var(--brand-colors-primary-20);
+    text-decoration: none;
+  }
+
+#rbstravel-footer {
+    height: 50px;
+    line-height: 50px;
+    text-align: center;
+    background-color: #333333;
+    border-top: 2px solid #000000;
+    color: #ffffff;
+}
+#rbstravel-footer a {
+    color: #ffffff;
+    margin-right: 25px;
+}

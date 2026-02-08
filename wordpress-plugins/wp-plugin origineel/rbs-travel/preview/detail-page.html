@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Santorini Sunset Experience - Detail Page Preview</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f8f9fa;
+            color: #1f2937;
+        }
+
+        /* Hero Section */
+        .hero-section {
+            position: relative;
+            height: 600px;
+            background-size: cover;
+            background-position: center;
+            background-image: linear-gradient(rgba(0,0,0,0.3), rgba(0,0,0,0.5)), 
+                              url('https://images.unsplash.com/photo-1583422409516-2895a77efded?w=1600&q=80');
+        }
+
+        .hero-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 4rem 2rem;
+            background: linear-gradient(transparent, rgba(0,0,0,0.8));
+        }
+
+        .hero-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            color: white;
+        }
+
+        .hero-breadcrumb {
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+            opacity: 0.9;
+        }
+
+        .hero-breadcrumb a {
+            color: white;
+            text-decoration: none;
+        }
+
+        .hero-destination {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #fbbf24;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5rem;
+        }
+
+        .hero-title {
+            font-size: 4rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 20px rgba(0,0,0,0.5);
+        }
+
+        .hero-subtitle {
+            font-size: 1.5rem;
+            opacity: 0.95;
+            font-weight: 300;
+        }
+
+        .hero-actions {
+            position: absolute;
+            top: 2rem;
+            right: 2rem;
+            display: flex;
+            gap: 1rem;
+        }
+
+        .hero-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.9);
+            backdrop-filter: blur(10px);
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        .hero-btn:hover {
+            transform: scale(1.1);
+            background: white;
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: -100px auto 0;
+            padding: 0 2rem 4rem;
+            position: relative;
+            z-index: 10;
+        }
+
+        .content-layout {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 3rem;
+        }
+
+        /* Main Content */
+        .main-content {
+            background: white;
+            border-radius: 24px;
+            padding: 3rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        /* Route Map Section */
+        .route-map-section {
+            background: white;
+            border-radius: 24px;
+            padding: 3rem;
+            margin-bottom: 3rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .map-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .map-title {
+            font-size: 2rem;
+            font-weight: 800;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .map-subtitle {
+            font-size: 1.1rem;
+            color: #6b7280;
+        }
+
+        .route-visualization {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-radius: 20px;
+            padding: 3rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .route-line {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: relative;
+            margin: 2rem 0;
+        }
+
+        .route-point {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            z-index: 2;
+        }
+
+        .point-icon {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            margin: 0 auto 1rem;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            border: 4px solid #667eea;
+        }
+
+        .point-name {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .point-detail {
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        .route-connector {
+            position: absolute;
+            top: 40px;
+            left: 10%;
+            right: 10%;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea 0%, #10b981 50%, #f59e0b 100%);
+            z-index: 1;
+        }
+
+        .plane-icon {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 3rem;
+            animation: fly 3s ease-in-out infinite;
+        }
+
+        @keyframes fly {
+            0%, 100% { transform: translate(-50%, -50%) translateX(-20px); }
+            50% { transform: translate(-50%, -50%) translateX(20px); }
+        }
+
+        .destination-highlights {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+
+        .dest-highlight {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+
+        .dest-highlight-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .dest-highlight-text {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        .quick-info {
+            display: flex;
+            gap: 2rem;
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            margin-bottom: 3rem;
+            color: white;
+        }
+
+        .quick-info-item {
+            flex: 1;
+            text-align: center;
+        }
+
+        .quick-info-icon {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .quick-info-label {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin-bottom: 0.25rem;
+        }
+
+        .quick-info-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+
+        .section-title {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 1.5rem;
+            color: #1f2937;
+        }
+
+        .section-subtitle {
+            font-size: 1.1rem;
+            color: #6b7280;
+            margin-bottom: 2rem;
+            line-height: 1.8;
+        }
+
+        .description-text {
+            font-size: 1.05rem;
+            line-height: 1.9;
+            color: #4b5563;
+            margin-bottom: 3rem;
+        }
+
+        /* Itinerary */
+        .itinerary {
+            margin-bottom: 4rem;
+        }
+
+        .itinerary-day {
+            background: #f9fafb;
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid #667eea;
+            transition: all 0.3s ease;
+        }
+
+        .itinerary-day:hover {
+            transform: translateX(10px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+        }
+
+        .day-header {
+            display: flex;
+            gap: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .day-number {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+
+        .day-info {
+            flex: 1;
+        }
+
+        .day-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .day-location {
+            font-size: 0.95rem;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .day-image {
+            width: 100%;
+            height: 250px;
+            background-size: cover;
+            background-position: center;
+            border-radius: 12px;
+            margin-bottom: 1.5rem;
+        }
+
+        .day-description {
+            font-size: 1rem;
+            line-height: 1.8;
+            color: #4b5563;
+        }
+
+        /* Highlights */
+        .highlights-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+        }
+
+        .highlight-item {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            padding: 1.5rem;
+            border-radius: 16px;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+        }
+
+        .highlight-icon {
+            font-size: 2rem;
+            flex-shrink: 0;
+        }
+
+        .highlight-text h4 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #1f2937;
+        }
+
+        .highlight-text p {
+            font-size: 0.95rem;
+            color: #6b7280;
+            line-height: 1.6;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: sticky;
+            top: 2rem;
+            height: fit-content;
+        }
+
+        .booking-card {
+            background: white;
+            border-radius: 24px;
+            padding: 2.5rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .price-display {
+            text-align: center;
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            color: white;
+            margin-bottom: 2rem;
+        }
+
+        .price-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-bottom: 0.5rem;
+        }
+
+        .price-amount {
+            font-size: 3.5rem;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .price-currency {
+            font-size: 1.5rem;
+        }
+
+        .price-note {
+            font-size: 0.85rem;
+            opacity: 0.85;
+            margin-top: 0.5rem;
+        }
+
+        .booking-btn {
+            width: 100%;
+            padding: 1.25rem;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+
+        .booking-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+        }
+
+        .contact-btn {
+            width: 100%;
+            padding: 1.25rem;
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            border-radius: 16px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .contact-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .info-card {
+            background: #f9fafb;
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .info-card h4 {
+            font-size: 0.9rem;
+            color: #667eea;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #6b7280;
+            font-size: 0.95rem;
+        }
+
+        .info-value {
+            font-weight: 600;
+            color: #1f2937;
+        }
+
+        /* Included Section */
+        .included-section {
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border-radius: 16px;
+            padding: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .included-section h4 {
+            font-size: 1.2rem;
+            color: #065f46;
+            margin-bottom: 1.5rem;
+            font-weight: 700;
+        }
+
+        .included-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .included-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.95rem;
+            color: #047857;
+        }
+
+        .included-item::before {
+            content: '✓';
+            width: 24px;
+            height: 24px;
+            background: #10b981;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+
+        /* Transport Info */
+        .transport-card {
+            background: white;
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .transport-card h3 {
+            font-size: 1.3rem;
+            margin-bottom: 1.5rem;
+            color: #1f2937;
+        }
+
+        .flight-item {
+            background: #f9fafb;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .flight-route {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .flight-arrow {
+            color: #667eea;
+        }
+
+        .flight-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: #6b7280;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .content-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+            }
+
+            .hero-title {
+                font-size: 2.5rem;
+            }
+
+            .highlights-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hero-section {
+                height: 400px;
+            }
+
+            .hero-title {
+                font-size: 2rem;
+            }
+
+            .main-content {
+                padding: 2rem;
+            }
+
+            .quick-info {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .container {
+                margin-top: -50px;
+            }
+
+            .route-line {
+                flex-direction: column;
+                gap: 2rem;
+            }
+
+            .route-connector {
+                display: none;
+            }
+
+            .destination-highlights {
+                grid-template-columns: 1fr;
+            }
+
+            .point-icon {
+                width: 60px;
+                height: 60px;
+                font-size: 2rem;
+            }
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .main-content,
+        .sidebar > * {
+            animation: fadeIn 0.6s ease forwards;
+        }
+
+        .itinerary-day {
+            animation: fadeIn 0.6s ease forwards;
+        }
+
+        .itinerary-day:nth-child(1) { animation-delay: 0.1s; }
+        .itinerary-day:nth-child(2) { animation-delay: 0.2s; }
+        .itinerary-day:nth-child(3) { animation-delay: 0.3s; }
+        .itinerary-day:nth-child(4) { animation-delay: 0.4s; }
+    </style>
+</head>
+<body>
+    <!-- Hero Section -->
+    <div class="hero-section">
+        <div class="hero-actions">
+            <button class="hero-btn" title="Delen">🔗</button>
+            <button class="hero-btn" title="Favoriet">🤍</button>
+        </div>
+        <div class="hero-overlay">
+            <div class="hero-content">
+                <div class="hero-breadcrumb">
+                    <a href="#">Home</a> / <a href="#">Reizen</a> / <a href="#">Griekenland</a> / Santorini
+                </div>
+                <div class="hero-destination">🌍 Griekenland • Santorini</div>
+                <h1 class="hero-title">Santorini Sunset Experience</h1>
+                <p class="hero-subtitle">Ontdek de betoverende witte dorpjes en iconische blauwe koepels</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container">
+        <div class="content-layout">
+            <!-- Left Column -->
+            <div class="main-content">
+                <!-- Quick Info -->
+                <div class="quick-info">
+                    <div class="quick-info-item">
+                        <div class="quick-info-icon">⏱️</div>
+                        <div class="quick-info-label">Duur</div>
+                        <div class="quick-info-value">7 dagen</div>
+                    </div>
+                    <div class="quick-info-item">
+                        <div class="quick-info-icon">🌙</div>
+                        <div class="quick-info-label">Nachten</div>
+                        <div class="quick-info-value">6 nachten</div>
+                    </div>
+                    <div class="quick-info-item">
+                        <div class="quick-info-icon">✈️</div>
+                        <div class="quick-info-label">Transport</div>
+                        <div class="quick-info-value">Vliegreis</div>
+                    </div>
+                    <div class="quick-info-item">
+                        <div class="quick-info-icon">👥</div>
+                        <div class="quick-info-label">Groep</div>
+                        <div class="quick-info-value">2-12</div>
+                    </div>
+                </div>
+
+                <!-- Route Map Section -->
+                <div class="route-map-section">
+                    <div class="map-header">
+                        <h2 class="map-title">🗺️ Waar Ga Je Naartoe?</h2>
+                        <p class="map-subtitle">Van Amsterdam naar het prachtige Santorini</p>
+                    </div>
+
+                    <div class="route-visualization">
+                        <div class="route-line">
+                            <div class="route-connector">
+                                <div class="plane-icon">✈️</div>
+                            </div>
+                            
+                            <div class="route-point">
+                                <div class="point-icon">🇳🇱</div>
+                                <div class="point-name">Amsterdam</div>
+                                <div class="point-detail">Schiphol Airport (AMS)</div>
+                                <div class="point-detail">Vertrek: 08:45</div>
+                            </div>
+                            
+                            <div class="route-point">
+                                <div class="point-icon">🇬🇷</div>
+                                <div class="point-name">Santorini</div>
+                                <div class="point-detail">Santorini Airport (JTR)</div>
+                                <div class="point-detail">Aankomst: 13:30</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="destination-highlights">
+                        <div class="dest-highlight">
+                            <div class="dest-highlight-icon">⏱️</div>
+                            <div class="dest-highlight-text">Directe vlucht<br>3.5 uur</div>
+                        </div>
+                        <div class="dest-highlight">
+                            <div class="dest-highlight-icon">🌍</div>
+                            <div class="dest-highlight-text">2,400 km<br>Zuid-Europa</div>
+                        </div>
+                        <div class="dest-highlight">
+                            <div class="dest-highlight-icon">🌡️</div>
+                            <div class="dest-highlight-text">25-30°C<br>Zomerklimaat</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <h2 class="section-title">Over deze reis</h2>
+                <p class="description-text">
+                    Welkom op het prachtige eiland Santorini, één van de meest iconische bestemmingen van Griekenland. 
+                    Deze reis brengt je naar de adembenemende kliffen met witte huisjes en blauwe koepels die de wereld 
+                    over bekend zijn. Geniet van spectaculaire zonsondergangen in Oia, verken de archeologische schatten 
+                    van Akrotiri, en proef de heerlijke lokale wijnen in traditionele wijnhuizen.
+                </p>
+                <p class="description-text">
+                    Je verblijft in een luxe boutique hotel met uitzicht over de caldera, en hebt volop tijd om te 
+                    ontspannen aan de unieke rode en zwarte stranden. Ontdek authentieke Griekse taverna's, maak een 
+                    boottocht langs de vulkanische eilanden, en laat je betoveren door de magische sfeer van dit 
+                    paradijselijke eiland.
+                </p>
+
+                <!-- Highlights -->
+                <h2 class="section-title">Hoogtepunten</h2>
+                <div class="highlights-grid">
+                    <div class="highlight-item">
+                        <div class="highlight-icon">🌅</div>
+                        <div class="highlight-text">
+                            <h4>Zonsondergang in Oia</h4>
+                            <p>Ervaar de beroemdste zonsondergang ter wereld vanaf de kliffen van Oia</p>
+                        </div>
+                    </div>
+                    <div class="highlight-item">
+                        <div class="highlight-icon">🏛️</div>
+                        <div class="highlight-text">
+                            <h4>Akrotiri Ruïnes</h4>
+                            <p>Verken de 3.600 jaar oude Minoïsche nederzetting</p>
+                        </div>
+                    </div>
+                    <div class="highlight-item">
+                        <div class="highlight-icon">🍷</div>
+                        <div class="highlight-text">
+                            <h4>Wijn Proeverij</h4>
+                            <p>Bezoek lokale wijnhuizen en proef unieke vulkanische wijnen</p>
+                        </div>
+                    </div>
+                    <div class="highlight-item">
+                        <div class="highlight-icon">⛵</div>
+                        <div class="highlight-text">
+                            <h4>Boottocht Caldera</h4>
+                            <p>Vaar langs de vulkanische eilanden en zwem in warmwaterbronnen</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Itinerary -->
+                <div class="itinerary">
+                    <h2 class="section-title">Dag tot Dag Programma</h2>
+
+                    <div class="itinerary-day">
+                        <div class="day-header">
+                            <div class="day-number">1</div>
+                            <div class="day-info">
+                                <h3 class="day-title">Aankomst in Santorini</h3>
+                                <div class="day-location">📍 Fira, Santorini</div>
+                            </div>
+                        </div>
+                        <div class="day-image" style="background-image: url('https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=800&q=80');"></div>
+                        <p class="day-description">
+                            Aankomst op Santorini International Airport. Transfer naar je luxe boutique hotel in Fira 
+                            met spectaculair uitzicht over de caldera. Check-in en tijd om te ontspannen. 's Avonds 
+                            welkomsdiner in een traditionele taverna met lokale specialiteiten en Griekse muziek.
+                        </p>
+                    </div>
+
+                    <div class="itinerary-day">
+                        <div class="day-header">
+                            <div class="day-number">2</div>
+                            <div class="day-info">
+                                <h3 class="day-title">Verken Fira & Oia</h3>
+                                <div class="day-location">📍 Fira → Oia</div>
+                            </div>
+                        </div>
+                        <div class="day-image" style="background-image: url('https://images.unsplash.com/photo-1613395877344-13d4a8e0d49e?w=800&q=80');"></div>
+                        <p class="day-description">
+                            Ontdek de charmante hoofdstad Fira met zijn witte huisjes en blauwe koepels. Bezoek lokale 
+                            winkels en galeries. 's Middags reis naar het pittoreske dorpje Oia. Wandel door de smalle 
+                            straatjes en geniet van de wereldberoemde zonsondergang vanaf de kliffen. Diner in een 
+                            restaurant met caldera uitzicht.
+                        </p>
+                    </div>
+
+                    <div class="itinerary-day">
+                        <div class="day-header">
+                            <div class="day-number">3</div>
+                            <div class="day-info">
+                                <h3 class="day-title">Boottocht & Vulkaan</h3>
+                                <div class="day-location">📍 Caldera Cruise</div>
+                            </div>
+                        </div>
+                        <div class="day-image" style="background-image: url('https://images.unsplash.com/photo-1601581987809-a874a81309c9?w=800&q=80');"></div>
+                        <p class="day-description">
+                            Fullday boottocht rond de caldera. Bezoek de actieve vulkaan Nea Kameni en wandel over de 
+                            lavavelden. Zwem in de therapeutische warmwaterbronnen van Palea Kameni. Lunch aan boord. 
+                            Stop bij het eiland Thirassia voor een traditioneel Grieks diner in een lokaal visrestaurant.
+                        </p>
+                    </div>
+
+                    <div class="itinerary-day">
+                        <div class="day-header">
+                            <div class="day-number">4</div>
+                            <div class="day-info">
+                                <h3 class="day-title">Wijn & Geschiedenis</h3>
+                                <div class="day-location">📍 Akrotiri & Wijnhuizen</div>
+                            </div>
+                        </div>
+                        <div class="day-image" style="background-image: url('https://images.unsplash.com/photo-1506377247377-2a5b3b417ebb?w=800&q=80');"></div>
+                        <p class="day-description">
+                            Bezoek de archeologische site van Akrotiri, het 'Pompeii van de Egeïsche Zee'. Bewonder 
+                            de goed bewaard gebleven Minoïsche nederzetting uit 1600 v.Chr. 's Middags wijnproeverij 
+                            bij drie traditionele wijnhuizen. Leer over de unieke vulkanische druiven en proef de 
+                            beroemde Assyrtiko wijn.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Transport Info -->
+                <div class="transport-card">
+                    <h3>✈️ Vluchtinformatie</h3>
+                    <div class="flight-item">
+                        <div class="flight-route">
+                            Amsterdam (AMS) <span class="flight-arrow">✈️</span> Santorini (JTR)
+                        </div>
+                        <div class="flight-details">
+                            <div>
+                                <strong>Vertrek:</strong><br>
+                                08:45 • KLM 1234
+                            </div>
+                            <div>
+                                <strong>Aankomst:</strong><br>
+                                13:30 • Directe vlucht
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flight-item">
+                        <div class="flight-route">
+                            Santorini (JTR) <span class="flight-arrow">✈️</span> Amsterdam (AMS)
+                        </div>
+                        <div class="flight-details">
+                            <div>
+                                <strong>Vertrek:</strong><br>
+                                14:15 • KLM 1235
+                            </div>
+                            <div>
+                                <strong>Aankomst:</strong><br>
+                                17:45 • Directe vlucht
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Sidebar -->
+            <div class="sidebar">
+                <!-- Booking Card -->
+                <div class="booking-card">
+                    <div class="price-display">
+                        <div class="price-label">Vanaf</div>
+                        <div class="price-amount">€899 <span class="price-currency">p.p.</span></div>
+                        <div class="price-note">Gebaseerd op 2 personen</div>
+                    </div>
+                    <button class="booking-btn">📅 Boek Nu</button>
+                    <button class="contact-btn">📧 Vraag Info Aan</button>
+                </div>
+
+                <!-- Trip Details -->
+                <div class="booking-card">
+                    <div class="info-card">
+                        <h4>📋 Reis Details</h4>
+                        <div class="info-item">
+                            <span class="info-label">Vertrekdatum</span>
+                            <span class="info-value">15 Jun 2024</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Terugkeer</span>
+                            <span class="info-value">22 Jun 2024</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Duur</span>
+                            <span class="info-value">7 dagen / 6 nachten</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Groepsgrootte</span>
+                            <span class="info-value">2-12 personen</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Taal</span>
+                            <span class="info-value">Nederlands</span>
+                        </div>
+                    </div>
+
+                    <!-- Included -->
+                    <div class="included-section">
+                        <h4>✓ Inbegrepen</h4>
+                        <div class="included-list">
+                            <div class="included-item">6 overnachtingen in 4* hotel</div>
+                            <div class="included-item">Vluchten Amsterdam - Santorini</div>
+                            <div class="included-item">Alle transfers & excursies</div>
+                            <div class="included-item">Ontbijt & 3x diner</div>
+                            <div class="included-item">Boottocht caldera</div>
+                            <div class="included-item">Wijnproeverij</div>
+                            <div class="included-item">Entree Akrotiri</div>
+                            <div class="included-item">Nederlandse reisleiding</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Favorite button
+        document.querySelectorAll('.hero-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (this.textContent === '🤍') {
+                    this.textContent = '❤️';
+                } else if (this.textContent === '❤️') {
+                    this.textContent = '🤍';
+                }
+            });
+        });
+
+        // Smooth scroll for day items
+        document.querySelectorAll('.itinerary-day').forEach(day => {
+            day.style.opacity = '0';
+            day.style.transform = 'translateY(30px)';
+        });
+
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.style.transition = 'all 0.6s ease';
+                    entry.target.style.opacity = '1';
+                    entry.target.style.transform = 'translateY(0)';
+                }
+            });
+        });
+
+        document.querySelectorAll('.itinerary-day').forEach(day => {
+            observer.observe(day);
+        });
+    </script>
+</body>
+</html>
