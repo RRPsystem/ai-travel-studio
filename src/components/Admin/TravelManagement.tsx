@@ -377,7 +377,8 @@ export function TravelManagement() {
           body: { travelId: tcId, micrositeId: micrositeId }
         });
         if (error || !data?.title) {
-          results.push({ id: tcId, status: 'error', title: error?.message || 'Kon niet ophalen' });
+          const errMsg = data?.error || data?.message || error?.message || 'Kon niet ophalen';
+          results.push({ id: tcId, status: 'error', title: errMsg });
         } else {
           // Check if exists
           const { data: existing } = await supabase!.from('travelc_travels').select('id').eq('travel_compositor_id', tcId).maybeSingle();
@@ -470,7 +471,8 @@ export function TravelManagement() {
               body: { travelId: tcId, micrositeId: micrositeId, skipGeocode: true }
             });
             if (error || !data?.title) {
-              results.push({ id: tcId, status: 'error', title: error?.message || 'Kon niet ophalen' });
+              const errMsg = data?.error || data?.message || error?.message || 'Kon niet ophalen';
+              results.push({ id: tcId, status: 'error', title: errMsg });
             } else {
               const travelData = {
                 travel_compositor_id: tcId, title: data.title, slug: generateSlug(data.title),

@@ -24,17 +24,6 @@ $destinations = $travel['destinations'] ?? [];
 $hotels = $travel['hotels'] ?? [];
 $transports = $travel['transports'] ?? [];
 $car_rentals = $travel['car_rentals'] ?? [];
-$cruises = $travel['cruises'] ?? [];
-
-// DEBUG: Check transport days
-if (!empty($transports)) {
-    echo '<pre style="background: #fff3cd; padding: 10px; margin: 10px; border: 2px solid orange;">';
-    echo 'TRANSPORT DEBUG:<br>';
-    foreach ($transports as $t) {
-        echo 'Day: ' . ($t['day'] ?? 'N/A') . ' - ' . ($t['company'] ?? '') . ' - ' . ($t['originCode'] ?? '') . ' → ' . ($t['targetCode'] ?? '') . '<br>';
-    }
-    echo '</pre>';
-}
 
 // Brand settings
 $brand = $travel['brand_settings'] ?? [];
@@ -48,7 +37,7 @@ if (!empty($destinations[0]['images'][0])) {
     $main_image = $destinations[0]['images'][0];
 }
 
-// Collect all images for slideshow from destinations and hotels (cruises have no images)
+// Collect all images for slideshow from destinations AND hotels
 $all_images = [];
 foreach ($destinations as $dest) {
     $dest_imgs = $dest['images'] ?? [];
@@ -123,53 +112,12 @@ foreach ($transports as $transport) {
     }
 }
 
-// Build combined accommodation timeline (cruises + hotels in order)
-$current_day = 1;
-
-// Add cruises first (they come before hotels in the itinerary)
-foreach ($cruises as $cruise_index => $cruise) {
-    $cruise_nights = intval($cruise['nights'] ?? 1);
-    $start_day = $current_day;
-    $end_day = $current_day + $cruise_nights - 1;
-    
-    if ($start_day <= $days) {
-        if (!isset($timeline[$start_day])) {
-            $timeline[$start_day] = [];
-        }
-        
-        // Build cruise name from available data
-        $cruise_line = $cruise['cruiseLine'] ?? '';
-        $ship_id = $cruise['shipId'] ?? '';
-        $cruise_name = $cruise_line . ' - ' . $ship_id;
-        if (empty(trim($cruise_name, ' -'))) {
-            $cruise_name = 'Cruise';
-        }
-        
-        $timeline[$start_day][] = [
-            'type' => 'cruise',
-            'name' => $cruise_name,
-            'nights' => $cruise_nights,
-            'start_day' => $start_day,
-            'end_day' => $end_day,
-            'images' => [],
-            'description' => '',
-            'cabinType' => $cruise['selectedCategory'] ?? $cruise['group'] ?? '',
-            'cabin' => $cruise['cabin'] ?? '',
-            'stars' => $cruise['stars'] ?? '',
-            'departure' => $cruise['departure'] ?? '',
-            'arrival' => $cruise['arrival'] ?? '',
-            'sort_order' => 3
-        ];
-    }
-    
-    $current_day += $cruise_nights;
-}
-
-// Then add hotels
+// Add hotels with day ranges
+$hotel_day = 1;
 foreach ($hotels as $hotel_index => $hotel) {
     $hotel_nights = intval($hotel['nights'] ?? 1);
-    $start_day = $current_day;
-    $end_day = $current_day + $hotel_nights - 1;
+    $start_day = $hotel_day;
+    $end_day = $hotel_day + $hotel_nights - 1;
     
     if ($start_day <= $days) {
         if (!isset($timeline[$start_day])) {
@@ -191,14 +139,14 @@ foreach ($hotels as $hotel_index => $hotel) {
             'description' => $hotel['description'] ?? '',
             'facilities' => $hotel['facilities'] ?? [],
             'geolocation' => $hotel['geolocation'] ?? null,
-            'sort_order' => 3
+            'sort_order' => 3 // Hotels come last
         ];
     }
     
-    $current_day += $hotel_nights;
+    $hotel_day += $hotel_nights;
 }
 
-// Add destinations to timeline - match by order to accommodations (cruises + hotels)
+// Add destinations to timeline - match by order (first hotel = first unique destination, etc.)
 // Remove duplicate destinations first
 $unique_destinations = [];
 $seen_dest_names = [];
@@ -210,49 +158,20 @@ foreach ($destinations as $dest) {
     }
 }
 
-// Track accommodation days (cruises + hotels combined)
-$accom_day_tracker = 1;
-$accom_index = 0;
-
-// Add destinations for cruises
-foreach ($cruises as $cruise_index => $cruise) {
-    $cruise_nights = intval($cruise['nights'] ?? 1);
-    $cruise_start = $accom_day_tracker;
-    
-    if (isset($unique_destinations[$accom_index])) {
-        $dest = $unique_destinations[$accom_index];
-        
-        if (!isset($timeline[$cruise_start])) {
-            $timeline[$cruise_start] = [];
-        }
-        
-        array_unshift($timeline[$cruise_start], [
-            'type' => 'destination',
-            'name' => $dest['name'] ?? '',
-            'country' => $dest['country'] ?? '',
-            'images' => $dest['images'] ?? [],
-            'description' => $dest['description'] ?? '',
-            'geolocation' => $dest['geolocation'] ?? null,
-            'sort_order' => 2
-        ]);
-    }
-    
-    $accom_day_tracker += $cruise_nights;
-    $accom_index++;
-}
-
-// Add destinations for hotels
+$hotel_day_tracker = 1;
 foreach ($hotels as $hotel_index => $hotel) {
     $hotel_nights = intval($hotel['nights'] ?? 1);
-    $hotel_start = $accom_day_tracker;
+    $hotel_start = $hotel_day_tracker;
     
-    if (isset($unique_destinations[$accom_index])) {
-        $dest = $unique_destinations[$accom_index];
+    // Add destination if we have one for this hotel index
+    if (isset($unique_destinations[$hotel_index])) {
+        $dest = $unique_destinations[$hotel_index];
         
         if (!isset($timeline[$hotel_start])) {
             $timeline[$hotel_start] = [];
         }
         
+        // Add destination at start of hotel stay
         array_unshift($timeline[$hotel_start], [
             'type' => 'destination',
             'name' => $dest['name'] ?? '',
@@ -260,12 +179,11 @@ foreach ($hotels as $hotel_index => $hotel) {
             'images' => $dest['images'] ?? [],
             'description' => $dest['description'] ?? '',
             'geolocation' => $dest['geolocation'] ?? null,
-            'sort_order' => 2
+            'sort_order' => 2 // Destinations come after transports
         ]);
     }
     
-    $accom_day_tracker += $hotel_nights;
-    $accom_index++;
+    $hotel_day_tracker += $hotel_nights;
 }
 
 // Add car rental
@@ -327,29 +245,19 @@ main,
 article {
     margin-top: 0 !important;
     padding-top: 0 !important;
-    max-width: none !important;
-    width: 100% !important;
 }
 
-/* CONTAINER - Force full width */
+/* CONTAINER */
 .travelc-detail {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    width: 100vw !important;
-    max-width: 100vw !important;
-    margin-left: calc(-50vw + 50%) !important;
-    margin-right: calc(-50vw + 50%) !important;
-    position: relative;
-    left: 0;
-    right: 0;
 }
 
 /* HERO - EXACT RBS SLIDESHOW STYLE */
 .tc-hero-slideshow {
     width: 100%;
-    height: 500px;
+    height: 400px;
     position: relative;
     overflow: hidden;
-    background: #f0f0f0;
 }
 
 .tc-hero-slideshow .slide {
@@ -360,9 +268,6 @@ article {
     height: 100%;
     opacity: 0;
     transition: opacity 1s ease-in-out;
-    display: flex;
-    align-items: center;
-    justify-content: center;
 }
 
 .tc-hero-slideshow .slide.active {
@@ -373,7 +278,6 @@ article {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center;
 }
 
 .tc-hero-slideshow .slide-nav {
@@ -663,9 +567,8 @@ article {
 
 .tc-day-item-image {
     width: 100%;
-    height: 220px;
+    height: 180px;
     object-fit: cover;
-    object-position: center;
 }
 
 .tc-day-item-body {
@@ -1172,34 +1075,6 @@ article {
                                             data-item='<?php echo esc_attr(json_encode($item)); ?>'>
                                             Meer Informatie
                                         </button>
-                                    </div>
-                                </div>
-                            
-                            <?php elseif ($type === 'cruise'): ?>
-                                <div class="tc-day-item">
-                                    <div class="tc-day-item-body">
-                                        <div class="tc-day-item-title">
-                                            <span class="tc-type-badge">🚢 CRUISE</span>
-                                            <?php echo esc_html($item['name']); ?>
-                                        </div>
-                                        
-                                        <div class="tc-day-item-meta">
-                                            <?php if ($item['nights'] > 0): ?>
-                                                <span class="tc-meta-item">🌙 <?php echo $item['nights']; ?> <?php echo $item['nights'] == 1 ? 'nacht' : 'nachten'; ?></span>
-                                            <?php endif; ?>
-                                            <?php if ($item['cabinType']): ?>
-                                                <span class="tc-meta-item">🛏️ <?php echo esc_html($item['cabinType']); ?></span>
-                                            <?php endif; ?>
-                                            <?php if ($item['stars']): ?>
-                                                <span class="tc-meta-item">⭐ <?php echo esc_html($item['stars']); ?> sterren</span>
-                                            <?php endif; ?>
-                                            <?php if ($item['departure']): ?>
-                                                <span class="tc-meta-item">🛳️ Vertrek: <?php echo date('d-m-Y H:i', strtotime($item['departure'])); ?></span>
-                                            <?php endif; ?>
-                                            <?php if ($item['arrival']): ?>
-                                                <span class="tc-meta-item">⚓ Aankomst: <?php echo date('d-m-Y H:i', strtotime($item['arrival'])); ?></span>
-                                            <?php endif; ?>
-                                        </div>
                                     </div>
                                 </div>
                             

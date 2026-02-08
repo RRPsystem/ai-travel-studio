@@ -41,11 +41,11 @@ Deno.serve(async (req: Request) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error(`[Import TC] Builder API error: ${response.status}`, errorText);
+      console.error(`[Import TC] Builder API error for travel ${travelId}: ${response.status}`, errorText);
       return new Response(
         JSON.stringify({ 
-          error: `API error: ${response.status}`,
-          message: "Kon reis niet ophalen. Controleer of het Travel Compositor ID correct is."
+          error: `Reis ${travelId} niet gevonden (${response.status})`,
+          message: `Reis ${travelId} kon niet worden opgehaald. Mogelijk is deze verwijderd uit Travel Compositor.`
         }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
