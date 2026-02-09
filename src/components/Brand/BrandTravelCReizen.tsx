@@ -1017,74 +1017,123 @@ export function BrandTravelCReizen() {
           <p className="text-sm text-gray-400 mt-1">Importeer een reis via Travel Compositor ID</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredTravels.map(travel => {
-            const assignment = getAssignment(travel.id);
-            const active = assignment?.is_active || false;
-            const featured = assignment?.is_featured || false;
-            const own = isOwnTravel(travel);
-            const image = travel.hero_image || travel.images?.[0] || '';
+        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Afbeelding</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reis</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Details</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Land</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actief</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Uitgelicht</th>
+                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acties</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredTravels.map(travel => {
+                  const assignment = getAssignment(travel.id);
+                  const active = assignment?.is_active || false;
+                  const featured = assignment?.is_featured || false;
+                  const own = isOwnTravel(travel);
+                  const image = travel.hero_image || travel.images?.[0] || '';
 
-            return (
-              <div key={travel.id}
-                className={`bg-white rounded-xl border overflow-hidden shadow-sm hover:shadow-md transition-all ${active ? 'border-green-300 ring-1 ring-green-200' : 'border-gray-200'}`}>
-                {/* Image */}
-                <div className="relative h-40 cursor-pointer" onClick={() => { setSelectedTravel(travel); setViewMode('detail'); }}>
-                  {image ? (
-                    <img src={image} alt={travel.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full bg-gray-100 flex items-center justify-center"><Image className="w-8 h-8 text-gray-300" /></div>
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-3">
-                    <h3 className="text-white font-bold text-sm leading-tight">{travel.title}</h3>
-                  </div>
-                  {travel.is_mandatory && <span className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">Verplicht</span>}
-                  {own && <span className="absolute top-2 left-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">Eigen reis</span>}
-                  {featured && (
-                    <span className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-0.5 rounded-full font-medium flex items-center gap-1">
-                      <Star className="w-3 h-3" /> Uitgelicht
-                    </span>
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="p-3">
-                  <div className="flex items-center gap-3 text-xs text-gray-500 mb-2">
-                    {travel.number_of_nights > 0 && <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> {travel.number_of_nights}n</span>}
-                    {travel.destinations?.length > 0 && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {travel.destinations.length}</span>}
-                    {travel.hotels?.length > 0 && <span className="flex items-center gap-1"><Hotel className="w-3 h-3" /> {travel.hotels.length}</span>}
-                    {travel.price_per_person > 0 && <span className="flex items-center gap-1 font-semibold text-gray-700"><Euro className="w-3 h-3" /> {Number(travel.price_per_person).toLocaleString()}</span>}
-                  </div>
-                  {travel.countries?.length > 0 && <p className="text-xs text-blue-600 mb-2">{travel.countries.join(' · ')}</p>}
-
-                  {/* Actions */}
-                  <div className="flex items-center justify-between pt-2 border-t">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => { setSelectedTravel(travel); setViewMode('detail'); }} className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1">
-                        <Eye className="w-3 h-3" /> Bekijken
-                      </button>
-                      {own && (
-                        <>
-                          <button onClick={() => handleEdit(travel)} className="text-xs text-orange-500 hover:text-orange-700 flex items-center gap-1">
-                            <Edit2 className="w-3 h-3" /> Bewerken
+                  return (
+                    <tr key={travel.id} className={`hover:bg-gray-50 ${active ? 'bg-green-50/30' : ''}`}>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {image ? (
+                          <img src={image} alt={travel.title} className="w-20 h-14 object-cover rounded-lg cursor-pointer"
+                            onClick={() => { setSelectedTravel(travel); setViewMode('detail'); }} />
+                        ) : (
+                          <div className="w-20 h-14 bg-gray-200 rounded-lg flex items-center justify-center cursor-pointer"
+                            onClick={() => { setSelectedTravel(travel); setViewMode('detail'); }}>
+                            <Image className="w-5 h-5 text-gray-400" />
+                          </div>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="text-sm font-medium text-gray-900 cursor-pointer hover:text-orange-600"
+                          onClick={() => { setSelectedTravel(travel); setViewMode('detail'); }}>
+                          {travel.title}
+                        </div>
+                        <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
+                          <span>TC: {travel.travel_compositor_id}</span>
+                          {travel.is_mandatory && <span className="bg-red-100 text-red-600 px-1.5 py-0.5 rounded text-[10px] font-medium">Verplicht</span>}
+                          {own && <span className="bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded text-[10px] font-medium">Eigen reis</span>}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3 text-xs text-gray-600">
+                          {travel.number_of_nights > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" /> {travel.number_of_nights}n
+                            </span>
+                          )}
+                          {travel.price_per_person > 0 && (
+                            <span className="flex items-center gap-1">
+                              <Euro className="w-3 h-3" /> €{Number(travel.price_per_person).toLocaleString()}
+                            </span>
+                          )}
+                          {travel.destinations?.length > 0 && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="w-3 h-3" /> {travel.destinations.length}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {travel.countries?.length > 0 && (
+                          <span className="text-xs text-blue-600">{travel.countries.join(', ')}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" checked={active} onChange={() => handleToggleActive(travel.id)} className="sr-only peer" />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                        </label>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-center">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input type="checkbox" checked={featured} onChange={() => handleToggleFeatured(travel.id)} className="sr-only peer" />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-yellow-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"></div>
+                        </label>
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-right">
+                        <div className="flex items-center justify-end space-x-2">
+                          <button onClick={() => { setSelectedTravel(travel); setViewMode('detail'); }}
+                            className="text-gray-500 hover:text-gray-700 p-1" title="Bekijken">
+                            <Eye size={16} />
                           </button>
-                          <button onClick={() => handleDelete(travel)} className="text-xs text-red-400 hover:text-red-600 flex items-center gap-1">
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" checked={active} onChange={() => handleToggleActive(travel.id)} className="sr-only peer" />
-                      <div className="w-9 h-5 bg-gray-200 peer-focus:ring-2 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-green-500"></div>
-                      <span className="ml-2 text-xs font-medium text-gray-600">{active ? 'Actief' : 'Inactief'}</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+                          {own && (
+                            <>
+                              <button onClick={() => handleEdit(travel)}
+                                className="text-orange-500 hover:text-orange-700 p-1" title="Bewerken">
+                                <Edit2 size={16} />
+                              </button>
+                              <button onClick={() => handleDelete(travel)}
+                                className="text-red-400 hover:text-red-600 p-1" title="Verwijderen">
+                                <Trash2 size={16} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {filteredTravels.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                      <Plane className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>Geen reizen gevonden</p>
+                      <p className="text-sm text-gray-400 mt-1">Importeer een reis via Travel Compositor ID</p>
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

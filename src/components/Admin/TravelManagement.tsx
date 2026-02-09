@@ -434,25 +434,19 @@ export function TravelManagement() {
     setBulkProgress({ current: 0, total: 0, results: [] });
 
     try {
-      // Step 1: Get list of all travels from builder API
-      const { data: { session } } = await supabase!.auth.getSession();
-      const listRes = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-external-api`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${session?.access_token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          url: `https://www.ai-websitestudio.nl/api/travelbro/list-travels?micrositeId=${micrositeId}&language=NL`,
-          method: 'GET'
-        })
+      // Step 1: Get list of all travels directly from TC API via Edge Function
+      const { data: listData, error: listError } = await supabase!.functions.invoke('import-travel-compositor', {
+        body: { action: 'list', micrositeId: micrositeId, limit: 500 }
       });
-      const listResult = await listRes.json();
       
-      if (!listResult.success || !listResult.data?.travels?.length) {
-        setImportError(listResult.data?.error || 'Geen reizen gevonden voor deze microsite. Is het list-travels endpoint beschikbaar op de builder?');
+      if (listError || !listData?.travels?.length) {
+        const errMsg = listData?.error || listError?.message || 'Geen reizen gevonden voor deze microsite.';
+        setImportError(errMsg);
         setBulkImporting(false);
         return;
       }
 
-      const travelList = listResult.data.travels;
+      const travelList = listData.travels;
       const results: Array<{id: string, status: string, title?: string}> = [];
       setBulkProgress({ current: 0, total: travelList.length, results });
 
