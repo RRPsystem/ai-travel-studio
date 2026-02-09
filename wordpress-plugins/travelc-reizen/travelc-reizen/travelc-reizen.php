@@ -2,14 +2,14 @@
 /**
  * Plugin Name: TravelC Reizen
  * Description: Toont reizen vanuit TravelCStudio op je WordPress website via shortcodes.
- * Version: 3.9.5
+ * Version: 3.9.6
  * Author: RBS / TravelCStudio
  * Text Domain: travelc-reizen
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('TRAVELC_REIZEN_VERSION', '3.9.5');
+define('TRAVELC_REIZEN_VERSION', '3.9.6');
 define('TRAVELC_REIZEN_PATH', plugin_dir_path(__FILE__));
 define('TRAVELC_REIZEN_URL', plugin_dir_url(__FILE__));
 
@@ -616,9 +616,10 @@ add_shortcode('travelc_featured_reizen', function($atts) {
 
     .tcf-grid {
         display: grid;
-        gap: 24px;
+        gap: 32px;
         margin: 0 auto;
         max-width: 1200px;
+        padding: 8px;
     }
     .tcf-cols-2 { grid-template-columns: repeat(2, 1fr); }
     .tcf-cols-3 { grid-template-columns: repeat(3, 1fr); }
@@ -628,8 +629,8 @@ add_shortcode('travelc_featured_reizen', function($atts) {
         background: #fff;
         border-radius: 16px;
         overflow: visible;
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.08);
-        border: 1px solid rgba(0, 0, 0, 0.04);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.04), 0 10px 24px rgba(0, 0, 0, 0.1), 0 20px 48px rgba(0, 0, 0, 0.06);
+        border: 1px solid #e5e7eb;
         transition: transform 0.3s ease, box-shadow 0.3s ease;
         position: relative;
         text-decoration: none;
@@ -639,8 +640,9 @@ add_shortcode('travelc_featured_reizen', function($atts) {
     }
 
     .tcf-card:hover {
-        transform: translateY(-8px);
-        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08);
+        transform: translateY(-10px);
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.08), 0 20px 48px rgba(0, 0, 0, 0.16), 0 32px 64px rgba(0, 0, 0, 0.08);
+        border-color: #d1d5db;
     }
 
     .tcf-card-image {
