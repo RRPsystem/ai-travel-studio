@@ -367,6 +367,108 @@ add_shortcode('travelc_reis', function($atts) {
 });
 
 // ============================================
+// WPForms → TravelC Studio integration
+// Automatically sends WPForms submissions to Supabase Edge Function
+// ============================================
+add_action('wpforms_process_complete', function($fields, $entry, $form_data, $entry_id) {
+    $brand_id = get_option('travelc_brand_id', '');
+    if (empty($brand_id)) return;
+
+    // Check if this form has TravelC forwarding enabled (via form tag or always-on setting)
+    $forward_all = get_option('travelc_forward_wpforms', '1');
+    $form_tags = strtolower($form_data['settings']['form_title'] ?? '');
+    
+    // Skip if forwarding is disabled and form doesn't contain relevant keywords
+    if ($forward_all !== '1') {
+        $keywords = ['offerte', 'contact', 'aanvraag', 'quote', 'info', 'reizen', 'reis'];
+        $found = false;
+        foreach ($keywords as $kw) {
+            if (strpos($form_tags, $kw) !== false) { $found = true; break; }
+        }
+        if (!$found) return;
+    }
+
+    // Map WPForms fields to our format by searching field labels
+    $mapped = [
+        'customer_name' => '',
+        'customer_email' => '',
+        'customer_phone' => '',
+        'message' => '',
+        'departure_date' => '',
+        'number_of_persons' => '',
+    ];
+
+    $name_labels = ['naam', 'name', 'volledige naam', 'je naam', 'uw naam', 'voornaam'];
+    $email_labels = ['e-mail', 'email', 'e-mailadres', 'emailadres'];
+    $phone_labels = ['telefoon', 'phone', 'telefoonnummer', 'tel', 'mobiel'];
+    $msg_labels = ['bericht', 'message', 'opmerking', 'opmerkingen', 'vraag', 'toelichting', 'wensen'];
+    $date_labels = ['vertrekdatum', 'datum', 'departure', 'date', 'reisdatum'];
+    $persons_labels = ['personen', 'aantal', 'persons', 'reizigers', 'aantal personen'];
+
+    foreach ($fields as $field) {
+        $label = strtolower(trim($field['name'] ?? ''));
+        $value = trim($field['value'] ?? '');
+        if (empty($value)) continue;
+
+        // Name field (WPForms splits into first/last)
+        if ($field['type'] === 'name' || in_array($label, $name_labels)) {
+            $mapped['customer_name'] = $value;
+        } elseif ($field['type'] === 'email' || in_array($label, $email_labels)) {
+            $mapped['customer_email'] = $value;
+        } elseif ($field['type'] === 'phone' || in_array($label, $phone_labels)) {
+            $mapped['customer_phone'] = $value;
+        } elseif ($field['type'] === 'textarea' || in_array($label, $msg_labels)) {
+            $mapped['message'] = $value;
+        } elseif ($field['type'] === 'date-time' || in_array($label, $date_labels)) {
+            $mapped['departure_date'] = $value;
+        } elseif (in_array($label, $persons_labels)) {
+            $mapped['number_of_persons'] = $value;
+        }
+    }
+
+    // Determine request type from form title
+    $request_type = 'contact';
+    if (strpos($form_tags, 'offerte') !== false || strpos($form_tags, 'quote') !== false) {
+        $request_type = 'quote';
+    } elseif (strpos($form_tags, 'info') !== false) {
+        $request_type = 'info';
+    }
+
+    // Build payload
+    $payload = [
+        'brand_id' => $brand_id,
+        'customer_name' => $mapped['customer_name'],
+        'customer_email' => $mapped['customer_email'],
+        'customer_phone' => $mapped['customer_phone'] ?: null,
+        'message' => $mapped['message'] ?: null,
+        'departure_date' => $mapped['departure_date'] ?: null,
+        'number_of_persons' => $mapped['number_of_persons'] ?: null,
+        'request_type' => $request_type,
+        'source_url' => wp_get_referer() ?: ($_SERVER['HTTP_REFERER'] ?? ''),
+        'travel_title' => $form_data['settings']['form_title'] ?? '',
+    ];
+
+    // Skip if no name or email found
+    if (empty($payload['customer_name']) || empty($payload['customer_email'])) {
+        error_log('[TravelC] WPForms forward skipped: missing name or email. Form: ' . ($form_data['settings']['form_title'] ?? 'unknown'));
+        return;
+    }
+
+    // Send to Edge Function (non-blocking)
+    $endpoint = 'https://huaaogdxxdcakxryecnw.supabase.co/functions/v1/travel-quote-request';
+    $response = wp_remote_post($endpoint, [
+        'timeout' => 10,
+        'headers' => ['Content-Type' => 'application/json'],
+        'body' => json_encode($payload),
+        'blocking' => false, // Don't wait for response
+    ]);
+
+    if (is_wp_error($response)) {
+        error_log('[TravelC] WPForms forward error: ' . $response->get_error_message());
+    }
+}, 10, 4);
+
+// ============================================
 // Rewrite rule for pretty URLs: /reizen/slug
 // ============================================
 add_action('init', function() {

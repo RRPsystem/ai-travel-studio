@@ -74,12 +74,26 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
+    console.log(`[Quote Request] Incoming ${req.method} request from ${req.headers.get("origin") || req.headers.get("referer") || "unknown"}`);
+
     // Read brand_id from URL query parameter (easiest for WPForms webhook setup)
     const url = new URL(req.url);
     const urlBrandId = url.searchParams.get("brand_id") || "";
     const urlRequestType = url.searchParams.get("request_type") || "";
 
-    const body = await req.json();
+    const rawBody = await req.text();
+    console.log(`[Quote Request] Raw body (first 500 chars): ${rawBody.substring(0, 500)}`);
+
+    let body;
+    try {
+      body = JSON.parse(rawBody);
+    } catch (e) {
+      console.error("[Quote Request] Body is not valid JSON:", rawBody.substring(0, 200));
+      return new Response(
+        JSON.stringify({ error: "Ongeldige JSON data ontvangen" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Detect if this is a WPForms webhook or our custom format
     let normalized;
