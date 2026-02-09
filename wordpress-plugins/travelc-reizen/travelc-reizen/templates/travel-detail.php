@@ -42,6 +42,10 @@ $show_hotels = $brand['show_hotels'] ?? true;
 $show_prices = $brand['show_prices'] ?? true;
 $primary_color = '#4a6cf7';
 
+// Touroperator info
+$source_microsite = $travel['source_microsite'] ?? '';
+$touroperator = travelc_get_touroperator_info($source_microsite);
+
 // Get main image
 $main_image = '';
 if (!empty($destinations[0]['images'][0])) {
@@ -1247,6 +1251,19 @@ article {
                 <div id="tcMiniMap" style="width: 100%; height: 180px;"></div>
                 <div style="padding: 16px; text-align: center; background: var(--tc-primary); color: white; font-weight: 600;">
                     🗺️ Bekijk de Route
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <?php if ($touroperator): ?>
+            <!-- Touroperator Badge -->
+            <div class="tc-booking-card" style="padding: 12px 16px; display: flex; align-items: center; gap: 10px;">
+                <?php if (!empty($touroperator['logo'])): ?>
+                    <img src="<?php echo esc_url($touroperator['logo']); ?>" alt="<?php echo esc_attr($touroperator['name']); ?>" style="height: 28px; width: auto; max-width: 100px; object-fit: contain;" />
+                <?php endif; ?>
+                <div>
+                    <div style="font-size: 11px; color: var(--tc-text-light); line-height: 1;">Aangeboden door</div>
+                    <div style="font-size: 14px; font-weight: 600; color: var(--tc-text); line-height: 1.3;"><?php echo esc_html($touroperator['name']); ?></div>
                 </div>
             </div>
             <?php endif; ?>

@@ -2,14 +2,14 @@
 /**
  * Plugin Name: TravelC Reizen
  * Description: Toont reizen vanuit TravelCStudio op je WordPress website via shortcodes.
- * Version: 3.9.0
+ * Version: 3.9.1
  * Author: RBS / TravelCStudio
  * Text Domain: travelc-reizen
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('TRAVELC_REIZEN_VERSION', '3.9.0');
+define('TRAVELC_REIZEN_VERSION', '3.9.1');
 define('TRAVELC_REIZEN_PATH', plugin_dir_path(__FILE__));
 define('TRAVELC_REIZEN_URL', plugin_dir_url(__FILE__));
 
@@ -48,6 +48,7 @@ add_action('admin_init', function() {
     register_setting('travelc_reizen', 'travelc_api_url');
     register_setting('travelc_reizen', 'travelc_brand_id');
     register_setting('travelc_reizen', 'travelc_mapbox_token');
+    register_setting('travelc_reizen', 'travelc_touroperator_logo_traveltime');
 });
 
 // Admin JS for copy-to-clipboard
@@ -186,6 +187,13 @@ function travelc_reizen_settings_page() {
                         <p class="description">Voor Mapbox kaart tiles (laat leeg voor OpenStreetMap)</p>
                     </td>
                 </tr>
+                <tr>
+                    <th>Travel Time Logo URL</th>
+                    <td>
+                        <input type="url" name="travelc_touroperator_logo_traveltime" value="<?php echo esc_attr(get_option('travelc_touroperator_logo_traveltime', '')); ?>" class="regular-text" />
+                        <p class="description">Logo URL voor Travel Time / Travel Time Europa touroperator. Upload het logo via Media &gt; Nieuw en plak de URL hier.</p>
+                    </td>
+                </tr>
             </table>
             <?php submit_button(); ?>
         </form>
@@ -246,6 +254,25 @@ function travelc_get_brand_settings() {
         return $result['brand'];
     }
     return ['primary_color' => '#2a9d8f', 'secondary_color' => '#d34e4a'];
+}
+
+// ============================================
+// Touroperator Logo Mapping
+// ============================================
+function travelc_get_touroperator_info($source_microsite) {
+    // Logo URL: set via WordPress option or use default
+    $tt_logo = get_option('travelc_touroperator_logo_traveltime', '');
+
+    $operators = [
+        'pacificislandtravel' => ['name' => 'Travel Time', 'logo' => $tt_logo],
+        'newreisplan'         => ['name' => 'Travel Time Europa', 'logo' => $tt_logo],
+        'rondreis-planner'    => ['name' => 'Rondreis Planner', 'logo' => ''],
+        'reisbureaunederland' => ['name' => 'Reisbureau Nederland', 'logo' => ''],
+        'symphonytravel'      => ['name' => 'Symphony Travel', 'logo' => ''],
+    ];
+
+    if (empty($source_microsite) || !isset($operators[$source_microsite])) return null;
+    return $operators[$source_microsite];
 }
 
 // ============================================

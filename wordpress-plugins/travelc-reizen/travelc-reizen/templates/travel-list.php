@@ -100,6 +100,10 @@ ksort($all_categories);
             elseif (strpos($title_lower, 'safari') !== false) $travel_type = 'Safari';
             elseif (strpos($title_lower, 'treinreis') !== false) $travel_type = 'Treinreis';
         }
+        // Touroperator info
+        $source_microsite = $travel['source_microsite'] ?? '';
+        $touroperator = travelc_get_touroperator_info($source_microsite);
+
         // Intro text: fallback to description if empty
         $intro = $travel['intro_text'] ?? '';
         if (empty($intro)) $intro = $travel['description'] ?? '';
@@ -140,6 +144,15 @@ ksort($all_categories);
                 <img src="<?php echo esc_url($image); ?>" alt="<?php echo esc_attr($title); ?>" loading="lazy" />
             <?php else: ?>
                 <div class="travelc-tcard__no-image">Geen afbeelding</div>
+            <?php endif; ?>
+            <?php if ($touroperator): ?>
+                <span class="travelc-tcard__operator">
+                    <?php if (!empty($touroperator['logo'])): ?>
+                        <img src="<?php echo esc_url($touroperator['logo']); ?>" alt="<?php echo esc_attr($touroperator['name']); ?>" class="travelc-tcard__operator-logo" />
+                    <?php else: ?>
+                        <?php echo esc_html($touroperator['name']); ?>
+                    <?php endif; ?>
+                </span>
             <?php endif; ?>
             <span class="travelc-tcard__heart" title="Bewaren">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>

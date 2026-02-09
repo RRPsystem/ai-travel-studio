@@ -751,6 +751,32 @@
     font-size: 13px;
 }
 
+/* Touroperator badge (top-left on image) */
+.travelc-tcard__operator {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(255, 255, 255, 0.95);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    color: #374151;
+    z-index: 10;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    line-height: 1;
+}
+.travelc-tcard__operator-logo {
+    height: 20px;
+    width: auto;
+    max-width: 80px;
+    object-fit: contain;
+    display: block;
+}
+
 /* Heart icon (RBS: .rbs-card-favorite) */
 .travelc-tcard__heart {
     position: absolute;

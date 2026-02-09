@@ -92,7 +92,7 @@ Deno.serve(async (req: Request) => {
           destinations, countries, hotels, images, hero_image, hero_video_url,
           categories, themes, continents, highlights, 
           enabled_for_brands, enabled_for_franchise, is_mandatory,
-          created_at
+          source_microsite, created_at
         `)
         .in("id", targetIds)
         .order("created_at", { ascending: false })

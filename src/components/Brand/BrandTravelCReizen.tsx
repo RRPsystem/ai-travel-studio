@@ -47,6 +47,7 @@ interface Travel {
   is_mandatory: boolean;
   author_type: string;
   author_id: string;
+  source_microsite?: string;
   created_at: string;
 }
 
@@ -113,6 +114,15 @@ export function BrandTravelCReizen() {
     itinerary: [] as any[], included: [] as string[], excluded: [] as string[],
     highlights: [] as string[], categories: [] as string[], themes: [] as string[],
   });
+
+  // Touroperator logo mapping per microsite
+  const micrositeInfo: Record<string, {name: string, logo: string, color: string}> = {
+    'rondreis-planner': { name: 'Rondreis Planner', logo: '🌍', color: 'bg-green-100 text-green-800' },
+    'reisbureaunederland': { name: 'Reisbureau Nederland', logo: '🇳🇱', color: 'bg-blue-100 text-blue-800' },
+    'symphonytravel': { name: 'Symphony Travel', logo: '🎵', color: 'bg-purple-100 text-purple-800' },
+    'pacificislandtravel': { name: 'Travel Time', logo: '⏰', color: 'bg-teal-100 text-teal-800' },
+    'newreisplan': { name: 'Travel Time Europa', logo: '🌍', color: 'bg-orange-100 text-orange-800' },
+  };
 
   const brandId = effectiveBrandId || user?.brand_id;
   const apiBase = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/travelc-api`;
@@ -1177,6 +1187,11 @@ export function BrandTravelCReizen() {
                         </div>
                         <div className="text-xs text-gray-500 flex items-center gap-2 mt-0.5">
                           <span>TC: {travel.travel_compositor_id}</span>
+                          {travel.source_microsite && micrositeInfo[travel.source_microsite] && (
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${micrositeInfo[travel.source_microsite].color}`}>
+                              {micrositeInfo[travel.source_microsite].logo} {micrositeInfo[travel.source_microsite].name}
+                            </span>
+                          )}
                           {travel.is_mandatory && <span className="bg-red-100 text-red-600 px-1.5 py-0.5 rounded text-[10px] font-medium">Verplicht</span>}
                           {own && <span className="bg-orange-100 text-orange-600 px-1.5 py-0.5 rounded text-[10px] font-medium">Eigen reis</span>}
                         </div>
