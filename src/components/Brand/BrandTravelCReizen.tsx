@@ -160,6 +160,37 @@ export function BrandTravelCReizen() {
 
   const callToggleApi = async (travelId: string, field?: string, value?: any) => {
     if (!brandId) return;
+
+    // Optimistic update: immediately update local state
+    const existing = assignments.find(a => a.travel_id === travelId && a.brand_id === brandId);
+    const updateField = (field || 'is_active') as keyof Assignment;
+    const newValue = value !== undefined ? value : !(existing?.[updateField] ?? false);
+
+    if (existing) {
+      setAssignments(prev => prev.map(a =>
+        a.travel_id === travelId && a.brand_id === brandId
+          ? { ...a, [updateField]: newValue }
+          : a
+      ));
+    } else {
+      // New assignment — add optimistically
+      setAssignments(prev => [...prev, {
+        id: `temp-${travelId}`,
+        travel_id: travelId,
+        brand_id: brandId!,
+        is_active: true,
+        is_featured: false,
+        show_hotels: true,
+        show_prices: true,
+        show_itinerary: true,
+        header_type: 'image',
+        custom_title: '',
+        custom_price: 0,
+        display_order: 0,
+        status: 'accepted',
+      }]);
+    }
+
     try {
       const res = await fetch(`${apiBase}?action=toggle-assignment`, {
         method: 'POST',
@@ -167,8 +198,15 @@ export function BrandTravelCReizen() {
         body: JSON.stringify({ travel_id: travelId, brand_id: brandId, field, value }),
       });
       const result = await res.json();
-      if (!result.success) throw new Error(result.error);
-      await loadData();
+      if (!result.success) {
+        // Revert on error
+        await loadData();
+        throw new Error(result.error);
+      }
+      // Silently reload assignments in background to sync IDs
+      const assignRes = await fetch(`${apiBase}?action=assignments&brand_id=${brandId}`);
+      const assignResult = await assignRes.json();
+      setAssignments(assignResult.assignments || []);
     } catch (error) {
       console.error('Error toggling:', error);
     }
@@ -210,14 +248,20 @@ export function BrandTravelCReizen() {
     if (!confirm(`${selectedTravels.size} reis(en) ${label}?`)) return;
     setBulkProcessing(true);
     try {
-      for (const travelId of selectedTravels) {
-        const assignment = getAssignment(travelId);
-        const currentlyActive = assignment?.is_active || false;
-        if (currentlyActive !== activate) {
-          await callToggleApi(travelId, 'is_active');
-        }
-      }
+      const res = await fetch(`${apiBase}?action=bulk-toggle-assignments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          travel_ids: Array.from(selectedTravels),
+          brand_id: brandId,
+          is_active: activate,
+        }),
+      });
+      const result = await res.json();
+      if (!result.success) throw new Error(result.error);
+      console.log(`Bulk ${label}: ${result.updated} updated, ${result.inserted} inserted`);
       setSelectedTravels(new Set());
+      await loadData();
     } catch (error) {
       console.error('Bulk activate error:', error);
     } finally {

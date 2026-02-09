@@ -339,6 +339,86 @@ Deno.serve(async (req: Request) => {
     }
 
     // ============================================
+    // ACTION: bulk-toggle-assignments (POST) - Bulk activate/deactivate
+    // ============================================
+    if (action === "bulk-toggle-assignments" && req.method === "POST") {
+      const body = await req.json();
+      const { travel_ids, brand_id: bodyBrandId, is_active } = body;
+      const targetBrandId = bodyBrandId || brandId;
+
+      if (!travel_ids || !Array.isArray(travel_ids) || travel_ids.length === 0 || !targetBrandId) {
+        return new Response(
+          JSON.stringify({ error: "travel_ids (array) and brand_id are required" }),
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      console.log(`[travelc-api] Bulk toggle: ${travel_ids.length} travels, is_active=${is_active}`);
+
+      // Get existing assignments for this brand
+      const { data: existing } = await supabase
+        .from("travelc_travel_brand_assignments")
+        .select("id, travel_id, is_active")
+        .eq("brand_id", targetBrandId)
+        .in("travel_id", travel_ids);
+
+      const existingMap = new Map((existing || []).map((a: any) => [a.travel_id, a]));
+
+      // Split into updates (existing) and inserts (new)
+      const toUpdate: string[] = [];
+      const toInsert: any[] = [];
+
+      for (const travelId of travel_ids) {
+        const ex = existingMap.get(travelId);
+        if (ex) {
+          if (ex.is_active !== is_active) {
+            toUpdate.push(ex.id);
+          }
+        } else if (is_active) {
+          toInsert.push({
+            travel_id: travelId,
+            brand_id: targetBrandId,
+            is_active: true,
+            is_featured: false,
+            show_hotels: true,
+            show_prices: true,
+            show_itinerary: true,
+            header_type: "image",
+            display_order: 0,
+            status: "accepted"
+          });
+        }
+      }
+
+      let updated = 0;
+      let inserted = 0;
+
+      // Batch update existing assignments
+      if (toUpdate.length > 0) {
+        const { error } = await supabase
+          .from("travelc_travel_brand_assignments")
+          .update({ is_active })
+          .in("id", toUpdate);
+        if (error) throw error;
+        updated = toUpdate.length;
+      }
+
+      // Batch insert new assignments
+      if (toInsert.length > 0) {
+        const { error } = await supabase
+          .from("travelc_travel_brand_assignments")
+          .insert(toInsert);
+        if (error) throw error;
+        inserted = toInsert.length;
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, updated, inserted, total: travel_ids.length }),
+        { status: 200, headers: corsHeaders }
+      );
+    }
+
+    // ============================================
     // ACTION: assignments (GET) - Get assignments for a brand
     // ============================================
     if (action === "assignments") {
