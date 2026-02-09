@@ -2,14 +2,14 @@
 /**
  * Plugin Name: TravelC Reizen
  * Description: Toont reizen vanuit TravelCStudio op je WordPress website via shortcodes.
- * Version: 3.9.4
+ * Version: 3.9.5
  * Author: RBS / TravelCStudio
  * Text Domain: travelc-reizen
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('TRAVELC_REIZEN_VERSION', '3.9.4');
+define('TRAVELC_REIZEN_VERSION', '3.9.5');
 define('TRAVELC_REIZEN_PATH', plugin_dir_path(__FILE__));
 define('TRAVELC_REIZEN_URL', plugin_dir_url(__FILE__));
 
@@ -531,7 +531,14 @@ add_shortcode('travelc_featured_reizen', function($atts) {
             $days = $travel['number_of_days'] ?? 0;
             $countries = $travel['country_list'] ?? [];
             $intro = $travel['intro_text'] ?? '';
-            if (strlen($intro) > 120) $intro = mb_substr($intro, 0, 117) . '...';
+            if (empty($intro)) $intro = $travel['description'] ?? '';
+            $intro = strip_tags($intro);
+            if (strlen($intro) > 200) $intro = mb_substr($intro, 0, 197) . '...';
+            $destinations = $travel['destinations'] ?? [];
+            $dest_names = [];
+            foreach ($destinations as $d) {
+                if (!empty($d['name'])) $dest_names[] = $d['name'];
+            }
 
             // Get category
             $categories = $travel['categories'] ?? [];
@@ -564,22 +571,34 @@ add_shortcode('travelc_featured_reizen', function($atts) {
             <div class="tcf-card-content">
                 <?php if (!empty($countries)): ?>
                 <div class="tcf-countries">
-                    <span class="tcf-countries-icon">📍</span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
                     <span><?php echo esc_html(implode(', ', $countries)); ?></span>
                 </div>
                 <?php endif; ?>
 
                 <h3 class="tcf-card-title"><?php echo esc_html($title); ?></h3>
 
+                <?php if (!empty($dest_names)): ?>
+                <div class="tcf-destinations">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+                    <span><?php echo esc_html(implode(' · ', array_slice($dest_names, 0, 5))); ?></span>
+                </div>
+                <?php endif; ?>
+
                 <?php if (!empty($intro)): ?>
                 <p class="tcf-card-excerpt"><?php echo esc_html($intro); ?></p>
                 <?php endif; ?>
 
                 <div class="tcf-card-footer">
-                    <?php if ($price > 0): ?>
-                    <span class="tcf-price">Vanaf €<?php echo number_format($price, 0, ',', '.'); ?> p.p.</span>
-                    <?php endif; ?>
-                    <span class="tcf-read-more">Bekijk reis →</span>
+                    <div>
+                        <?php if ($price > 0): ?>
+                        <span class="tcf-price">Vanaf &euro;<?php echo number_format($price, 0, ',', '.'); ?> p.p.</span>
+                        <?php endif; ?>
+                        <?php if ($nights > 0): ?>
+                        <span class="tcf-nights"><?php echo $nights; ?> nachten</span>
+                        <?php endif; ?>
+                    </div>
+                    <span class="tcf-read-more">Bekijk reis &rarr;</span>
                 </div>
             </div>
         </a>
@@ -609,7 +628,8 @@ add_shortcode('travelc_featured_reizen', function($atts) {
         background: #fff;
         border-radius: 16px;
         overflow: visible;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06), 0 8px 24px rgba(0, 0, 0, 0.08);
+        border: 1px solid rgba(0, 0, 0, 0.04);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
         position: relative;
         text-decoration: none;
@@ -619,8 +639,8 @@ add_shortcode('travelc_featured_reizen', function($atts) {
     }
 
     .tcf-card:hover {
-        transform: translateY(-6px);
-        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+        transform: translateY(-8px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.08);
     }
 
     .tcf-card-image {
@@ -742,18 +762,42 @@ add_shortcode('travelc_featured_reizen', function($atts) {
         flex: 1;
     }
 
+    .tcf-destinations {
+        display: flex;
+        align-items: flex-start;
+        gap: 6px;
+        font-size: 0.75rem;
+        color: #9ca3af;
+        margin-bottom: 10px;
+        line-height: 1.4;
+    }
+    .tcf-destinations svg {
+        flex-shrink: 0;
+        margin-top: 2px;
+        stroke: #9ca3af;
+    }
+
     .tcf-card-footer {
         display: flex;
         justify-content: space-between;
         align-items: center;
         padding-top: 14px;
         border-top: 1px solid #f0f0f0;
+        margin-top: auto;
     }
 
     .tcf-price {
         font-size: 1rem;
         font-weight: 700;
         color: <?php echo $primary; ?>;
+        display: block;
+    }
+
+    .tcf-nights {
+        font-size: 0.75rem;
+        color: #9ca3af;
+        display: block;
+        margin-top: 2px;
     }
 
     .tcf-read-more {
