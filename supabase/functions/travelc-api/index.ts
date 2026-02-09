@@ -82,25 +82,27 @@ Deno.serve(async (req: Request) => {
 
       const assignmentMap = new Map((assignments || []).map(a => [a.travel_id, a]));
 
-      // Merge travels with brand-specific settings
-      const result = (travels || []).map(travel => {
-        const assignment = assignmentMap.get(travel.id);
-        return {
-          ...travel,
-          // Brand overrides
-          is_featured: assignment?.is_featured || false,
-          show_hotels: assignment?.show_hotels ?? true,
-          show_prices: assignment?.show_prices ?? true,
-          header_type: assignment?.header_type || "image",
-          display_title: assignment?.custom_title || travel.title,
-          display_price: assignment?.custom_price || travel.price_per_person,
-          // Summary for listing
-          destination_count: travel.destinations?.length || 0,
-          hotel_count: travel.hotels?.length || 0,
-          country_list: travel.countries || [],
-          first_image: travel.hero_image || travel.images?.[0] || "",
-        };
-      });
+      // Only include travels that have an active brand assignment
+      const result = (travels || [])
+        .filter(travel => assignmentMap.has(travel.id))
+        .map(travel => {
+          const assignment = assignmentMap.get(travel.id)!;
+          return {
+            ...travel,
+            // Brand overrides
+            is_featured: assignment.is_featured || false,
+            show_hotels: assignment.show_hotels ?? true,
+            show_prices: assignment.show_prices ?? true,
+            header_type: assignment.header_type || "image",
+            display_title: assignment.custom_title || travel.title,
+            display_price: assignment.custom_price || travel.price_per_person,
+            // Summary for listing
+            destination_count: travel.destinations?.length || 0,
+            hotel_count: travel.hotels?.length || 0,
+            country_list: travel.countries || [],
+            first_image: travel.hero_image || travel.images?.[0] || "",
+          };
+        });
 
       // Sort: featured first, then by date
       if (featured) {
