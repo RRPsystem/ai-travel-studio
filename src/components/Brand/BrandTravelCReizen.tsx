@@ -135,12 +135,13 @@ export function BrandTravelCReizen() {
     if (!brandId) return;
     setLoading(true);
     try {
-      // Load admin travels (enabled for brands or mandatory) + own brand travels
+      // Load admin travels (enabled for brands or mandatory) + own brand travels - lightweight columns only
       const { data: travelsData, error: travelsError } = await supabase!
         .from('travelc_travels')
-        .select('*')
+        .select('id, travel_compositor_id, title, slug, number_of_nights, number_of_days, price_per_person, hero_image, source_microsite, enabled_for_brands, enabled_for_franchise, is_mandatory, created_at, updated_at')
         .or(`enabled_for_brands.eq.true,is_mandatory.eq.true,author_id.eq.${user?.id}`)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(2000);
 
       if (travelsError) throw travelsError;
       setTravels(travelsData || []);
