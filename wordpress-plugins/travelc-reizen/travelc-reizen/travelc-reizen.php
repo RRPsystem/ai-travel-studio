@@ -2,14 +2,14 @@
 /**
  * Plugin Name: TravelC Reizen
  * Description: Toont reizen vanuit TravelCStudio op je WordPress website via shortcodes.
- * Version: 3.7.0
+ * Version: 3.7.1
  * Author: RBS / TravelCStudio
  * Text Domain: travelc-reizen
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('TRAVELC_REIZEN_VERSION', '3.7.0');
+define('TRAVELC_REIZEN_VERSION', '3.7.1');
 define('TRAVELC_REIZEN_PATH', plugin_dir_path(__FILE__));
 define('TRAVELC_REIZEN_URL', plugin_dir_url(__FILE__));
 
@@ -696,6 +696,12 @@ add_shortcode('travelc_zoek_widget', function($atts) {
         'show_theme_link' => 'no',
     ], $atts);
 
+    // Resolve action_url: if relative path, prepend home_url
+    $action_url = $atts['action_url'];
+    if (strpos($action_url, 'http') !== 0) {
+        $action_url = home_url($action_url);
+    }
+
     // Fetch available search options from API
     $options = travelc_api_request(['action' => 'search-options']);
     $countries = [];
@@ -722,7 +728,7 @@ add_shortcode('travelc_zoek_widget', function($atts) {
     ?>
     <div class="tc-hero-search">
         <div class="tc-hero-widget">
-            <form class="tc-hero-form" action="<?php echo esc_url($atts['action_url']); ?>" method="get">
+            <form class="tc-hero-form" action="<?php echo esc_url($action_url); ?>" method="get">
 
                 <?php if ($atts['show_country'] === 'yes' && !empty($countries)): ?>
                 <div class="tc-hero-field">
