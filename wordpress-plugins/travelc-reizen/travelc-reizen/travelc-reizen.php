@@ -2,14 +2,14 @@
 /**
  * Plugin Name: TravelC Reizen
  * Description: Toont reizen vanuit TravelCStudio op je WordPress website via shortcodes.
- * Version: 3.9.1
+ * Version: 3.9.2
  * Author: RBS / TravelCStudio
  * Text Domain: travelc-reizen
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('TRAVELC_REIZEN_VERSION', '3.9.1');
+define('TRAVELC_REIZEN_VERSION', '3.9.2');
 define('TRAVELC_REIZEN_PATH', plugin_dir_path(__FILE__));
 define('TRAVELC_REIZEN_URL', plugin_dir_url(__FILE__));
 
@@ -261,7 +261,7 @@ function travelc_get_brand_settings() {
 // ============================================
 function travelc_get_touroperator_info($source_microsite) {
     // Logo URL: set via WordPress option or use default
-    $tt_logo = get_option('travelc_touroperator_logo_traveltime', '');
+    $tt_logo = get_option('travelc_touroperator_logo_traveltime', 'https://travelwebsites.nl/delmonde/wp-content/uploads/sites/15/2026/02/brand-primary.png');
 
     $operators = [
         'pacificislandtravel' => ['name' => 'Travel Time', 'logo' => $tt_logo],
