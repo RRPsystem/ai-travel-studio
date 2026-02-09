@@ -225,10 +225,10 @@ export function TravelManagement() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Load all travels (admin sees everything)
+      // Load all travels - lightweight columns only for list view
       const { data: travelsData, error: travelsError } = await supabase
         .from('travelc_travels')
-        .select('*')
+        .select('id, travel_compositor_id, title, slug, number_of_nights, number_of_days, price_per_person, hero_image, source_microsite, enabled_for_brands, enabled_for_franchise, is_mandatory, categories, countries, continents, images, created_at, updated_at')
         .order('created_at', { ascending: false })
         .limit(5000);
 
@@ -616,43 +616,55 @@ export function TravelManagement() {
     return <span className={`text-xs px-2 py-0.5 rounded-full ${info.color} font-medium`}>{info.logo} {info.name}</span>;
   };
 
-  const handleEdit = (travel: Travel) => {
-    setEditingTravel(travel);
+  const handleEdit = async (travel: Travel) => {
+    // Fetch full travel data (list view only has lightweight columns)
+    const { data: fullTravel, error } = await supabase!
+      .from('travelc_travels')
+      .select('*')
+      .eq('id', travel.id)
+      .single();
+
+    if (error || !fullTravel) {
+      alert('Fout bij laden van reisgegevens');
+      return;
+    }
+
+    setEditingTravel(fullTravel as Travel);
     setFormData({
-      travel_compositor_id: travel.travel_compositor_id,
-      title: travel.title,
-      slug: travel.slug,
-      description: stripHtml(travel.description || ''),
-      intro_text: stripHtml(travel.intro_text || ''),
-      number_of_nights: travel.number_of_nights || 0,
-      number_of_days: travel.number_of_days || 0,
-      price_per_person: travel.price_per_person || 0,
-      price_description: travel.price_description || '',
-      destinations: (travel.destinations || []).map((d: any) => ({
+      travel_compositor_id: fullTravel.travel_compositor_id,
+      title: fullTravel.title,
+      slug: fullTravel.slug,
+      description: stripHtml(fullTravel.description || ''),
+      intro_text: stripHtml(fullTravel.intro_text || ''),
+      number_of_nights: fullTravel.number_of_nights || 0,
+      number_of_days: fullTravel.number_of_days || 0,
+      price_per_person: fullTravel.price_per_person || 0,
+      price_description: fullTravel.price_description || '',
+      destinations: (fullTravel.destinations || []).map((d: any) => ({
         ...d,
         description: stripHtml(d.description || ''),
         highlights: d.highlights || []
       })),
-      countries: travel.countries || [],
-      continents: (travel as any).continents || [],
-      hotels: (travel.hotels || []).map((h: any) => ({
+      countries: fullTravel.countries || [],
+      continents: fullTravel.continents || [],
+      hotels: (fullTravel.hotels || []).map((h: any) => ({
         ...h,
         description: stripHtml(h.description || '')
       })),
-      images: travel.images || [],
-      hero_image: travel.hero_image || '',
-      hero_video_url: travel.hero_video_url || '',
-      hero_style: (travel as any).hero_style || 'slideshow',
-      video_start_time: (travel as any).video_start_time || 0,
-      video_end_time: (travel as any).video_end_time || 0,
-      route_map_url: travel.route_map_url || '',
-      itinerary: travel.itinerary || [],
-      included: travel.included || [],
-      excluded: travel.excluded || [],
-      highlights: travel.highlights || [],
-      categories: (travel as any).categories || [],
-      themes: (travel as any).themes || [],
-      practical_info: travel.practical_info || {}
+      images: fullTravel.images || [],
+      hero_image: fullTravel.hero_image || '',
+      hero_video_url: fullTravel.hero_video_url || '',
+      hero_style: fullTravel.hero_style || 'slideshow',
+      video_start_time: fullTravel.video_start_time || 0,
+      video_end_time: fullTravel.video_end_time || 0,
+      route_map_url: fullTravel.route_map_url || '',
+      itinerary: fullTravel.itinerary || [],
+      included: fullTravel.included || [],
+      excluded: fullTravel.excluded || [],
+      highlights: fullTravel.highlights || [],
+      categories: fullTravel.categories || [],
+      themes: fullTravel.themes || [],
+      practical_info: fullTravel.practical_info || {}
     });
     setViewMode('edit');
   };
