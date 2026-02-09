@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plane, Edit2, Trash2, ArrowLeft, Save, Loader2, Download, Hotel, MapPin, Car, Check, X, Image as ImageIcon, Calendar, Euro, Star, Search } from 'lucide-react';
+import { Plane, Edit2, Trash2, ArrowLeft, Save, Loader2, Download, Hotel, MapPin, Car, Check, X, Image as ImageIcon, Calendar, Euro, Star, Search, Tag } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { SlidingMediaSelector } from '../shared/SlidingMediaSelector';
@@ -126,6 +126,13 @@ export function TravelManagement() {
   const [selectedImages, setSelectedImages] = useState<Set<number>>(new Set());
   const [searchFilter, setSearchFilter] = useState('');
   const [micrositeFilter, setMicrositeFilter] = useState('all');
+
+  // Bulk assign categories/continents modal
+  const [showBulkAssignModal, setShowBulkAssignModal] = useState(false);
+  const [bulkCategories, setBulkCategories] = useState<string[]>([]);
+  const [bulkContinents, setBulkContinents] = useState<string[]>([]);
+  const [bulkAssignMode, setBulkAssignMode] = useState<'add' | 'replace'>('add');
+  const [bulkAssigning, setBulkAssigning] = useState(false);
 
   // Touroperator logo mapping per microsite
   const micrositeLogos: Record<string, {name: string, logo: string, color: string}> = {
@@ -521,6 +528,59 @@ export function TravelManagement() {
       await loadData();
     } catch (error) {
       console.error('Bulk toggle error:', error);
+    }
+  };
+
+  const handleBulkAssignCategories = async () => {
+    if (selectedTravels.size === 0) return;
+    if (bulkCategories.length === 0 && bulkContinents.length === 0) {
+      alert('Selecteer minimaal één categorie of continent');
+      return;
+    }
+    setBulkAssigning(true);
+    try {
+      const travelIds = Array.from(selectedTravels);
+      
+      if (bulkAssignMode === 'replace') {
+        // Replace: set exactly these categories/continents
+        const updateData: any = {};
+        if (bulkCategories.length > 0) updateData.categories = bulkCategories;
+        if (bulkContinents.length > 0) updateData.continents = bulkContinents;
+        await supabase!.from('travelc_travels').update(updateData).in('id', travelIds);
+      } else {
+        // Add: merge with existing (need to fetch current values first)
+        const { data: currentTravels } = await supabase!
+          .from('travelc_travels')
+          .select('id, categories, continents')
+          .in('id', travelIds);
+        
+        for (const t of (currentTravels || [])) {
+          const updateData: any = {};
+          if (bulkCategories.length > 0) {
+            const merged = [...new Set([...(t.categories || []), ...bulkCategories])];
+            updateData.categories = merged;
+          }
+          if (bulkContinents.length > 0) {
+            const merged = [...new Set([...(t.continents || []), ...bulkContinents])];
+            updateData.continents = merged;
+          }
+          if (Object.keys(updateData).length > 0) {
+            await supabase!.from('travelc_travels').update(updateData).eq('id', t.id);
+          }
+        }
+      }
+      
+      setShowBulkAssignModal(false);
+      setBulkCategories([]);
+      setBulkContinents([]);
+      setSelectedTravels(new Set());
+      await loadData();
+      alert(`${travelIds.length} reis(en) bijgewerkt!`);
+    } catch (error) {
+      console.error('Bulk assign error:', error);
+      alert('Fout bij bulk toewijzing');
+    } finally {
+      setBulkAssigning(false);
     }
   };
 
@@ -1755,10 +1815,110 @@ export function TravelManagement() {
               className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 flex items-center gap-1">
               <X className="w-4 h-4" /> Brands UIT
             </button>
+            <button onClick={() => { setBulkCategories([]); setBulkContinents([]); setBulkAssignMode('add'); setShowBulkAssignModal(true); }}
+              className="px-4 py-2 bg-purple-600 text-white text-sm rounded-lg hover:bg-purple-700 flex items-center gap-1">
+              <Tag className="w-4 h-4" /> Categorieën toewijzen
+            </button>
             <button onClick={() => setSelectedTravels(new Set())}
               className="px-4 py-2 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300">
               Deselecteer
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk Assign Categories/Continents Modal */}
+      {showBulkAssignModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowBulkAssignModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="p-6 border-b">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-bold flex items-center gap-2"><Tag className="w-5 h-5 text-purple-600" /> Categorieën & Continenten toewijzen</h2>
+                <button onClick={() => setShowBulkAssignModal(false)} className="text-gray-400 hover:text-gray-600"><X className="w-5 h-5" /></button>
+              </div>
+              <p className="text-sm text-gray-500 mt-1">{selectedTravels.size} reis(en) geselecteerd</p>
+            </div>
+
+            <div className="p-6 space-y-6">
+              {/* Mode toggle */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Modus</label>
+                <div className="flex gap-2">
+                  <button onClick={() => setBulkAssignMode('add')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${bulkAssignMode === 'add' ? 'bg-purple-100 text-purple-700 ring-2 ring-purple-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    Toevoegen aan bestaande
+                  </button>
+                  <button onClick={() => setBulkAssignMode('replace')}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${bulkAssignMode === 'replace' ? 'bg-orange-100 text-orange-700 ring-2 ring-orange-300' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                    Vervangen
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  {bulkAssignMode === 'add' ? 'Geselecteerde waarden worden toegevoegd aan de bestaande categorieën/continenten.' : 'Bestaande categorieën/continenten worden vervangen door de geselecteerde waarden.'}
+                </p>
+              </div>
+
+              {/* Continents */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">🌍 Continenten</label>
+                <div className="flex flex-wrap gap-2">
+                  {['Europa', 'Azië', 'Afrika', 'Noord-Amerika', 'Zuid-Amerika', 'Oceanië', 'Antarctica'].map(cont => (
+                    <label key={cont} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors ${bulkContinents.includes(cont) ? 'bg-blue-100 text-blue-800 ring-1 ring-blue-300' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>
+                      <input type="checkbox" checked={bulkContinents.includes(cont)}
+                        onChange={(e) => {
+                          if (e.target.checked) setBulkContinents([...bulkContinents, cont]);
+                          else setBulkContinents(bulkContinents.filter(c => c !== cont));
+                        }} className="w-3 h-3" />
+                      <span className="text-sm">{cont}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Categories */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">📂 Categorieën</label>
+                <div className="flex flex-wrap gap-2">
+                  {dbCategories.map(cat => (
+                    <label key={cat.id}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer transition-colors`}
+                      style={{
+                        backgroundColor: bulkCategories.includes(cat.name) ? cat.color + '20' : '#f9fafb',
+                        borderColor: bulkCategories.includes(cat.name) ? cat.color : 'transparent',
+                        borderWidth: '1px'
+                      }}>
+                      <input type="checkbox" checked={bulkCategories.includes(cat.name)}
+                        onChange={(e) => {
+                          if (e.target.checked) setBulkCategories([...bulkCategories, cat.name]);
+                          else setBulkCategories(bulkCategories.filter(c => c !== cat.name));
+                        }} className="w-3 h-3" />
+                      <span className="text-sm">{cat.icon} {cat.name}</span>
+                    </label>
+                  ))}
+                </div>
+                {dbCategories.length === 0 && (
+                  <p className="text-sm text-gray-400 mt-2">Geen categorieën gevonden.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="p-6 border-t bg-gray-50 rounded-b-2xl flex items-center justify-between">
+              <div className="text-sm text-gray-500">
+                {bulkContinents.length > 0 && <span className="mr-3">🌍 {bulkContinents.length} continent(en)</span>}
+                {bulkCategories.length > 0 && <span>📂 {bulkCategories.length} categorie(ën)</span>}
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => setShowBulkAssignModal(false)}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm">
+                  Annuleren
+                </button>
+                <button onClick={handleBulkAssignCategories} disabled={bulkAssigning || (bulkCategories.length === 0 && bulkContinents.length === 0)}
+                  className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400 text-sm font-medium flex items-center gap-2">
+                  {bulkAssigning ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                  Toepassen op {selectedTravels.size} reis(en)
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
