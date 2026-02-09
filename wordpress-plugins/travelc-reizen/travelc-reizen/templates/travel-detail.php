@@ -26,15 +26,6 @@ $transports = $travel['transports'] ?? [];
 $car_rentals = $travel['car_rentals'] ?? [];
 $cruises = $travel['cruises'] ?? [];
 
-// DEBUG: Check transport days
-if (!empty($transports)) {
-    echo '<pre style="background: #fff3cd; padding: 10px; margin: 10px; border: 2px solid orange;">';
-    echo 'TRANSPORT DEBUG:<br>';
-    foreach ($transports as $t) {
-        echo 'Day: ' . ($t['day'] ?? 'N/A') . ' - ' . ($t['company'] ?? '') . ' - ' . ($t['originCode'] ?? '') . ' → ' . ($t['targetCode'] ?? '') . '<br>';
-    }
-    echo '</pre>';
-}
 
 // Brand settings
 $brand = $travel['brand_settings'] ?? [];
@@ -1257,7 +1248,7 @@ article {
 
             <?php if ($touroperator): ?>
             <!-- Touroperator Badge -->
-            <div class="tc-booking-card" style="padding: 12px 16px; display: flex; align-items: center; gap: 10px;">
+            <div class="tc-booking-card" style="padding: 12px 16px; display: flex; align-items: center; gap: 16px;">
                 <?php if (!empty($touroperator['logo'])): ?>
                     <img src="<?php echo esc_url($touroperator['logo']); ?>" alt="<?php echo esc_attr($touroperator['name']); ?>" style="height: 28px; width: auto; max-width: 100px; object-fit: contain;" />
                 <?php endif; ?>
