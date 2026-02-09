@@ -105,49 +105,54 @@ async function syncPages(supabase: any, brand: any) {
   }
 
   // Fetch all pages from WordPress REST API (paginated)
+  // Try with all statuses first, fall back to published only if auth fails
   let allPages: any[] = [];
-  let page = 1;
-  const perPage = 100;
+  let statusFilter = "publish,draft,private";
 
-  while (true) {
-    const apiUrl = `${wpUrl}/wp-json/wp/v2/pages?per_page=${perPage}&page=${page}&status=publish,draft,private&_fields=id,title,slug,status,link,modified,template`;
-    console.log(`[WP Sync Pages] Fetching: ${apiUrl}`);
+  for (let attempt = 0; attempt < 2; attempt++) {
+    allPages = [];
+    let page = 1;
+    const perPage = 100;
+    let failed = false;
 
-    const response = await fetch(apiUrl, { headers: wpHeaders });
+    while (true) {
+      const apiUrl = `${wpUrl}/wp-json/wp/v2/pages?per_page=${perPage}&page=${page}&status=${statusFilter}&_fields=id,title,slug,status,link,modified,template`;
+      console.log(`[WP Sync Pages] Fetching: ${apiUrl}`);
 
-    if (!response.ok) {
-      if (response.status === 401) {
+      const response = await fetch(apiUrl, { headers: wpHeaders });
+
+      if (!response.ok) {
+        const text = await response.text();
+        console.error(`[WP Sync Pages] WP API error: ${response.status} ${text.substring(0, 300)}`);
+
+        // If 400/401/403 on first attempt with all statuses, retry with only published
+        if (attempt === 0 && page === 1 && [400, 401, 403].includes(response.status)) {
+          console.log("[WP Sync Pages] Auth issue, falling back to published pages only");
+          statusFilter = "publish";
+          failed = true;
+          break;
+        }
+
+        // On page > 1, we've gone past the last page
+        if (page > 1) break;
+
         return new Response(
-          JSON.stringify({ error: "WordPress authenticatie mislukt. Controleer je gebruikersnaam en applicatie wachtwoord in Brand Settings." }),
-          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ error: `WordPress API fout: ${response.status}. Controleer je WordPress URL en credentials.` }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 403) {
-        return new Response(
-          JSON.stringify({ error: "Geen toegang tot WordPress pagina's. Controleer de gebruikersrechten." }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      // If we get a 400 on page > 1, we've gone past the last page
-      if (page > 1) break;
 
-      const text = await response.text();
-      console.error(`[WP Sync Pages] WP API error: ${response.status} ${text}`);
-      return new Response(
-        JSON.stringify({ error: `WordPress API fout: ${response.status}` }),
-        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      const pages = await response.json();
+      if (!Array.isArray(pages) || pages.length === 0) break;
+
+      allPages = allPages.concat(pages);
+
+      const totalPages = parseInt(response.headers.get("X-WP-TotalPages") || "1");
+      if (page >= totalPages) break;
+      page++;
     }
 
-    const pages = await response.json();
-    if (!Array.isArray(pages) || pages.length === 0) break;
-
-    allPages = allPages.concat(pages);
-
-    // Check if there are more pages
-    const totalPages = parseInt(response.headers.get("X-WP-TotalPages") || "1");
-    if (page >= totalPages) break;
-    page++;
+    if (!failed) break;
   }
 
   console.log(`[WP Sync Pages] Fetched ${allPages.length} pages from WordPress`);
