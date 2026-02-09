@@ -225,12 +225,12 @@ export function TravelManagement() {
   const loadData = async () => {
     setLoading(true);
     try {
-      // Load travels - only admin-authored (brand travels stay in brand panel)
+      // Load all travels (admin sees everything)
       const { data: travelsData, error: travelsError } = await supabase
         .from('travelc_travels')
         .select('*')
-        .or('author_type.eq.admin,author_type.is.null')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(5000);
 
       if (travelsError) throw travelsError;
       setTravels(travelsData || []);
