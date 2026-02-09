@@ -1163,7 +1163,7 @@ class TravelC_Content {
         // 1. Get news created directly by this brand (brand's own news)
         $brand_news = $this->fetch_from_supabase('news_items', array(
             'brand_id' => 'eq.' . $this->brand_id,
-            'select' => 'id,title,slug,excerpt,content,featured_image,tags,created_at,published_at,status',
+            'select' => 'id,title,slug,excerpt,content,featured_image,tags,author,created_at,published_at,status',
             'order' => 'published_at.desc,created_at.desc',
             'limit' => $limit
         ));
@@ -1190,7 +1190,7 @@ class TravelC_Content {
             if (!empty($news_ids)) {
                 $assigned_news = $this->fetch_from_supabase('news_items', array(
                     'id' => 'in.(' . implode(',', $news_ids) . ')',
-                    'select' => 'id,title,slug,excerpt,content,featured_image,tags,created_at,published_at,status',
+                    'select' => 'id,title,slug,excerpt,content,featured_image,tags,author,created_at,published_at,status',
                     'order' => 'published_at.desc,created_at.desc',
                     'limit' => $limit
                 ));
@@ -1228,7 +1228,7 @@ class TravelC_Content {
         $news = $this->fetch_from_supabase('news_items', array(
             'slug' => 'eq.' . $slug,
             'status' => 'eq.published',
-            'select' => 'id,title,slug,excerpt,content,closing_text,featured_image,tags,created_at,published_at',
+            'select' => 'id,title,slug,excerpt,content,closing_text,featured_image,tags,author,created_at,published_at',
             'limit' => 1
         ));
         

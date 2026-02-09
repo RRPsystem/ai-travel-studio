@@ -47,6 +47,7 @@ export function NewsEditor({ newsItem: propNewsItem, newsId, onClose, onSave, on
   const [isMandatory, setIsMandatory] = useState(false);
   const [enabledForBrands, setEnabledForBrands] = useState(false);
   const [enabledForFranchise, setEnabledForFranchise] = useState(false);
+  const [author, setAuthor] = useState('');
   const [showMediaSelector, setShowMediaSelector] = useState(false);
 
   const SYSTEM_BRAND_ID = '00000000-0000-0000-0000-000000000999';
@@ -85,6 +86,7 @@ export function NewsEditor({ newsItem: propNewsItem, newsId, onClose, onSave, on
       setFeaturedImage(newsItem.featured_image || '');
       setStatus(newsItem.status || 'draft');
       setTags(newsItem.tags || []);
+      setAuthor(newsItem.author || '');
       setIsMandatory(newsItem.is_mandatory || false);
       setEnabledForBrands(newsItem.enabled_for_brands || false);
       setEnabledForFranchise(newsItem.enabled_for_franchise || false);
@@ -148,6 +150,7 @@ export function NewsEditor({ newsItem: propNewsItem, newsId, onClose, onSave, on
         featured_image: featuredImage.trim(),
         status,
         tags,
+        author: author.trim(),
         author_type: mode === 'brand' ? 'brand' : 'admin',
         author_id: user?.id,
         brand_id: mode === 'brand' ? user?.brand_id : SYSTEM_BRAND_ID,
@@ -241,6 +244,19 @@ export function NewsEditor({ newsItem: propNewsItem, newsId, onClose, onSave, on
               <p className="mt-1 text-sm text-gray-500">
                 Wordt automatisch gegenereerd op basis van de titel
               </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Auteur / Schrijver
+              </label>
+              <input
+                type="text"
+                value={author}
+                onChange={(e) => setAuthor(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                placeholder="Naam van de schrijver"
+              />
             </div>
 
             <div>
