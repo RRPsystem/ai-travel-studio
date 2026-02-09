@@ -23,6 +23,7 @@ import CreditWallet from '../shared/CreditWallet';
 import AgentPodcastViewer from '../Podcast/AgentPodcastViewer';
 import VideoLibrary from './VideoLibrary';
 import { BookingRequestsDashboard } from './BookingRequestsDashboard';
+import { QuoteRequestsDashboard } from './QuoteRequestsDashboard';
 
 export function BrandDashboard() {
   const { user, signOut, isOperator, impersonationContext, resetContext, effectiveBrandId } = useAuth();
@@ -238,6 +239,7 @@ export function BrandDashboard() {
   const websiteManagementItems = isWordPressMode ? [
     { id: 'wordpress-template-chooser', label: 'Template Kiezer', icon: Layout },
     { id: 'wordpress-page-manager', label: 'Pagina Beheer', icon: FileText },
+    { id: 'wordpress-quote-requests', label: 'Offerte Aanvragen', icon: ClipboardCheck },
     { id: 'wordpress-settings', label: 'WordPress Instellingen', icon: Settings },
     { id: 'wordpress-plugin', label: 'Plugin Download', icon: Download },
   ] : [
@@ -752,6 +754,11 @@ export function BrandDashboard() {
           {activeSection === 'wordpress-template-chooser' && <WordPressTemplateChooser />}
           {activeSection === 'wordpress-page-manager' && <WordPressPageManager />}
           {activeSection === 'wordpress-settings' && <BrandSettings />}
+          {activeSection === 'wordpress-quote-requests' && (
+            <div className="p-6">
+              <QuoteRequestsDashboard />
+            </div>
+          )}
           {activeSection === 'wordpress-api' && (
             <div className="p-6">
               <div className="bg-white rounded-lg shadow p-6">

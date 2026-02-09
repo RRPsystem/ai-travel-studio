@@ -1267,22 +1267,41 @@ article {
                 </div>
                 
                 <h3 style="margin-top: 0;">Boek deze Reis</h3>
-                <form>
+                <form id="tcQuoteForm" onsubmit="return false;">
+                    <div class="tc-form-group">
+                        <label class="tc-form-label">Naam: *</label>
+                        <input type="text" class="tc-form-input" id="tcQuoteName" required placeholder="Je volledige naam">
+                    </div>
+                    <div class="tc-form-group">
+                        <label class="tc-form-label">E-mail: *</label>
+                        <input type="email" class="tc-form-input" id="tcQuoteEmail" required placeholder="je@email.nl">
+                    </div>
+                    <div class="tc-form-group">
+                        <label class="tc-form-label">Telefoon:</label>
+                        <input type="tel" class="tc-form-input" id="tcQuotePhone" placeholder="06-12345678">
+                    </div>
                     <div class="tc-form-group">
                         <label class="tc-form-label">Vertrekdatum:</label>
-                        <input type="date" class="tc-form-input">
+                        <input type="date" class="tc-form-input" id="tcQuoteDate">
                     </div>
                     <div class="tc-form-group">
                         <label class="tc-form-label">Aantal personen:</label>
-                        <select class="tc-form-input">
-                            <option>1 persoon</option>
-                            <option>2 personen</option>
-                            <option>3 personen</option>
-                            <option>4 personen</option>
+                        <select class="tc-form-input" id="tcQuotePersons">
+                            <option value="1">1 persoon</option>
+                            <option value="2" selected>2 personen</option>
+                            <option value="3">3 personen</option>
+                            <option value="4">4 personen</option>
+                            <option value="5">5 personen</option>
+                            <option value="6">6+ personen</option>
                         </select>
                     </div>
-                    <button type="button" class="tc-btn-primary">Offerte Aanvragen</button>
-                    <button type="button" class="tc-btn-secondary">Info Aanvragen</button>
+                    <div class="tc-form-group">
+                        <label class="tc-form-label">Bericht:</label>
+                        <textarea class="tc-form-input" id="tcQuoteMessage" rows="3" placeholder="Heb je speciale wensen of vragen?" style="resize: vertical;"></textarea>
+                    </div>
+                    <div id="tcQuoteResult" style="display: none; margin-bottom: 12px; padding: 12px; border-radius: 8px; font-size: 14px;"></div>
+                    <button type="button" class="tc-btn-primary" id="tcBtnQuote" onclick="tcSubmitQuote('quote')">Offerte Aanvragen</button>
+                    <button type="button" class="tc-btn-secondary" id="tcBtnInfo" onclick="tcSubmitQuote('info')">Info Aanvragen</button>
                 </form>
             </div>
         </div>

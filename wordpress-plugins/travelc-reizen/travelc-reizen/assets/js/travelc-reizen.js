@@ -67,3 +67,109 @@ document.addEventListener('DOMContentLoaded', function() {
     // Fit bounds to show all markers
     map.fitBounds(markerGroup.getBounds(), { padding: [30, 30] });
 });
+
+/**
+ * TravelC Reizen - Quote Request Form
+ * Sends offerte/info requests to Supabase Edge Function
+ */
+function tcSubmitQuote(requestType) {
+    var name = document.getElementById('tcQuoteName');
+    var email = document.getElementById('tcQuoteEmail');
+    var phone = document.getElementById('tcQuotePhone');
+    var date = document.getElementById('tcQuoteDate');
+    var persons = document.getElementById('tcQuotePersons');
+    var message = document.getElementById('tcQuoteMessage');
+    var resultDiv = document.getElementById('tcQuoteResult');
+    var btnQuote = document.getElementById('tcBtnQuote');
+    var btnInfo = document.getElementById('tcBtnInfo');
+
+    // Validate
+    if (!name || !name.value.trim()) {
+        tcShowResult(resultDiv, 'error', 'Vul je naam in.');
+        return;
+    }
+    if (!email || !email.value.trim() || email.value.indexOf('@') === -1) {
+        tcShowResult(resultDiv, 'error', 'Vul een geldig e-mailadres in.');
+        return;
+    }
+
+    // Check config
+    if (typeof travelcConfig === 'undefined' || !travelcConfig.brandId) {
+        tcShowResult(resultDiv, 'error', 'Plugin configuratie ontbreekt. Neem contact op met de beheerder.');
+        return;
+    }
+
+    // Disable buttons
+    btnQuote.disabled = true;
+    btnInfo.disabled = true;
+    var origText = requestType === 'quote' ? btnQuote.textContent : btnInfo.textContent;
+    if (requestType === 'quote') {
+        btnQuote.textContent = 'Verzenden...';
+    } else {
+        btnInfo.textContent = 'Verzenden...';
+    }
+
+    // Get travel info from page
+    var travelTitle = document.querySelector('.tc-hero-title, .tc-title, h1');
+    var travelId = '';
+    var tcIdEl = document.querySelector('[data-tc-id]');
+    if (tcIdEl) travelId = tcIdEl.getAttribute('data-tc-id');
+
+    var payload = {
+        brand_id: travelcConfig.brandId,
+        travel_id: travelId || '',
+        travel_title: travelTitle ? travelTitle.textContent.trim() : '',
+        travel_url: window.location.href,
+        customer_name: name.value.trim(),
+        customer_email: email.value.trim(),
+        customer_phone: phone ? phone.value.trim() : '',
+        departure_date: date ? date.value : '',
+        number_of_persons: persons ? persons.value : '2',
+        request_type: requestType,
+        message: message ? message.value.trim() : '',
+        source_url: window.location.href
+    };
+
+    fetch(travelcConfig.quoteEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    })
+    .then(function(response) { return response.json(); })
+    .then(function(data) {
+        if (data.success) {
+            tcShowResult(resultDiv, 'success', data.message || 'Bedankt! We nemen zo snel mogelijk contact met je op.');
+            // Reset form
+            name.value = '';
+            email.value = '';
+            if (phone) phone.value = '';
+            if (date) date.value = '';
+            if (persons) persons.value = '2';
+            if (message) message.value = '';
+        } else {
+            tcShowResult(resultDiv, 'error', data.error || 'Er is een fout opgetreden. Probeer het later opnieuw.');
+        }
+    })
+    .catch(function(err) {
+        console.error('Quote request error:', err);
+        tcShowResult(resultDiv, 'error', 'Er is een fout opgetreden. Probeer het later opnieuw.');
+    })
+    .finally(function() {
+        btnQuote.disabled = false;
+        btnInfo.disabled = false;
+        btnQuote.textContent = 'Offerte Aanvragen';
+        btnInfo.textContent = 'Info Aanvragen';
+    });
+}
+
+function tcShowResult(el, type, msg) {
+    if (!el) return;
+    el.style.display = 'block';
+    el.style.background = type === 'success' ? '#d4edda' : '#f8d7da';
+    el.style.color = type === 'success' ? '#155724' : '#721c24';
+    el.style.border = '1px solid ' + (type === 'success' ? '#c3e6cb' : '#f5c6cb');
+    el.textContent = msg;
+    if (type === 'success') {
+        setTimeout(function() { el.style.display = 'none'; }, 8000);
+    }
+}

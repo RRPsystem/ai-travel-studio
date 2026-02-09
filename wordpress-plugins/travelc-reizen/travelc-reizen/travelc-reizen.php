@@ -9,7 +9,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('TRAVELC_REIZEN_VERSION', '3.4.1');
+define('TRAVELC_REIZEN_VERSION', '3.5.0');
 define('TRAVELC_REIZEN_PATH', plugin_dir_path(__FILE__));
 define('TRAVELC_REIZEN_URL', plugin_dir_url(__FILE__));
 
@@ -265,6 +265,12 @@ add_action('wp_enqueue_scripts', function() {
     // Plugin CSS & JS
     wp_enqueue_style('travelc-reizen', TRAVELC_REIZEN_URL . 'assets/css/travelc-reizen.css', [], TRAVELC_REIZEN_VERSION);
     wp_enqueue_script('travelc-reizen', TRAVELC_REIZEN_URL . 'assets/js/travelc-reizen.js', ['leaflet'], TRAVELC_REIZEN_VERSION, true);
+
+    // Pass config to JS for quote form
+    wp_localize_script('travelc-reizen', 'travelcConfig', [
+        'brandId' => get_option('travelc_brand_id', ''),
+        'quoteEndpoint' => 'https://huaaogdxxdcakxryecnw.supabase.co/functions/v1/travel-quote-request',
+    ]);
 
     // Inject brand colors as CSS variables
     $brand = travelc_get_brand_settings();
