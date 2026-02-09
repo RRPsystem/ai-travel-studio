@@ -47,7 +47,27 @@ Deno.serve(async (req: Request) => {
         );
       }
 
-      // Get travels that are enabled for brands or mandatory
+      // Step 1: Get all active brand assignments for this brand
+      const { data: assignments, error: assignError } = await supabase
+        .from("travelc_travel_brand_assignments")
+        .select("travel_id, is_active, is_featured, show_hotels, show_prices, header_type, custom_title, custom_price")
+        .eq("brand_id", brandId)
+        .eq("is_active", true);
+
+      if (assignError) throw assignError;
+
+      const activeTravelIds = (assignments || []).map(a => a.travel_id);
+
+      if (activeTravelIds.length === 0) {
+        return new Response(
+          JSON.stringify({ success: true, travels: [], count: 0 }),
+          { status: 200, headers: corsHeaders }
+        );
+      }
+
+      const assignmentMap = new Map((assignments || []).map(a => [a.travel_id, a]));
+
+      // Step 2: Get the travel data for active assignments
       let query = supabase
         .from("travelc_travels")
         .select(`
@@ -58,7 +78,7 @@ Deno.serve(async (req: Request) => {
           enabled_for_brands, enabled_for_franchise, is_mandatory,
           created_at
         `)
-        .or("enabled_for_brands.eq.true,is_mandatory.eq.true")
+        .in("id", activeTravelIds)
         .order("created_at", { ascending: false })
         .limit(limit);
 
@@ -73,36 +93,25 @@ Deno.serve(async (req: Request) => {
       const { data: travels, error } = await query;
       if (error) throw error;
 
-      // Also check brand-specific assignments
-      const { data: assignments } = await supabase
-        .from("travelc_travel_brand_assignments")
-        .select("travel_id, is_active, is_featured, show_hotels, show_prices, header_type, custom_title, custom_price")
-        .eq("brand_id", brandId)
-        .eq("is_active", true);
-
-      const assignmentMap = new Map((assignments || []).map(a => [a.travel_id, a]));
-
-      // Only include travels that have an active brand assignment
-      const result = (travels || [])
-        .filter(travel => assignmentMap.has(travel.id))
-        .map(travel => {
-          const assignment = assignmentMap.get(travel.id)!;
-          return {
-            ...travel,
-            // Brand overrides
-            is_featured: assignment.is_featured || false,
-            show_hotels: assignment.show_hotels ?? true,
-            show_prices: assignment.show_prices ?? true,
-            header_type: assignment.header_type || "image",
-            display_title: assignment.custom_title || travel.title,
-            display_price: assignment.custom_price || travel.price_per_person,
-            // Summary for listing
-            destination_count: travel.destinations?.length || 0,
-            hotel_count: travel.hotels?.length || 0,
-            country_list: travel.countries || [],
-            first_image: travel.hero_image || travel.images?.[0] || "",
-          };
-        });
+      // Step 3: Merge travel data with brand-specific settings
+      const result = (travels || []).map(travel => {
+        const assignment = assignmentMap.get(travel.id)!;
+        return {
+          ...travel,
+          // Brand overrides
+          is_featured: assignment.is_featured || false,
+          show_hotels: assignment.show_hotels ?? true,
+          show_prices: assignment.show_prices ?? true,
+          header_type: assignment.header_type || "image",
+          display_title: assignment.custom_title || travel.title,
+          display_price: assignment.custom_price || travel.price_per_person,
+          // Summary for listing
+          destination_count: travel.destinations?.length || 0,
+          hotel_count: travel.hotels?.length || 0,
+          country_list: travel.countries || [],
+          first_image: travel.hero_image || travel.images?.[0] || "",
+        };
+      });
 
       // Sort: featured first, then by date
       if (featured) {
