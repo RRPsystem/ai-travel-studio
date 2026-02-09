@@ -64,47 +64,120 @@
 
 .tcc-news-card {
     background: #fff;
-    border-radius: 12px;
-    overflow: hidden;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    border-radius: 16px;
+    overflow: visible;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
 }
 
 .tcc-news-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    transform: translateY(-6px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
 }
 
 .tcc-news-image {
-    aspect-ratio: 16 / 9;
+    position: relative;
+    aspect-ratio: 16 / 10;
     overflow: hidden;
+    border-radius: 16px 16px 0 0;
+    margin: 12px 12px 0 12px;
+    border-radius: 12px;
 }
 
 .tcc-news-image img {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform 0.3s ease;
+    transition: transform 0.4s ease;
 }
 
 .tcc-news-card:hover .tcc-news-image img {
     transform: scale(1.05);
 }
 
+/* Date Badge - Green circle top-right on image */
+.tcc-date-badge {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 50px;
+    height: 50px;
+    background: #4CAF50;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    z-index: 2;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.tcc-date-day {
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1;
+}
+
+.tcc-date-month {
+    font-size: 0.625rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    line-height: 1;
+    margin-top: 1px;
+}
+
+/* Category Badge - Orange, overlapping image bottom-left */
+.tcc-category-badge {
+    position: absolute;
+    bottom: -12px;
+    left: 16px;
+    background: #F7941D;
+    color: #fff;
+    padding: 5px 16px;
+    border-radius: 4px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    z-index: 2;
+    box-shadow: 0 2px 6px rgba(247, 148, 29, 0.4);
+}
+
 .tcc-news-content {
-    padding: 20px;
+    padding: 24px 20px 20px;
+}
+
+/* Author line */
+.tcc-news-author-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8125rem;
+    color: #6c757d;
+    margin-bottom: 8px;
+}
+
+.tcc-author-icon {
+    color: #4CAF50;
+    font-size: 0.875rem;
+}
+
+.tcc-author-name {
+    font-weight: 500;
 }
 
 .tcc-news-title {
-    font-size: 1.125rem;
-    font-weight: 600;
-    margin: 0 0 8px 0;
-    line-height: 1.4;
+    font-size: 1.1875rem;
+    font-weight: 700;
+    margin: 0 0 10px 0;
+    line-height: 1.35;
 }
 
 .tcc-news-title a {
-    color: inherit;
+    color: #1a1a2e;
     text-decoration: none;
+    transition: color 0.2s ease;
 }
 
 .tcc-news-title a:hover {
@@ -120,37 +193,55 @@
 
 .tcc-news-excerpt {
     font-size: 0.9375rem;
-    color: #495057;
+    color: #6c757d;
     line-height: 1.6;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
 }
 
 .tcc-news-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 6px;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
 }
 
 .tcc-tag {
     display: inline-block;
-    padding: 4px 10px;
-    background: #e9ecef;
-    color: #495057;
+    padding: 4px 12px;
+    background: #f0f0f0;
+    color: #555;
     font-size: 0.75rem;
-    border-radius: 20px;
+    border-radius: 4px;
+    font-weight: 500;
+    transition: background 0.2s ease;
+}
+
+.tcc-tag:hover {
+    background: #e0e0e0;
 }
 
 .tcc-read-more {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
     color: var(--tcc-primary, #066168);
-    font-weight: 500;
+    font-weight: 600;
     text-decoration: none;
     font-size: 0.9375rem;
+    transition: gap 0.2s ease;
 }
 
 .tcc-read-more:hover {
+    gap: 8px;
     text-decoration: underline;
+}
+
+.tcc-arrow {
+    transition: transform 0.2s ease;
+}
+
+.tcc-read-more:hover .tcc-arrow {
+    transform: translateX(3px);
 }
 
 /* ==========================================================================

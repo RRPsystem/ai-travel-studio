@@ -15,7 +15,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('TCC_VERSION', '1.0.71');
+define('TCC_VERSION', '1.0.72');
 define('TCC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TCC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -1393,7 +1393,9 @@ class TravelC_Content {
             'show_image' => 'yes',
             'show_excerpt' => 'yes',
             'show_date' => 'yes',
-            'show_tags' => 'yes'
+            'show_tags' => 'yes',
+            'show_author' => 'yes',
+            'style' => 'cards'
         ), $atts);
         
         $news_items = $this->get_news_items(intval($atts['limit']));
@@ -1405,7 +1407,13 @@ class TravelC_Content {
         ob_start();
         ?>
         <div class="tcc-news-grid tcc-columns-<?php echo intval($atts['columns']); ?>">
-            <?php foreach ($news_items as $item): ?>
+            <?php foreach ($news_items as $item): 
+                $date_ts = strtotime($item['published_at'] ?? $item['created_at'] ?? 'now');
+                $day = date_i18n('d', $date_ts);
+                $month = strtoupper(date_i18n('M', $date_ts));
+                $first_tag = !empty($item['tags']) && is_array($item['tags']) ? $item['tags'][0] : '';
+                $author = !empty($item['author']) ? $item['author'] : (!empty($item['brand_name']) ? $item['brand_name'] : '');
+            ?>
                 <article class="tcc-news-card">
                     <?php if ($atts['show_image'] === 'yes' && !empty($item['featured_image'])): ?>
                         <div class="tcc-news-image">
@@ -1413,27 +1421,37 @@ class TravelC_Content {
                                 <img src="<?php echo esc_url($item['featured_image']); ?>" 
                                      alt="<?php echo esc_attr($item['title']); ?>" />
                             </a>
+                            <?php if ($atts['show_date'] === 'yes'): ?>
+                                <div class="tcc-date-badge">
+                                    <span class="tcc-date-day"><?php echo esc_html($day); ?></span>
+                                    <span class="tcc-date-month"><?php echo esc_html($month); ?></span>
+                                </div>
+                            <?php endif; ?>
+                            <?php if (!empty($first_tag)): ?>
+                                <div class="tcc-category-badge"><?php echo esc_html($first_tag); ?></div>
+                            <?php endif; ?>
                         </div>
                     <?php endif; ?>
                     
                     <div class="tcc-news-content">
+                        <?php if ($atts['show_author'] === 'yes' && !empty($author)): ?>
+                            <div class="tcc-news-author-line">
+                                <span class="tcc-author-icon">&#9998;</span>
+                                <span class="tcc-author-name"><?php echo esc_html($author); ?></span>
+                            </div>
+                        <?php endif; ?>
+                        
                         <h3 class="tcc-news-title">
                             <a href="<?php echo esc_url($this->get_news_url($item['slug'])); ?>">
                                 <?php echo esc_html($item['title']); ?>
                             </a>
                         </h3>
                         
-                        <?php if ($atts['show_date'] === 'yes'): ?>
-                            <time class="tcc-news-date">
-                                <?php echo date_i18n(get_option('date_format'), strtotime($item['published_at'] ?? $item['created_at'])); ?>
-                            </time>
-                        <?php endif; ?>
-                        
                         <?php if ($atts['show_excerpt'] === 'yes' && !empty($item['excerpt'])): ?>
-                            <p class="tcc-news-excerpt"><?php echo esc_html($item['excerpt']); ?></p>
+                            <p class="tcc-news-excerpt"><?php echo esc_html(wp_trim_words($item['excerpt'], 20, '...')); ?></p>
                         <?php endif; ?>
                         
-                        <?php if ($atts['show_tags'] === 'yes' && !empty($item['tags'])): ?>
+                        <?php if ($atts['show_tags'] === 'yes' && !empty($item['tags']) && is_array($item['tags'])): ?>
                             <div class="tcc-news-tags">
                                 <?php foreach ($item['tags'] as $tag): ?>
                                     <span class="tcc-tag"><?php echo esc_html($tag); ?></span>
@@ -1442,7 +1460,7 @@ class TravelC_Content {
                         <?php endif; ?>
                         
                         <a href="<?php echo esc_url($this->get_news_url($item['slug'])); ?>" class="tcc-read-more">
-                            Lees meer →
+                            Lees meer <span class="tcc-arrow">&rarr;</span>
                         </a>
                     </div>
                 </article>
