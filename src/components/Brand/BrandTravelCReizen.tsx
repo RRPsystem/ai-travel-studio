@@ -86,6 +86,10 @@ export function BrandTravelCReizen() {
   const [filter, setFilter] = useState<'all' | 'active' | 'own' | 'mandatory'>('all');
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Bulk selection state
+  const [selectedTravels, setSelectedTravels] = useState<Set<string>>(new Set());
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+
   // Import state
   const [importTcId, setImportTcId] = useState('');
   const [importing, setImporting] = useState(false);
@@ -180,6 +184,45 @@ export function BrandTravelCReizen() {
 
   const handleToggleSetting = async (travelId: string, field: string, value: any) => {
     await callToggleApi(travelId, field, value);
+  };
+
+  // Bulk selection helpers
+  const toggleSelectTravel = (travelId: string) => {
+    setSelectedTravels(prev => {
+      const next = new Set(prev);
+      if (next.has(travelId)) next.delete(travelId);
+      else next.add(travelId);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedTravels.size === filteredTravels.length) {
+      setSelectedTravels(new Set());
+    } else {
+      setSelectedTravels(new Set(filteredTravels.map(t => t.id)));
+    }
+  };
+
+  const handleBulkActivate = async (activate: boolean) => {
+    if (!brandId) return;
+    const label = activate ? 'activeren' : 'deactiveren';
+    if (!confirm(`${selectedTravels.size} reis(en) ${label}?`)) return;
+    setBulkProcessing(true);
+    try {
+      for (const travelId of selectedTravels) {
+        const assignment = getAssignment(travelId);
+        const currentlyActive = assignment?.is_active || false;
+        if (currentlyActive !== activate) {
+          await callToggleApi(travelId, 'is_active');
+        }
+      }
+      setSelectedTravels(new Set());
+    } catch (error) {
+      console.error('Bulk activate error:', error);
+    } finally {
+      setBulkProcessing(false);
+    }
   };
 
   // ============================================
@@ -986,6 +1029,29 @@ export function BrandTravelCReizen() {
         {importError && <p className="mt-2 text-red-600 text-sm">{importError}</p>}
       </div>
 
+      {/* Bulk Actions Bar */}
+      {selectedTravels.size > 0 && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 flex items-center justify-between mb-6">
+          <span className="text-sm font-medium text-orange-800">
+            {selectedTravels.size} reis(en) geselecteerd
+          </span>
+          <div className="flex gap-2">
+            <button onClick={() => handleBulkActivate(true)} disabled={bulkProcessing}
+              className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 disabled:bg-gray-400 flex items-center gap-1">
+              {bulkProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Alles activeren
+            </button>
+            <button onClick={() => handleBulkActivate(false)} disabled={bulkProcessing}
+              className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 disabled:bg-gray-400 flex items-center gap-1">
+              {bulkProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : <X className="w-4 h-4" />} Alles deactiveren
+            </button>
+            <button onClick={() => setSelectedTravels(new Set())}
+              className="px-4 py-2 bg-gray-200 text-gray-700 text-sm rounded-lg hover:bg-gray-300">
+              Deselecteer
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <div className="flex bg-gray-100 rounded-lg p-1">
@@ -1022,6 +1088,10 @@ export function BrandTravelCReizen() {
             <table className="w-full">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-3 py-3 text-center w-10">
+                    <input type="checkbox" checked={selectedTravels.size === filteredTravels.length && filteredTravels.length > 0}
+                      onChange={toggleSelectAll} className="rounded border-gray-300" />
+                  </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Afbeelding</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reis</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Details</th>
@@ -1040,7 +1110,11 @@ export function BrandTravelCReizen() {
                   const image = travel.hero_image || travel.images?.[0] || '';
 
                   return (
-                    <tr key={travel.id} className={`hover:bg-gray-50 ${active ? 'bg-green-50/30' : ''}`}>
+                    <tr key={travel.id} className={`hover:bg-gray-50 ${active ? 'bg-green-50/30' : ''} ${selectedTravels.has(travel.id) ? 'bg-orange-50' : ''}`}>
+                      <td className="px-3 py-3 text-center">
+                        <input type="checkbox" checked={selectedTravels.has(travel.id)}
+                          onChange={() => toggleSelectTravel(travel.id)} className="rounded border-gray-300" />
+                      </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         {image ? (
                           <img src={image} alt={travel.title} className="w-20 h-14 object-cover rounded-lg cursor-pointer"
@@ -1124,7 +1198,7 @@ export function BrandTravelCReizen() {
                 })}
                 {filteredTravels.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                    <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                       <Plane className="w-12 h-12 mx-auto mb-4 opacity-50" />
                       <p>Geen reizen gevonden</p>
                       <p className="text-sm text-gray-400 mt-1">Importeer een reis via Travel Compositor ID</p>

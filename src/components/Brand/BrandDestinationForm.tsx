@@ -232,7 +232,7 @@ export function BrandDestinationForm({ destinationId, onBack, onSaved }: BrandDe
           .insert([{
             destination_id: newDest.id,
             brand_id: effectiveBrandId,
-            status: 'brand',
+            status: 'accepted',
             is_published: false,
             assigned_at: new Date().toISOString()
           }]);
