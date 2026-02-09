@@ -72,10 +72,23 @@ Deno.serve(async (req: Request) => {
 
       // Step 2: Get the travel data for active assignments
       // If specific IDs requested, filter to only those (must also be active)
+      // Supports both Supabase UUIDs and Travel Compositor IDs (numeric)
       let targetIds = activeTravelIds;
       if (ids) {
         const requestedIds = ids.split(",").map((id: string) => id.trim()).filter(Boolean);
-        targetIds = requestedIds.filter((id: string) => activeTravelIds.includes(id));
+        // Check if these are UUIDs or TC IDs (TC IDs are numeric)
+        const isUuid = requestedIds[0]?.includes("-");
+        if (isUuid) {
+          targetIds = requestedIds.filter((id: string) => activeTravelIds.includes(id));
+        } else {
+          // Look up UUIDs by travel_compositor_id
+          const { data: tcLookup } = await supabase
+            .from("travelc_travels")
+            .select("id, travel_compositor_id")
+            .in("travel_compositor_id", requestedIds);
+          const foundIds = (tcLookup || []).map((t: any) => t.id);
+          targetIds = foundIds.filter((id: string) => activeTravelIds.includes(id));
+        }
         if (targetIds.length === 0) {
           return new Response(
             JSON.stringify({ success: true, travels: [], count: 0 }),
