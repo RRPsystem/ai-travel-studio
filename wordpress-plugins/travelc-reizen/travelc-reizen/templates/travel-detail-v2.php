@@ -357,7 +357,9 @@ body { margin: 0 !important; padding: 0 !important; }
 .tc2-intro-text p { margin-bottom: 16px; }
 
 /* MAP */
-.tc2-map-container { width: 100%; height: 360px; border-radius: var(--tc2-radius); overflow: hidden; box-shadow: var(--tc2-shadow); border: 1px solid var(--tc2-border); }
+.tc2-map-container { width: 100%; height: 360px; border-radius: var(--tc2-radius); overflow: hidden; box-shadow: var(--tc2-shadow); border: 1px solid var(--tc2-border); z-index: 1; position: relative; }
+.tc2-map-container .leaflet-container { width: 100% !important; height: 100% !important; }
+.tc2-map-container .leaflet-tile-pane img { max-width: none !important; }
 
 /* STOPS */
 .tc2-stops { position: relative; }
@@ -373,12 +375,13 @@ body { margin: 0 !important; padding: 0 !important; }
 .tc2-stop-location { font-size: 12px; color: var(--tc2-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
 .tc2-stop-name { font-size: 18px; font-weight: 700; color: var(--tc2-text); margin-bottom: 6px; }
 .tc2-stop-desc { font-size: 13px; color: var(--tc2-text-light); line-height: 1.6; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.tc2-stop-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.tc2-stop-tags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .tc2-stop-tag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: var(--tc2-bg); border-radius: 8px; font-size: 12px; color: var(--tc2-text-light); font-weight: 500; }
 .tc2-stop-tag svg { width: 14px; height: 14px; }
-.tc2-btn-more { display: inline-flex; align-items: center; gap: 3px; padding: 5px 12px; background: transparent; color: var(--tc2-primary); border: 1.5px solid var(--tc2-primary); border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; }
-.tc2-btn-more:hover { background: var(--tc2-primary); color: white; }
+.tc2-btn-more { display: none; }
 .tc2-btn-more svg { width: 12px; height: 12px; }
+.tc2-stop-info .tc2-btn-more { display: inline-flex; align-items: center; gap: 3px; padding: 4px 10px; background: transparent; color: var(--tc2-primary); border: 1.5px solid var(--tc2-primary); border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; white-space: nowrap; margin-left: auto; }
+.tc2-stop-info .tc2-btn-more:hover { background: var(--tc2-primary); color: white; }
 
 /* Hotel sub-card */
 .tc2-stop-hotel { border-top: 1px solid var(--tc2-border); padding: 12px 16px; display: flex; align-items: center; gap: 12px; background: #fafbfc; }
@@ -456,8 +459,8 @@ body { margin: 0 !important; padding: 0 !important; }
 .tc2-btn-call svg { width: 16px; height: 16px; }
 
 /* Touroperator */
-.tc2-touroperator { background: white; border-radius: var(--tc2-radius); padding: 20px; box-shadow: var(--tc2-shadow); border: 1px solid var(--tc2-border); display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-.tc2-touroperator-logo { height: 24px; width: auto; max-width: 80px; object-fit: contain; }
+.tc2-touroperator { background: white; border-radius: var(--tc2-radius); padding: 16px; box-shadow: var(--tc2-shadow); border: 1px solid var(--tc2-border); display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.tc2-touroperator-logo { height: 28px !important; width: auto !important; max-width: 90px !important; object-fit: contain !important; }
 .tc2-touroperator-name { font-size: 14px; font-weight: 600; color: var(--tc2-text); }
 .tc2-touroperator-label { font-size: 12px; color: var(--tc2-text-muted); }
 
@@ -510,6 +513,13 @@ body { margin: 0 !important; padding: 0 !important; }
 .tc2-lightbox-prev { left: 20px; top: 50%; transform: translateY(-50%); }
 .tc2-lightbox-next { right: 20px; top: 50%; transform: translateY(-50%); }
 .tc2-lightbox-counter { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); color: white; font-size: 14px; background: rgba(0,0,0,0.5); padding: 6px 16px; border-radius: 20px; }
+
+/* Leaflet critical overrides (WP themes break these) */
+.tc2-map-container img { max-width: none !important; max-height: none !important; }
+.tc2-map-container .leaflet-pane { z-index: 1 !important; }
+.tc2-map-container .leaflet-top, .tc2-map-container .leaflet-bottom { z-index: 2 !important; }
+.tc2-map-container .leaflet-tile { width: 256px !important; height: 256px !important; }
+.tc2-map-container .leaflet-container { font-family: inherit; }
 
 /* Leaflet tooltip override */
 .tc2-map-label { background: white !important; border: 1px solid #e5e7eb !important; border-radius: 6px !important; padding: 4px 8px !important; font-size: 12px !important; font-weight: 600 !important; color: #1f2937 !important; box-shadow: 0 2px 6px rgba(0,0,0,0.1) !important; }
@@ -777,15 +787,15 @@ body { margin: 0 !important; padding: 0 !important; }
                                     <?php if ($dest_country): ?>
                                         <span class="tc2-stop-tag"><?php echo $icons['globe']; ?> <?php echo esc_html($dest_country); ?></span>
                                     <?php endif; ?>
+                                    <?php if ($dest && (!empty($dest_desc) || count($dest_images) > 1)): ?>
+                                        <button type="button" class="tc2-btn-more" 
+                                            onclick="tc2ShowPanel(this)"
+                                            data-type="destination"
+                                            data-item="<?php echo htmlspecialchars(json_encode($dest), ENT_QUOTES, 'UTF-8'); ?>">
+                                            Lees verder <?php echo $icons['chevron-right']; ?>
+                                        </button>
+                                    <?php endif; ?>
                                 </div>
-                                <?php if ($dest && (!empty($dest_desc) || count($dest_images) > 1)): ?>
-                                    <button type="button" class="tc2-btn-more" 
-                                        onclick="tc2ShowPanel(this)"
-                                        data-type="destination"
-                                        data-item="<?php echo htmlspecialchars(json_encode($dest), ENT_QUOTES, 'UTF-8'); ?>">
-                                        Lees verder <?php echo $icons['chevron-right']; ?>
-                                    </button>
-                                <?php endif; ?>
                             </div>
                         </div>
 
@@ -1051,32 +1061,45 @@ body { margin: 0 !important; padding: 0 !important; }
     // ============================================
     function initRouteMap() {
         var el = document.getElementById('tc2RouteMap');
-        if (!el || !mapDests || mapDests.length < 2 || typeof L === 'undefined') return;
-
-        var map = L.map('tc2RouteMap', { scrollWheelZoom: false });
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 18, attribution: '&copy; OpenStreetMap'
-        }).addTo(map);
-
-        var bounds = [];
-        mapDests.forEach(function(d, i) {
-            if (!d.lat || !d.lng) return;
-            bounds.push([d.lat, d.lng]);
-
-            var icon = L.divIcon({
-                className: 'tc2-route-marker',
-                html: '<div style="background:' + primaryColor + ';color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:12px;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);">' + (i + 1) + '</div>',
-                iconSize: [28, 28], iconAnchor: [14, 14]
-            });
-            var marker = L.marker([d.lat, d.lng], { icon: icon }).addTo(map);
-            marker.bindTooltip((i + 1) + '. ' + (d.name || ''), { permanent: true, direction: 'top', offset: [0, -12], className: 'tc2-map-label' });
-        });
-
-        if (bounds.length > 1) {
-            L.polyline(bounds, { color: primaryColor, weight: 3, opacity: 0.6, dashArray: '8,8' }).addTo(map);
+        console.log('[TC2 Map] init', { el: !!el, dests: mapDests ? mapDests.length : 0, leaflet: typeof L });
+        if (!el || !mapDests || mapDests.length < 2 || typeof L === 'undefined') {
+            console.log('[TC2 Map] skipped — missing element, data, or Leaflet');
+            return;
         }
-        if (bounds.length > 0) {
-            map.fitBounds(bounds, { padding: [40, 40] });
+
+        try {
+            var map = L.map('tc2RouteMap', { scrollWheelZoom: false });
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                maxZoom: 18, attribution: '&copy; OpenStreetMap'
+            }).addTo(map);
+
+            var bounds = [];
+            mapDests.forEach(function(d, i) {
+                if (!d.lat || !d.lng) return;
+                bounds.push([d.lat, d.lng]);
+
+                var icon = L.divIcon({
+                    className: 'tc2-route-marker',
+                    html: '<div style="background:' + primaryColor + ';color:white;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:bold;font-size:12px;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3);">' + (i + 1) + '</div>',
+                    iconSize: [28, 28], iconAnchor: [14, 14]
+                });
+                var marker = L.marker([d.lat, d.lng], { icon: icon }).addTo(map);
+                marker.bindTooltip((i + 1) + '. ' + (d.name || ''), { permanent: true, direction: 'top', offset: [0, -12], className: 'tc2-map-label' });
+            });
+
+            if (bounds.length > 1) {
+                L.polyline(bounds, { color: primaryColor, weight: 3, opacity: 0.6, dashArray: '8,8' }).addTo(map);
+            }
+            if (bounds.length > 0) {
+                map.fitBounds(bounds, { padding: [40, 40] });
+            }
+
+            // Force re-render after layout settles (fixes grey tiles)
+            setTimeout(function() { map.invalidateSize(); }, 300);
+            setTimeout(function() { map.invalidateSize(); }, 1000);
+            console.log('[TC2 Map] initialized with', bounds.length, 'markers');
+        } catch(e) {
+            console.error('[TC2 Map] Error:', e);
         }
     }
 
