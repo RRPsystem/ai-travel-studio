@@ -16,7 +16,10 @@ import { SocialMediaManager } from './SocialMediaManager';
 import { TravelBroSetup } from '../TravelBro/TravelBroSetup';
 import WordPressTemplateChooser from './WordPressTemplateChooser';
 import WordPressPageManager from './WordPressPageManager';
-import { Users, Settings, Plus, Bot, Sparkles, Import as FileImport, ChevronDown, ChevronRight, FileText, Globe, Newspaper, MapPin, Plane, Share2, Map, ArrowRight, ClipboardCheck, Video, BookOpen, Rocket, Wallet, ShoppingCart } from 'lucide-react';
+import { Users, Settings, Plus, Bot, Sparkles, Import as FileImport, ChevronDown, ChevronRight, FileText, Globe, Newspaper, MapPin, Plane, Share2, Map, ArrowRight, ClipboardCheck, Video, BookOpen, Rocket, Wallet, ShoppingCart, Ticket, FolderOpen } from 'lucide-react';
+import { TravelDocsOffertes } from '../TravelDocs/TravelDocsOffertes';
+import { TravelDocsRoadbook } from '../TravelDocs/TravelDocsRoadbook';
+import { TravelDocsVouchers } from '../TravelDocs/TravelDocsVouchers';
 import RoadmapBoard from './RoadmapBoard';
 import TestDashboard from '../Testing/TestDashboard';
 import CreditWallet from '../shared/CreditWallet';
@@ -49,6 +52,7 @@ export function BrandDashboard() {
   const [showAISubmenu, setShowAISubmenu] = useState(false);
   const [showWebsiteSubmenu, setShowWebsiteSubmenu] = useState(initialSubmenus.showWebsiteSubmenu);
   const [showContentSubmenu, setShowContentSubmenu] = useState(initialSubmenus.showContentSubmenu);
+  const [showTravelDocsSubmenu, setShowTravelDocsSubmenu] = useState(false);
   const [websites, setWebsites] = useState<any[]>([]);
   const [brandData, setBrandData] = useState<any>(null);
   const [stats, setStats] = useState({ pages: 0, newsItems: 0, agents: 0, trips: 0 });
@@ -82,6 +86,12 @@ export function BrandDashboard() {
       window.removeEventListener('hashchange', handleHashChange);
     };
   }, []);
+
+  React.useEffect(() => {
+    if (['docs-offertes', 'docs-roadbook', 'docs-vouchers'].includes(activeSection)) {
+      setShowTravelDocsSubmenu(true);
+    }
+  }, [activeSection]);
 
   useEffect(() => {
     if (activeSection === 'dashboard') {
@@ -250,6 +260,12 @@ export function BrandDashboard() {
     { id: 'ai-booking-requests', label: 'Boekingsverzoeken', icon: ShoppingCart },
     { id: 'ai-import', label: 'AI TravelImport', icon: FileImport },
     { id: 'ai-video', label: 'AI Travel Video', icon: Video },
+  ];
+
+  const travelDocsItems = [
+    { id: 'docs-offertes', label: 'Offertes', icon: FileText },
+    { id: 'docs-roadbook', label: 'Roadbook', icon: BookOpen },
+    { id: 'docs-vouchers', label: 'Vouchers', icon: Ticket },
   ];
 
   const contentItems = isWordPressMode ? [
@@ -539,6 +555,46 @@ export function BrandDashboard() {
 
             <li>
               <button
+                onClick={() => setShowTravelDocsSubmenu(!showTravelDocsSubmenu)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
+                  ['docs-offertes', 'docs-roadbook', 'docs-vouchers'].includes(activeSection)
+                    ? 'bg-gray-700 text-white'
+                    : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  <FolderOpen size={20} />
+                  <span>Travel Docs</span>
+                </div>
+                {showTravelDocsSubmenu ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+              </button>
+
+              {showTravelDocsSubmenu && (
+                <ul className="mt-2 ml-6 space-y-1">
+                  {travelDocsItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <li key={item.id}>
+                        <button
+                          onClick={() => setActiveSection(item.id)}
+                          className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors text-sm ${
+                            activeSection === item.id
+                              ? 'bg-gray-700 text-white'
+                              : 'text-gray-400 hover:text-white hover:bg-gray-700'
+                          }`}
+                        >
+                          <Icon size={16} />
+                          <span>{item.label}</span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </li>
+
+            <li>
+              <button
                 onClick={handleTravelStudioClick}
                 className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors text-gray-300 hover:text-white hover:bg-gray-700"
               >
@@ -616,7 +672,7 @@ export function BrandDashboard() {
       </div>
 
       <div className="flex-1 flex flex-col">
-        {!['nieuwsbeheer', 'destinations', 'trips', 'settings', 'testing', 'roadmap', 'quickstart', 'ai-video'].includes(activeSection) && (
+        {!['nieuwsbeheer', 'destinations', 'trips', 'settings', 'testing', 'roadmap', 'quickstart', 'ai-video', 'docs-offertes', 'docs-roadbook', 'docs-vouchers'].includes(activeSection) && (
           <header className="bg-white border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
               <div>
@@ -668,6 +724,9 @@ export function BrandDashboard() {
 
         <main className="flex-1 overflow-auto">
           {activeSection === 'travel-journal' && <AgentPodcastViewer />}
+          {activeSection === 'docs-offertes' && <TravelDocsOffertes />}
+          {activeSection === 'docs-roadbook' && <TravelDocsRoadbook />}
+          {activeSection === 'docs-vouchers' && <TravelDocsVouchers />}
           {activeSection === 'dashboard' && (
             <div className="p-6">
               {loading ? (
