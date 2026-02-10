@@ -95,7 +95,7 @@ export function DestinationManagement() {
   const [saving, setSaving] = useState(false);
   const [generatingAI, setGeneratingAI] = useState(false);
   const [showMediaSelector, setShowMediaSelector] = useState(false);
-  const [mediaSelectorTarget, setMediaSelectorTarget] = useState<{ type: 'featured' | 'highlight' | 'city' | 'gallery'; index?: number } | null>(null);
+  const [mediaSelectorTarget, setMediaSelectorTarget] = useState<{ type: 'featured' | 'highlight' | 'city' | 'gallery' | 'map' | 'flag'; index?: number } | null>(null);
   const [formData, setFormData] = useState(emptyFormData);
 
   useEffect(() => {
@@ -639,13 +639,26 @@ export function DestinationManagement() {
                   {/* Map Image */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">🗺️ Landkaart Afbeelding</label>
-                    <input
-                      type="url"
-                      value={formData.map_image}
-                      onChange={(e) => setFormData(prev => ({ ...prev, map_image: e.target.value }))}
-                      placeholder="URL naar landkaart afbeelding"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={formData.map_image}
+                        onChange={(e) => setFormData(prev => ({ ...prev, map_image: e.target.value }))}
+                        placeholder="URL naar landkaart afbeelding"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMediaSelectorTarget({ type: 'map' });
+                          setShowMediaSelector(true);
+                        }}
+                        className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                        title="Kies uit mediabibliotheek"
+                      >
+                        <ImageIcon size={20} />
+                      </button>
+                    </div>
                     {formData.map_image && (
                       <img src={formData.map_image} alt="Landkaart preview" className="mt-2 h-32 object-contain rounded-lg border" />
                     )}
@@ -654,13 +667,26 @@ export function DestinationManagement() {
                   {/* Flag Image */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">🏳️ Vlag Afbeelding</label>
-                    <input
-                      type="url"
-                      value={formData.flag_image}
-                      onChange={(e) => setFormData(prev => ({ ...prev, flag_image: e.target.value }))}
-                      placeholder="URL naar vlag afbeelding"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="url"
+                        value={formData.flag_image}
+                        onChange={(e) => setFormData(prev => ({ ...prev, flag_image: e.target.value }))}
+                        placeholder="URL naar vlag afbeelding"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMediaSelectorTarget({ type: 'flag' });
+                          setShowMediaSelector(true);
+                        }}
+                        className="px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                        title="Kies uit mediabibliotheek"
+                      >
+                        <ImageIcon size={20} />
+                      </button>
+                    </div>
                     {formData.flag_image && (
                       <img src={formData.flag_image} alt="Vlag preview" className="mt-2 h-16 object-contain rounded-lg border" />
                     )}
@@ -1152,7 +1178,11 @@ export function DestinationManagement() {
             }}
             allowMultiple={mediaSelectorTarget?.type === 'gallery'}
             onSelect={(url) => {
-              if (mediaSelectorTarget?.type === 'highlight' && mediaSelectorTarget.index !== undefined) {
+              if (mediaSelectorTarget?.type === 'map') {
+                setFormData(prev => ({ ...prev, map_image: url }));
+              } else if (mediaSelectorTarget?.type === 'flag') {
+                setFormData(prev => ({ ...prev, flag_image: url }));
+              } else if (mediaSelectorTarget?.type === 'highlight' && mediaSelectorTarget.index !== undefined) {
                 const updated = [...formData.highlights];
                 updated[mediaSelectorTarget.index].image = url;
                 setFormData(prev => ({ ...prev, highlights: updated }));
