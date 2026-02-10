@@ -15,7 +15,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('TCC_VERSION', '1.0.76');
+define('TCC_VERSION', '1.0.78');
 define('TCC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TCC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -98,6 +98,14 @@ class TravelC_Content {
         add_action('init', array($this, 'register_nieuws_post_type'));
         add_action('admin_init', array($this, 'sync_destinations'));
         add_action('admin_init', array($this, 'sync_news'));
+        
+        // WP-Cron auto-sync (runs every 15 minutes, even without admin visits)
+        add_filter('cron_schedules', array($this, 'add_cron_interval'));
+        add_action('tcc_cron_sync', array($this, 'cron_sync'));
+        if (!wp_next_scheduled('tcc_cron_sync')) {
+            wp_schedule_event(time(), 'tcc_fifteen_minutes', 'tcc_cron_sync');
+        }
+        register_deactivation_hook(__FILE__, array($this, 'deactivate'));
         
         // Add sync button to admin
         add_action('admin_notices', array($this, 'show_sync_notice'));
@@ -461,6 +469,40 @@ class TravelC_Content {
     }
     
     /**
+     * WP-Cron: add 15-minute interval
+     */
+    public function add_cron_interval($schedules) {
+        $schedules['tcc_fifteen_minutes'] = array(
+            'interval' => 900, // 15 minutes
+            'display'  => 'Elke 15 minuten (TravelC)',
+        );
+        return $schedules;
+    }
+    
+    /**
+     * WP-Cron: auto-sync destinations and news
+     */
+    public function cron_sync() {
+        error_log('[TCC Cron] Running auto-sync...');
+        $this->sync_destinations(true);
+        $this->sync_news(true);
+        // Also clear travel API cache so new travels show up
+        global $wpdb;
+        $wpdb->query("DELETE FROM {$wpdb->options} WHERE option_name LIKE '_transient_travelc_%' OR option_name LIKE '_transient_timeout_travelc_%'");
+        error_log('[TCC Cron] Auto-sync completed');
+    }
+    
+    /**
+     * Plugin deactivation - clean up cron
+     */
+    public function deactivate() {
+        $timestamp = wp_next_scheduled('tcc_cron_sync');
+        if ($timestamp) {
+            wp_unschedule_event($timestamp, 'tcc_cron_sync');
+        }
+    }
+    
+    /**
      * Create or update a WordPress post for a destination
      */
     private function create_or_update_land_post($destination) {
@@ -493,7 +535,11 @@ class TravelC_Content {
             $post_data['ID'] = $existing[0]->ID;
             wp_update_post($post_data);
         } else {
-            wp_insert_post($post_data);
+            $new_id = wp_insert_post($post_data);
+            // Auto-flush permalinks when a new land post is created
+            if ($new_id && !is_wp_error($new_id)) {
+                update_option('tcc_flush_rewrite_rules', true);
+            }
         }
     }
     

@@ -2,14 +2,14 @@
 /**
  * Plugin Name: TravelC Reizen
  * Description: Toont reizen vanuit TravelCStudio op je WordPress website via shortcodes.
- * Version: 3.9.9
+ * Version: 3.10.0
  * Author: RBS / TravelCStudio
  * Text Domain: travelc-reizen
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('TRAVELC_REIZEN_VERSION', '3.9.9');
+define('TRAVELC_REIZEN_VERSION', '3.10.0');
 define('TRAVELC_REIZEN_PATH', plugin_dir_path(__FILE__));
 define('TRAVELC_REIZEN_URL', plugin_dir_url(__FILE__));
 
@@ -381,7 +381,7 @@ add_action('wp_enqueue_scripts', function() {
 // ============================================
 add_shortcode('travelc_reizen', function($atts) {
     $atts = shortcode_atts([
-        'limit'    => 12,
+        'limit'    => 500,
         'category' => '',
         'continent'=> '',
         'country'  => '',

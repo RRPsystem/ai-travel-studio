@@ -33,7 +33,7 @@ Deno.serve(async (req: Request) => {
     const continent = url.searchParams.get("continent");
     const country = url.searchParams.get("country");
     const duration = url.searchParams.get("duration");
-    const limit = parseInt(url.searchParams.get("limit") || "50");
+    const limit = parseInt(url.searchParams.get("limit") || "1000");
     const featured = url.searchParams.get("featured") === "true";
     const ids = url.searchParams.get("ids"); // comma-separated travel IDs
 
