@@ -97,14 +97,14 @@ Deno.serve(async (req: Request) => {
         }
       }
 
+      // Select only fields needed for card listing (exclude heavy fields like hotels, full images)
       let query = supabase
         .from("travelc_travels")
         .select(`
-          id, travel_compositor_id, title, slug, description, intro_text,
-          number_of_nights, number_of_days, price_per_person, price_description,
-          destinations, countries, hotels, images, hero_image, hero_video_url,
-          categories, themes, continents, highlights, 
-          enabled_for_brands, enabled_for_franchise, is_mandatory,
+          id, travel_compositor_id, title, slug, intro_text,
+          number_of_nights, number_of_days, price_per_person,
+          destinations, countries, hero_image, images,
+          categories, continents,
           source_microsite, created_at
         `)
         .in("id", targetIds)
@@ -128,8 +128,11 @@ Deno.serve(async (req: Request) => {
       // Step 3: Merge travel data with brand-specific settings
       const result = (travels || []).map(travel => {
         const assignment = assignmentMap.get(travel.id)!;
+        const firstImage = travel.hero_image || travel.images?.[0] || "";
+        // Strip heavy fields from list response to reduce payload
+        const { images, ...travelLight } = travel;
         return {
-          ...travel,
+          ...travelLight,
           // Brand overrides
           is_featured: assignment.is_featured || false,
           show_hotels: assignment.show_hotels ?? true,
@@ -139,9 +142,9 @@ Deno.serve(async (req: Request) => {
           display_price: assignment.custom_price || travel.price_per_person,
           // Summary for listing
           destination_count: travel.destinations?.length || 0,
-          hotel_count: travel.hotels?.length || 0,
+          hotel_count: 0,
           country_list: travel.countries || [],
-          first_image: travel.hero_image || travel.images?.[0] || "",
+          first_image: firstImage,
         };
       });
 

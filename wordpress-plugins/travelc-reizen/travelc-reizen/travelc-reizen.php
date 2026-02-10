@@ -293,7 +293,7 @@ function travelc_api_request($params = []) {
     }
 
     $response = wp_remote_get($url, [
-        'timeout' => 30,
+        'timeout' => 60,
         'headers' => ['Content-Type' => 'application/json'],
     ]);
 
