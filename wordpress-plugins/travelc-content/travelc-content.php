@@ -485,6 +485,7 @@ class TravelC_Content {
             'meta_input' => array(
                 '_tcc_destination_id' => $destination['id'],
                 '_tcc_destination_slug' => $destination['slug'],
+                '_tcc_featured_travel_ids' => !empty($destination['featured_travel_ids']) ? implode(',', $destination['featured_travel_ids']) : '',
             ),
         );
         
@@ -1300,7 +1301,7 @@ class TravelC_Content {
         if (!empty($dest_ids)) {
             $assigned_destinations = $this->fetch_from_supabase('destinations', array(
                 'id' => 'in.(' . implode(',', $dest_ids) . ')',
-                'select' => 'id,title,slug,country,continent,intro_text,featured_image,images,video_url,flag_image,map_image,facts,fun_facts,climate,regions,highlights,cities,description,transportation',
+                'select' => 'id,title,slug,country,continent,intro_text,featured_image,images,video_url,flag_image,map_image,facts,fun_facts,climate,regions,highlights,cities,description,transportation,featured_travel_ids',
             ));
             if (!is_wp_error($assigned_destinations) && is_array($assigned_destinations)) {
                 foreach ($assigned_destinations as $dest) {
@@ -1314,7 +1315,7 @@ class TravelC_Content {
         // 2. Get brand's own destinations (created by the brand, stored with brand_id)
         $brand_destinations = $this->fetch_from_supabase('destinations', array(
             'brand_id' => 'eq.' . $this->brand_id,
-            'select' => 'id,title,slug,country,continent,intro_text,featured_image,images,video_url,flag_image,map_image,facts,fun_facts,climate,regions,highlights,cities,description,transportation',
+            'select' => 'id,title,slug,country,continent,intro_text,featured_image,images,video_url,flag_image,map_image,facts,fun_facts,climate,regions,highlights,cities,description,transportation,featured_travel_ids',
         ));
         
         if (!is_wp_error($brand_destinations) && is_array($brand_destinations)) {

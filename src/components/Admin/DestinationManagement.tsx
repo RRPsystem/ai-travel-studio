@@ -28,6 +28,7 @@ interface Destination {
   regions?: Array<{ name: string; description: string }>;
   facts?: Array<{ label: string; value: string }>;
   cities?: Array<{ name: string; description: string; image?: string }>;
+  featured_travel_ids?: string[];
   created_at: string;
   enabled_for_brands: boolean;
   enabled_for_franchise: boolean;
@@ -79,7 +80,8 @@ const emptyFormData = {
   regions: [] as Array<{ name: string; description: string }>,
   facts: [] as Array<{ label: string; value: string }>,
   cities: [] as Array<{ name: string; description: string; image?: string }>,
-  fun_facts: [] as string[]
+  fun_facts: [] as string[],
+  featured_travel_ids: [] as string[]
 };
 
 export function DestinationManagement() {
@@ -203,7 +205,8 @@ export function DestinationManagement() {
       regions: destination.regions || [],
       facts: destination.facts || [],
       cities: destination.cities || [],
-      fun_facts: (destination as any).fun_facts || []
+      fun_facts: (destination as any).fun_facts || [],
+      featured_travel_ids: destination.featured_travel_ids || []
     });
     setEditingDestination(destination);
     setViewMode('edit');
@@ -323,6 +326,7 @@ export function DestinationManagement() {
         facts: formData.facts.filter(f => f.label.trim() && f.value.trim()).map(f => ({ label: f.label, value: f.value })),
         cities: formData.cities.filter(c => c.name.trim()).map(c => ({ name: c.name, description: c.description, image: c.image || '' })),
         fun_facts: formData.fun_facts.filter(f => f.trim()),
+        featured_travel_ids: formData.featured_travel_ids.filter(id => id.trim()),
         author_type: 'admin',
         author_id: user?.id,
         brand_id: SYSTEM_BRAND_ID
@@ -1087,6 +1091,51 @@ export function DestinationManagement() {
                   ))}
                   {formData.fun_facts.length === 0 && (
                     <p className="text-gray-500 text-sm italic text-center py-4">Nog geen leuke feiten toegevoegd.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Featured Travel IDs */}
+              <div className="bg-white rounded-xl shadow-sm border p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-gray-900">✈️ Uitgelichte Reizen</h3>
+                  <button
+                    onClick={() => setFormData(prev => ({ ...prev, featured_travel_ids: [...prev.featured_travel_ids, ''] }))}
+                    className="flex items-center gap-1 px-3 py-1.5 text-sm bg-gradient-to-r from-teal-500 to-emerald-600 text-white rounded-lg hover:from-teal-600 hover:to-emerald-700"
+                  >
+                    <Plus size={16} /> ID toevoegen
+                  </button>
+                </div>
+                <p className="text-sm text-gray-500 mb-4">
+                  Voer de <strong>Travel Compositor ID's</strong> in van reizen die op deze bestemmingspagina getoond moeten worden.
+                  Deze worden automatisch weergegeven via de shortcode <code className="bg-gray-100 px-1 rounded">[travelc_featured_reizen]</code> op de WordPress landpagina.
+                </p>
+                <div className="space-y-2">
+                  {formData.featured_travel_ids.map((id, i) => (
+                    <div key={i} className="flex gap-2 items-center">
+                      <span className="text-sm text-gray-400 w-6">{i + 1}.</span>
+                      <input
+                        type="text"
+                        value={id}
+                        onChange={(e) => {
+                          const updated = [...formData.featured_travel_ids];
+                          updated[i] = e.target.value;
+                          setFormData(prev => ({ ...prev, featured_travel_ids: updated }));
+                        }}
+                        placeholder="Bijv: 35338738"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm focus:ring-2 focus:ring-teal-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, featured_travel_ids: prev.featured_travel_ids.filter((_, idx) => idx !== i) }))}
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                  {formData.featured_travel_ids.length === 0 && (
+                    <p className="text-gray-500 text-sm italic text-center py-4">Nog geen reis-ID's toegevoegd. Klik op "ID toevoegen" om te beginnen.</p>
                   )}
                 </div>
               </div>

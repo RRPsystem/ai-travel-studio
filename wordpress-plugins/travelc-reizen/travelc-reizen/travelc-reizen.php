@@ -2,14 +2,14 @@
 /**
  * Plugin Name: TravelC Reizen
  * Description: Toont reizen vanuit TravelCStudio op je WordPress website via shortcodes.
- * Version: 3.9.6
+ * Version: 3.9.7
  * Author: RBS / TravelCStudio
  * Text Domain: travelc-reizen
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('TRAVELC_REIZEN_VERSION', '3.9.6');
+define('TRAVELC_REIZEN_VERSION', '3.9.7');
 define('TRAVELC_REIZEN_PATH', plugin_dir_path(__FILE__));
 define('TRAVELC_REIZEN_URL', plugin_dir_url(__FILE__));
 
@@ -483,7 +483,19 @@ add_shortcode('travelc_featured_reizen', function($atts) {
         'featured' => 'true',
         'title'    => '',
         'detail_base' => '/reizen/',
+        'auto'     => 'true',
     ], $atts);
+
+    // Auto-detect: if no IDs given and we're on a 'land' post, read featured_travel_ids from post meta
+    if (empty($atts['ids']) && $atts['auto'] === 'true') {
+        global $post;
+        if (is_a($post, 'WP_Post') && $post->post_type === 'land') {
+            $meta_ids = get_post_meta($post->ID, '_tcc_featured_travel_ids', true);
+            if (!empty($meta_ids)) {
+                $atts['ids'] = $meta_ids; // comma-separated string
+            }
+        }
+    }
 
     $params = [
         'action'   => 'list',
