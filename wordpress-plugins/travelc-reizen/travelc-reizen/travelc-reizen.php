@@ -2,14 +2,14 @@
 /**
  * Plugin Name: TravelC Reizen
  * Description: Toont reizen vanuit TravelCStudio op je WordPress website via shortcodes.
- * Version: 4.0.9
+ * Version: 4.1.0
  * Author: RBS / TravelCStudio
  * Text Domain: travelc-reizen
  */
 
 if (!defined('ABSPATH')) exit;
 
-define('TRAVELC_REIZEN_VERSION', '4.0.9');
+define('TRAVELC_REIZEN_VERSION', '4.1.0');
 define('TRAVELC_REIZEN_PATH', plugin_dir_path(__FILE__));
 define('TRAVELC_REIZEN_URL', plugin_dir_url(__FILE__));
 
@@ -363,11 +363,25 @@ add_action('wp_enqueue_scripts', function() {
     wp_enqueue_style('travelc-reizen', TRAVELC_REIZEN_URL . 'assets/css/travelc-reizen.css', [], TRAVELC_REIZEN_VERSION);
     wp_enqueue_script('travelc-reizen', TRAVELC_REIZEN_URL . 'assets/js/travelc-reizen.js', ['leaflet'], TRAVELC_REIZEN_VERSION, true);
 
+    // Travel detail v2 JS — loaded in HEAD (not footer) so functions are available for onclick handlers
+    wp_enqueue_script('travelc-detail-v2', TRAVELC_REIZEN_URL . 'assets/js/travel-detail-v2.js', [], TRAVELC_REIZEN_VERSION, false);
+
     // Pass config to JS for quote form
     wp_localize_script('travelc-reizen', 'travelcConfig', [
         'brandId' => get_option('travelc_brand_id', ''),
         'quoteEndpoint' => 'https://huaaogdxxdcakxryecnw.supabase.co/functions/v1/travel-quote-request',
     ]);
+
+    // Exclude detail v2 script from minification/defer (add data attributes)
+    add_filter('script_loader_tag', function($tag, $handle) {
+        if ($handle === 'travelc-detail-v2') {
+            // Remove any defer or async, add no-minify hints
+            $tag = str_replace(' defer', '', $tag);
+            $tag = str_replace(' async', '', $tag);
+            $tag = str_replace('<script ', '<script data-no-minify="1" data-cfasync="false" ', $tag);
+        }
+        return $tag;
+    }, 10, 2);
 
     // Inject brand colors as CSS variables
     $brand = travelc_get_brand_settings();
