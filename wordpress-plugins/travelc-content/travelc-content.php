@@ -15,7 +15,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('TCC_VERSION', '1.0.78');
+define('TCC_VERSION', '1.0.79');
 define('TCC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TCC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -1844,10 +1844,17 @@ class TravelC_Content {
                     link.addEventListener('click', function(e) { e.preventDefault(); });
                 });
                 
+                // Position fixed dropdown below the menu item
+                function positionDropdown() {
+                    var rect = item.getBoundingClientRect();
+                    dropdown.style.top = rect.bottom + 'px';
+                }
+                
                 // Desktop: hover
                 var timeout;
                 item.addEventListener('mouseenter', function() {
                     clearTimeout(timeout);
+                    positionDropdown();
                     dropdown.classList.add('tcc-mega-open');
                 });
                 item.addEventListener('mouseleave', function() {
