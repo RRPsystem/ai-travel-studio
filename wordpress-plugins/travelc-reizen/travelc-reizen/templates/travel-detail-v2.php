@@ -1051,7 +1051,7 @@ if ($map_json === false) $map_json = '[]';
 <div id="tc2DataMap" style="display:none"><?php echo htmlspecialchars($map_json, ENT_QUOTES, 'UTF-8'); ?></div>
 
 <!-- Global functions + panel data (separate script to guarantee availability) -->
-<script>
+<script data-no-minify="1" data-cfasync="false">
 (function() {
     var panelData = {};
     try { panelData = JSON.parse(document.getElementById('tc2DataPanel').textContent); } catch(e) { console.error('[TC2] panelData parse error:', e); }
@@ -1194,7 +1194,7 @@ if ($map_json === false) $map_json = '[]';
 </script>
 
 <!-- Hero slideshow + Route map (separate from global functions) -->
-<script>
+<script data-no-minify="1" data-cfasync="false">
 (function() {
     var mapDests = [];
     try { mapDests = JSON.parse(document.getElementById('tc2DataMap').textContent); } catch(e) { console.error('[TC2] mapDests parse error:', e); }
