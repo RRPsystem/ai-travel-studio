@@ -256,14 +256,20 @@ ksort($all_categories);
         return true;
     }
 
+    // Normalize: strip diacritics for fuzzy matching
+    function norm(s) { return s.normalize ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : s; }
+
     function filterAndSort() {
         var query = (searchInput ? searchInput.value : '').toLowerCase();
-        var dest = destFilter ? destFilter.value : '';
-        var type = typeFilter ? typeFilter.value : '';
+        var dest = destFilter ? destFilter.value.toLowerCase() : '';
+        var type = typeFilter ? typeFilter.value.toLowerCase() : '';
         var sort = sortSelect ? sortSelect.value : 'newest';
         var favs = showFavOnly ? getFavorites() : [];
         var cards = Array.prototype.slice.call(list.querySelectorAll('.travelc-tcard'));
         var visible = 0;
+        var normDest = norm(dest);
+        var normType = norm(type);
+        var normQuery = norm(query);
 
         cards.forEach(function(card) {
             var title = card.getAttribute('data-title') || '';
@@ -272,9 +278,13 @@ ksort($all_categories);
             var categories = card.getAttribute('data-categories') || '';
             var cardId = card.getAttribute('data-id') || '';
             var nights = card.getAttribute('data-nights') || '0';
-            var matchSearch = !query || title.indexOf(query) !== -1 || countries.indexOf(query) !== -1 || destinations.indexOf(query) !== -1;
-            var matchDest = !dest || countries.indexOf(dest) !== -1;
-            var matchType = !type || categories.indexOf(type) !== -1;
+            var normCountries = norm(countries);
+            var normDestinations = norm(destinations);
+            var normCategories = norm(categories);
+            var normTitle = norm(title);
+            var matchSearch = !query || normTitle.indexOf(normQuery) !== -1 || normCountries.indexOf(normQuery) !== -1 || normDestinations.indexOf(normQuery) !== -1;
+            var matchDest = !dest || normCountries.indexOf(normDest) !== -1;
+            var matchType = !type || normCategories.indexOf(normType) !== -1;
             var matchFav = !showFavOnly || favs.indexOf(cardId) !== -1;
             var matchDagen = matchDuration(nights, activeDagen);
             if (matchSearch && matchDest && matchType && matchFav && matchDagen) {
@@ -323,13 +333,45 @@ ksort($all_categories);
         }
     }
 
+    // Helper: set a <select> value, trying exact match first, then partial/contains match
+    function setSelectValue(selectEl, val) {
+        if (!selectEl || !val) return;
+        var lowerVal = val.toLowerCase();
+        // Try exact match first
+        selectEl.value = lowerVal;
+        if (selectEl.value === lowerVal) return;
+        // Try finding option that contains the value or vice versa
+        var options = selectEl.options;
+        for (var i = 0; i < options.length; i++) {
+            var optVal = options[i].value.toLowerCase();
+            if (optVal && (optVal.indexOf(lowerVal) !== -1 || lowerVal.indexOf(optVal) !== -1)) {
+                selectEl.value = options[i].value;
+                return;
+            }
+        }
+        // Try normalized comparison (strip diacritics)
+        var normalize = function(s) { return s.normalize ? s.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : s; };
+        var normVal = normalize(lowerVal);
+        for (var j = 0; j < options.length; j++) {
+            var normOpt = normalize(options[j].value.toLowerCase());
+            if (normOpt && (normOpt.indexOf(normVal) !== -1 || normVal.indexOf(normOpt) !== -1)) {
+                selectEl.value = options[j].value;
+                return;
+            }
+        }
+        console.log('[TravelC] No matching option found for "' + val + '" in', selectEl.id);
+    }
+
     // Apply hash params to filters on load
     var hashParams = parseHash();
+    console.log('[TravelC] Hash params:', hashParams);
     if (hashParams.bestemming && destFilter) {
-        destFilter.value = hashParams.bestemming;
+        setSelectValue(destFilter, hashParams.bestemming);
+        console.log('[TravelC] destFilter set to:', destFilter.value);
     }
     if (hashParams.type && typeFilter) {
-        typeFilter.value = hashParams.type;
+        setSelectValue(typeFilter, hashParams.type);
+        console.log('[TravelC] typeFilter set to:', typeFilter.value);
     }
     if (hashParams.zoek && searchInput) {
         searchInput.value = hashParams.zoek;
