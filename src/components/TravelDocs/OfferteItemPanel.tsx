@@ -1,12 +1,33 @@
-import { useState } from 'react';
-import { X, Star, Upload, Search } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { X, Star, Upload, Search, Loader2, MapPin, Building2 } from 'lucide-react';
 import { OfferteItem, OfferteItemType, OFFERTE_ITEM_TYPES } from '../../types/offerte';
+import { supabase } from '../../lib/supabase';
 
 interface Props {
   item: OfferteItem | null;
   itemType: OfferteItemType;
   onSave: (item: OfferteItem) => void;
   onClose: () => void;
+}
+
+interface TcSearchResult {
+  type: string;
+  id: string;
+  name: string;
+  stars?: number;
+  location?: string;
+  country?: string;
+  description?: string;
+  images?: string[];
+  price?: number;
+  currency?: string;
+  roomType?: string;
+  mealPlan?: string;
+  provider?: string;
+  subtitle?: string;
+  duration?: number;
+  durationType?: string;
+  image?: string;
 }
 
 export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
@@ -26,28 +47,113 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
     price_per_person: item?.price_per_person || undefined,
     supplier: item?.supplier || '',
     booking_reference: item?.booking_reference || '',
-    // Flight
     departure_airport: item?.departure_airport || '',
     arrival_airport: item?.arrival_airport || '',
     departure_time: item?.departure_time || '',
     arrival_time: item?.arrival_time || '',
     airline: item?.airline || '',
     flight_number: item?.flight_number || '',
-    // Hotel
     hotel_name: item?.hotel_name || '',
     room_type: item?.room_type || '',
     board_type: item?.board_type || '',
     star_rating: item?.star_rating || undefined,
-    // Transfer
     transfer_type: item?.transfer_type || '',
     pickup_location: item?.pickup_location || '',
     dropoff_location: item?.dropoff_location || '',
-    // Activity
     activity_duration: item?.activity_duration || '',
     included_items: item?.included_items || [],
   });
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<TcSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [searchTimer, setSearchTimer] = useState<ReturnType<typeof setTimeout> | null>(null);
+
+  const searchTC = useCallback(async (query: string) => {
+    if (!query || query.length < 2 || !supabase) return;
+    
+    setSearching(true);
+    setSearchError(null);
+
+    try {
+      // Default dates: 30 days from now, 3 nights
+      const checkIn = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+      const checkOut = new Date(Date.now() + 33 * 86400000).toISOString().split('T')[0];
+
+      let action = '';
+      let body: any = { micrositeId: '' }; // empty = use first configured
+
+      if (itemType === 'hotel') {
+        action = 'search-accommodations';
+        body = { ...body, action, destination: query, checkIn, checkOut, adults: 2 };
+      } else if (itemType === 'activity') {
+        action = 'search-tickets';
+        body = { ...body, action, destination: query, checkIn, checkOut, adults: 2 };
+      } else if (itemType === 'transfer') {
+        action = 'search-transfers';
+        body = { ...body, action, pickupDateTime: `${checkIn}T10:00:00`, adults: 2 };
+      } else if (itemType === 'flight') {
+        action = 'search-transports';
+        body = { ...body, action, departure: query.split('-')[0]?.trim(), arrival: query.split('-')[1]?.trim() || query, departureDate: checkIn, adults: 2 };
+      }
+
+      if (!action) return;
+
+      const { data, error } = await supabase.functions.invoke('search-travel-compositor', { body });
+
+      if (error) throw error;
+      if (data?.results) {
+        setSearchResults(data.results.slice(0, 15));
+      } else if (data?.error) {
+        setSearchError(data.error);
+      }
+    } catch (err: any) {
+      console.error('[TC Search] Error:', err);
+      setSearchError('Zoeken mislukt. Probeer het opnieuw.');
+    } finally {
+      setSearching(false);
+    }
+  }, [itemType]);
+
+  const handleSearchInput = (value: string) => {
+    setSearchQuery(value);
+    if (searchTimer) clearTimeout(searchTimer);
+    if (value.length >= 2) {
+      const timer = setTimeout(() => searchTC(value), 600);
+      setSearchTimer(timer);
+    } else {
+      setSearchResults([]);
+    }
+  };
+
+  const selectSearchResult = (result: TcSearchResult) => {
+    const updates: Partial<OfferteItem> = {
+      title: result.name,
+      description: result.description || '',
+      image_url: result.images?.[0] || result.image || '',
+      location: [result.location, result.country].filter(Boolean).join(', '),
+      price: result.price || undefined,
+      supplier: result.provider || '',
+    };
+
+    if (result.type === 'hotel') {
+      updates.hotel_name = result.name;
+      updates.star_rating = result.stars || undefined;
+      updates.room_type = result.roomType || '';
+      updates.board_type = result.mealPlan || '';
+    } else if (result.type === 'flight') {
+      updates.subtitle = result.subtitle || '';
+    } else if (result.type === 'activity') {
+      if (result.duration && result.durationType) {
+        updates.activity_duration = `${result.duration} ${result.durationType.toLowerCase()}`;
+      }
+    }
+
+    setFormData(prev => ({ ...prev, ...updates }));
+    setSearchResults([]);
+    setSearchQuery('');
+  };
 
   const update = (field: string, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -222,29 +328,95 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
           </button>
         </div>
 
-        {/* Search bar for hotels/activities */}
-        {(itemType === 'hotel' || itemType === 'activity') && (
-          <div className="px-6 py-3 border-b border-gray-100 bg-gray-50">
-            <div className="relative">
+        {/* Search bar - TC zoekmachine */}
+        <div className="px-6 py-3 border-b border-gray-100 bg-gray-50">
+          <div className="relative">
+            {searching ? (
+              <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-500 animate-spin" />
+            ) : (
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder={itemType === 'hotel' ? 'Zoek hotels op naam of locatie...' : 'Zoek activiteiten...'}
-                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none bg-white"
-              />
-            </div>
-            {searchQuery && (
-              <div className="mt-2 bg-white rounded-xl border border-gray-200 max-h-48 overflow-y-auto">
-                <div className="p-4 text-center text-sm text-gray-500">
-                  <p>Zoekresultaten komen hier</p>
-                  <p className="text-xs text-gray-400 mt-1">API integratie volgt</p>
-                </div>
-              </div>
             )}
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => handleSearchInput(e.target.value)}
+              placeholder={
+                itemType === 'hotel' ? 'Zoek hotels op bestemming (bv. "Bali", "Paris")...' :
+                itemType === 'activity' ? 'Zoek activiteiten op bestemming...' :
+                itemType === 'flight' ? 'Zoek vluchten (bv. "AMS - JFK")...' :
+                itemType === 'transfer' ? 'Zoek transfers...' :
+                'Zoek in Travel Compositor...'
+              }
+              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none bg-white"
+            />
           </div>
-        )}
+
+          {/* Search error */}
+          {searchError && (
+            <p className="mt-2 text-xs text-red-500">{searchError}</p>
+          )}
+
+          {/* Search results */}
+          {searchResults.length > 0 && (
+            <div className="mt-2 bg-white rounded-xl border border-gray-200 max-h-64 overflow-y-auto divide-y divide-gray-100">
+              {searchResults.map((result) => (
+                <button
+                  key={result.id}
+                  onClick={() => selectSearchResult(result)}
+                  className="w-full flex items-start gap-3 p-3 hover:bg-orange-50 transition-colors text-left"
+                >
+                  {/* Thumbnail */}
+                  <div className="w-14 h-14 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                    {(result.images?.[0] || result.image) ? (
+                      <img src={result.images?.[0] || result.image} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Building2 size={16} className="text-gray-300" />
+                      </div>
+                    )}
+                  </div>
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1">
+                      <span className="font-medium text-sm text-gray-900 truncate">{result.name}</span>
+                      {result.stars && result.stars > 0 && (
+                        <span className="flex items-center shrink-0">
+                          {Array.from({ length: result.stars }).map((_, i) => (
+                            <Star key={i} size={10} className="text-yellow-400 fill-yellow-400" />
+                          ))}
+                        </span>
+                      )}
+                    </div>
+                    {(result.location || result.country) && (
+                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                        <MapPin size={10} />
+                        {[result.location, result.country].filter(Boolean).join(', ')}
+                      </p>
+                    )}
+                    {result.description && (
+                      <p className="text-xs text-gray-400 mt-0.5 line-clamp-1">{result.description}</p>
+                    )}
+                  </div>
+                  {/* Price */}
+                  {result.price !== undefined && result.price > 0 && (
+                    <div className="shrink-0 text-right">
+                      <span className="text-sm font-semibold text-orange-600">€ {result.price.toLocaleString('nl-NL')}</span>
+                      {result.provider && <p className="text-[10px] text-gray-400">{result.provider}</p>}
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Searching indicator */}
+          {searching && searchResults.length === 0 && (
+            <div className="mt-2 bg-white rounded-xl border border-gray-200 p-4 text-center">
+              <Loader2 className="w-5 h-5 text-orange-500 animate-spin mx-auto mb-1" />
+              <p className="text-xs text-gray-500">Zoeken in Travel Compositor...</p>
+            </div>
+          )}
+        </div>
 
         {/* Form */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
