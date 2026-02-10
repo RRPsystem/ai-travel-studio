@@ -317,7 +317,7 @@ body { margin: 0 !important; padding: 0 !important; }
 }
 
 /* HIGHLIGHTS STRIP */
-.tc2-highlights { background: white; border-bottom: 1px solid var(--tc2-border); position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+.tc2-highlights { background: white; border-bottom: 1px solid var(--tc2-border); position: sticky; top: 0; z-index: 9990; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
 .tc2-highlights-inner { max-width: 1280px; margin: 0 auto; padding: 0 40px; display: flex; align-items: center; justify-content: space-between; height: 64px; }
 .tc2-highlights-left { display: flex; gap: 28px; align-items: center; }
 .tc2-hl-item { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--tc2-text); font-weight: 500; }
@@ -329,10 +329,10 @@ body { margin: 0 !important; padding: 0 !important; }
 .tc2-hl-icon.cruise { background: #e0f2fe; color: #0284c7; }
 .tc2-hl-label { font-size: 12px; color: var(--tc2-text-light); }
 .tc2-highlights-right { display: flex; align-items: center; gap: 16px; }
-.tc2-price-tag { display: flex; flex-direction: column; align-items: flex-end; }
-.tc2-price-label { font-size: 11px; color: var(--tc2-text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-.tc2-price-amount { font-size: 28px; font-weight: 800; color: var(--tc2-primary); line-height: 1; }
-.tc2-price-sub { font-size: 12px; color: var(--tc2-text-light); }
+.tc2-price-tag { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.tc2-price-label { font-size: 10px; color: var(--tc2-text-muted); text-transform: uppercase; letter-spacing: 0.5px; line-height: 1; }
+.tc2-price-amount { font-size: 26px; font-weight: 800; color: var(--tc2-primary); line-height: 1.1; }
+.tc2-price-sub { font-size: 11px; color: var(--tc2-text-light); line-height: 1; }
 .tc2-cta-btn { padding: 12px 28px; background: var(--tc2-primary); color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; text-decoration: none; }
 .tc2-cta-btn:hover { filter: brightness(0.9); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(42,157,143,0.3); }
 
@@ -362,33 +362,34 @@ body { margin: 0 !important; padding: 0 !important; }
 /* STOPS */
 .tc2-stops { position: relative; }
 .tc2-stops::before { content: ''; position: absolute; left: 22px; top: 44px; bottom: 44px; width: 3px; background: linear-gradient(to bottom, var(--tc2-primary), var(--tc2-primary-dark)); border-radius: 2px; opacity: 0.2; }
-.tc2-stop { display: flex; gap: 24px; margin-bottom: 32px; position: relative; }
+.tc2-stop { display: flex; gap: 20px; margin-bottom: 24px; position: relative; }
 .tc2-stop:last-child { margin-bottom: 0; }
 .tc2-stop-marker { width: 44px; height: 44px; border-radius: 50%; background: white; border: 3px solid var(--tc2-primary); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 16px; color: var(--tc2-primary); flex-shrink: 0; z-index: 1; box-shadow: 0 2px 8px rgba(42,157,143,0.15); }
 .tc2-stop-card { flex: 1; background: white; border-radius: var(--tc2-radius); overflow: hidden; box-shadow: var(--tc2-shadow); border: 1px solid var(--tc2-border); transition: all 0.3s ease; }
 .tc2-stop-card:hover { box-shadow: var(--tc2-shadow-lg); transform: translateY(-2px); }
-.tc2-stop-card-top { display: grid; grid-template-columns: 200px 1fr; min-height: 180px; }
-.tc2-stop-image { width: 100%; height: 100%; min-height: 180px; object-fit: cover; cursor: pointer; }
-.tc2-stop-info { padding: 20px; display: flex; flex-direction: column; justify-content: center; }
+.tc2-stop-card-top { display: grid; grid-template-columns: 180px 1fr; min-height: 160px; }
+.tc2-stop-image { width: 100%; height: 100%; min-height: 160px; object-fit: cover; cursor: pointer; }
+.tc2-stop-info { padding: 16px; display: flex; flex-direction: column; justify-content: center; }
 .tc2-stop-location { font-size: 12px; color: var(--tc2-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
-.tc2-stop-name { font-size: 20px; font-weight: 700; color: var(--tc2-text); margin-bottom: 8px; }
-.tc2-stop-desc { font-size: 14px; color: var(--tc2-text-light); line-height: 1.6; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.tc2-stop-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.tc2-stop-name { font-size: 18px; font-weight: 700; color: var(--tc2-text); margin-bottom: 6px; }
+.tc2-stop-desc { font-size: 13px; color: var(--tc2-text-light); line-height: 1.6; margin-bottom: 10px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tc2-stop-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 .tc2-stop-tag { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: var(--tc2-bg); border-radius: 8px; font-size: 12px; color: var(--tc2-text-light); font-weight: 500; }
 .tc2-stop-tag svg { width: 14px; height: 14px; }
-.tc2-btn-more { display: inline-flex; align-items: center; gap: 4px; padding: 8px 16px; background: var(--tc2-primary); color: white; border: none; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; }
-.tc2-btn-more:hover { filter: brightness(0.9); transform: translateY(-1px); }
-.tc2-btn-more svg { width: 14px; height: 14px; }
+.tc2-btn-more { display: inline-flex; align-items: center; gap: 3px; padding: 5px 12px; background: transparent; color: var(--tc2-primary); border: 1.5px solid var(--tc2-primary); border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; text-decoration: none; }
+.tc2-btn-more:hover { background: var(--tc2-primary); color: white; }
+.tc2-btn-more svg { width: 12px; height: 12px; }
 
 /* Hotel sub-card */
-.tc2-stop-hotel { border-top: 1px solid var(--tc2-border); padding: 16px 20px; display: flex; align-items: center; gap: 16px; background: #fafbfc; }
-.tc2-stop-hotel-img { width: 72px; height: 72px; border-radius: 10px; object-fit: cover; flex-shrink: 0; cursor: pointer; }
+.tc2-stop-hotel { border-top: 1px solid var(--tc2-border); padding: 12px 16px; display: flex; align-items: center; gap: 12px; background: #fafbfc; }
+.tc2-stop-hotel-img { width: 56px; height: 56px; border-radius: 8px; object-fit: cover; flex-shrink: 0; cursor: pointer; }
 .tc2-stop-hotel-info { flex: 1; min-width: 0; }
 .tc2-stop-hotel-name { font-size: 14px; font-weight: 600; color: var(--tc2-text); margin-bottom: 2px; }
-.tc2-stop-hotel-meta { font-size: 13px; color: var(--tc2-text-light); display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.tc2-stop-hotel-meta svg { width: 14px; height: 14px; }
+.tc2-stop-hotel-meta { font-size: 12px; color: var(--tc2-text-light); display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.tc2-stop-hotel-meta svg { width: 14px; height: 14px; color: #eab308; }
+.tc2-stop-hotel-stars { color: #eab308; letter-spacing: -1px; }
 .tc2-stop-hotel-badge { padding: 4px 10px; background: #fef3c7; color: #92400e; border-radius: 6px; font-size: 11px; font-weight: 600; white-space: nowrap; }
-.tc2-stop-hotel-btn { padding: 6px 12px; background: transparent; color: var(--tc2-primary); border: 1.5px solid var(--tc2-primary); border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+.tc2-stop-hotel-btn { padding: 4px 10px; background: transparent; color: var(--tc2-primary); border: 1.5px solid var(--tc2-primary); border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
 .tc2-stop-hotel-btn:hover { background: var(--tc2-primary); color: white; }
 
 @media (max-width: 768px) {
@@ -456,7 +457,7 @@ body { margin: 0 !important; padding: 0 !important; }
 
 /* Touroperator */
 .tc2-touroperator { background: white; border-radius: var(--tc2-radius); padding: 20px; box-shadow: var(--tc2-shadow); border: 1px solid var(--tc2-border); display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
-.tc2-touroperator-logo { height: 36px; width: auto; max-width: 120px; object-fit: contain; }
+.tc2-touroperator-logo { height: 24px; width: auto; max-width: 80px; object-fit: contain; }
 .tc2-touroperator-name { font-size: 14px; font-weight: 600; color: var(--tc2-text); }
 .tc2-touroperator-label { font-size: 12px; color: var(--tc2-text-muted); }
 
@@ -464,9 +465,13 @@ body { margin: 0 !important; padding: 0 !important; }
 .tc2-usp-card { background: white; border-radius: var(--tc2-radius); padding: 20px; box-shadow: var(--tc2-shadow); border: 1px solid var(--tc2-border); }
 .tc2-usp-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f3f4f6; }
 .tc2-usp-item:last-child { border-bottom: none; }
-.tc2-usp-icon { color: var(--tc2-primary); flex-shrink: 0; margin-top: 2px; }
+.tc2-usp-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.tc2-usp-icon svg { width: 18px; height: 18px; }
+.tc2-usp-icon.usp-green { background: #f0fdf4; color: #16a34a; }
+.tc2-usp-icon.usp-amber { background: #fef3c7; color: #d97706; }
+.tc2-usp-icon.usp-purple { background: #f3e8ff; color: #9333ea; }
 .tc2-usp-text { font-size: 13px; color: var(--tc2-text); line-height: 1.5; }
-.tc2-usp-text strong { display: block; margin-bottom: 2px; }
+.tc2-usp-text strong { display: block; margin-bottom: 2px; font-size: 14px; }
 
 /* DETAIL PANEL (sliding) */
 .tc2-panel-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99998; opacity: 0; transition: opacity 0.3s; }
@@ -509,6 +514,22 @@ body { margin: 0 !important; padding: 0 !important; }
 /* Leaflet tooltip override */
 .tc2-map-label { background: white !important; border: 1px solid #e5e7eb !important; border-radius: 6px !important; padding: 4px 8px !important; font-size: 12px !important; font-weight: 600 !important; color: #1f2937 !important; box-shadow: 0 2px 6px rgba(0,0,0,0.1) !important; }
 .tc2-map-label::before { display: none !important; }
+
+/* Example notice */
+.tc2-example-notice { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; margin-bottom: 20px; }
+.tc2-example-icon { flex-shrink: 0; color: #3b82f6; }
+.tc2-example-icon svg { width: 20px; height: 20px; }
+.tc2-example-notice strong { display: block; font-size: 14px; color: var(--tc2-text); }
+.tc2-example-notice span { font-size: 12px; color: var(--tc2-text-light); }
+
+/* Star options */
+.tc2-star-options { display: flex; flex-direction: column; gap: 6px; }
+.tc2-star-option { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--tc2-bg); border: 1.5px solid var(--tc2-border); border-radius: 8px; cursor: pointer; transition: all 0.2s; }
+.tc2-star-option:hover { border-color: var(--tc2-primary); }
+.tc2-star-option input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--tc2-primary); cursor: pointer; }
+.tc2-star-option input[type="checkbox"]:checked ~ .tc2-star-label { color: var(--tc2-text); font-weight: 600; }
+.tc2-star-label { font-size: 13px; color: var(--tc2-text-light); display: flex; align-items: center; gap: 6px; }
+.tc2-stars-yellow { color: #eab308; font-size: 15px; letter-spacing: -1px; }
 
 /* Form result */
 .tc2-form-result { display: none; margin-bottom: 12px; padding: 12px; border-radius: 8px; font-size: 14px; }
@@ -598,10 +619,10 @@ body { margin: 0 !important; padding: 0 !important; }
             <div class="tc2-price-tag">
                 <span class="tc2-price-label">Vanaf</span>
                 <span class="tc2-price-amount">&euro;<?php echo number_format($price, 0, ',', '.'); ?></span>
-                <span class="tc2-price-sub">p.p.</span>
+                <span class="tc2-price-sub">p.p. indicatieprijs</span>
             </div>
             <?php endif; ?>
-            <a href="#tc2-booking-section" class="tc2-cta-btn" onclick="document.getElementById('tc2-booking-section').scrollIntoView({behavior:'smooth'});return false;">Boek deze reis</a>
+            <a href="#tc2-booking-section" class="tc2-cta-btn" onclick="document.getElementById('tc2-booking-section').scrollIntoView({behavior:'smooth'});return false;">Offerte aanvragen</a>
         </div>
     </div>
 </div>
@@ -761,7 +782,7 @@ body { margin: 0 !important; padding: 0 !important; }
                                     <button type="button" class="tc2-btn-more" 
                                         onclick="tc2ShowPanel(this)"
                                         data-type="destination"
-                                        data-item='<?php echo esc_attr(json_encode($dest)); ?>'>
+                                        data-item="<?php echo htmlspecialchars(json_encode($dest), ENT_QUOTES, 'UTF-8'); ?>">
                                         Lees verder <?php echo $icons['chevron-right']; ?>
                                     </button>
                                 <?php endif; ?>
@@ -781,7 +802,16 @@ body { margin: 0 !important; padding: 0 !important; }
                                 <div class="tc2-stop-hotel-name"><?php echo esc_html($accom_name); ?></div>
                                 <div class="tc2-stop-hotel-meta">
                                     <?php if ($accom['category']): ?>
-                                        <span><?php echo $icons['star']; ?> <?php echo esc_html($accom['category']); ?></span>
+                                        <span class="tc2-stop-hotel-stars"><?php 
+                                            $cat = $accom['category'];
+                                            $star_count = 0;
+                                            if (preg_match('/\d/', $cat, $m)) $star_count = intval($m[0]);
+                                            if ($star_count > 0) {
+                                                echo str_repeat('&#9733;', $star_count);
+                                            } else {
+                                                echo esc_html($cat);
+                                            }
+                                        ?></span>
                                     <?php endif; ?>
                                     <?php if ($accom['mealPlan']): ?>
                                         <span><?php echo $icons['utensils']; ?> <?php echo esc_html($accom['mealPlan']); ?></span>
@@ -792,7 +822,7 @@ body { margin: 0 !important; padding: 0 !important; }
                             <button type="button" class="tc2-stop-hotel-btn"
                                 onclick="tc2ShowPanel(this)"
                                 data-type="hotel"
-                                data-item='<?php echo esc_attr(json_encode($accom)); ?>'>
+                                data-item="<?php echo htmlspecialchars(json_encode($accom), ENT_QUOTES, 'UTF-8'); ?>">
                                 Lees verder
                             </button>
                         </div>
@@ -865,21 +895,13 @@ body { margin: 0 !important; padding: 0 !important; }
             </div>
             <?php endif; ?>
             <div class="tc2-booking-body">
-                <ul class="tc2-booking-features">
-                    <?php if ($has_flights): ?>
-                        <li><span class="feat-icon"><?php echo $icons['plane']; ?></span> Retourvlucht inbegrepen</li>
-                    <?php endif; ?>
-                    <?php if ($show_hotels && $hotel_count > 0): ?>
-                        <li><span class="feat-icon"><?php echo $icons['hotel']; ?></span> <?php echo $nights; ?> nachten in <?php echo $hotel_count; ?> hotel<?php echo $hotel_count > 1 ? 's' : ''; ?></li>
-                    <?php endif; ?>
-                    <?php if ($has_car): ?>
-                        <li><span class="feat-icon"><?php echo $icons['car']; ?></span> <?php echo $car_days; ?> dagen huurauto</li>
-                    <?php endif; ?>
-                    <?php if ($has_cruise): ?>
-                        <li><span class="feat-icon"><?php echo $icons['ship']; ?></span> Cruise inbegrepen</li>
-                    <?php endif; ?>
-                    <li><span class="feat-icon"><?php echo $icons['shield-check']; ?></span> ANVR &amp; SGR garantie</li>
-                </ul>
+                <div class="tc2-example-notice">
+                    <span class="tc2-example-icon"><?php echo $icons['info']; ?></span>
+                    <div>
+                        <strong>Dit is een voorbeeldreis</strong>
+                        <span>Pas deze reis naar eigen wens aan</span>
+                    </div>
+                </div>
 
                 <div class="tc2-booking-form">
                     <form id="tc2QuoteForm" onsubmit="return false;">
@@ -911,6 +933,23 @@ body { margin: 0 !important; padding: 0 !important; }
                             </select>
                         </div>
                         <div class="tc2-form-group">
+                            <label class="tc2-form-label">Hotelvoorkeur</label>
+                            <div class="tc2-star-options">
+                                <label class="tc2-star-option">
+                                    <input type="checkbox" name="tc2Stars" value="3" checked>
+                                    <span class="tc2-star-label"><span class="tc2-stars-yellow">&#9733;&#9733;&#9733;</span> 3 sterren</span>
+                                </label>
+                                <label class="tc2-star-option">
+                                    <input type="checkbox" name="tc2Stars" value="4" checked>
+                                    <span class="tc2-star-label"><span class="tc2-stars-yellow">&#9733;&#9733;&#9733;&#9733;</span> 4 sterren</span>
+                                </label>
+                                <label class="tc2-star-option">
+                                    <input type="checkbox" name="tc2Stars" value="5">
+                                    <span class="tc2-star-label"><span class="tc2-stars-yellow">&#9733;&#9733;&#9733;&#9733;&#9733;</span> 5 sterren</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="tc2-form-group">
                             <label class="tc2-form-label">Bericht</label>
                             <textarea class="tc2-form-input" id="tc2Message" rows="3" placeholder="Speciale wensen of vragen?" style="resize:vertical;"></textarea>
                         </div>
@@ -940,16 +979,16 @@ body { margin: 0 !important; padding: 0 !important; }
         <!-- USPs -->
         <div class="tc2-usp-card">
             <div class="tc2-usp-item">
-                <div class="tc2-usp-icon"><?php echo $icons['heart']; ?></div>
-                <div class="tc2-usp-text"><strong>Reis op maat</strong>Elke reis wordt aangepast aan jouw wensen</div>
+                <div class="tc2-usp-icon usp-green"><?php echo $icons['shield-check']; ?></div>
+                <div class="tc2-usp-text"><strong>Reis op maat</strong>Elke reis wordt aangepast aan jouw wensen en budget</div>
             </div>
             <div class="tc2-usp-item">
-                <div class="tc2-usp-icon"><?php echo $icons['shield-check']; ?></div>
-                <div class="tc2-usp-text"><strong>Veilig boeken</strong>ANVR &amp; SGR garantie</div>
+                <div class="tc2-usp-icon usp-amber"><?php echo $icons['shield-check']; ?></div>
+                <div class="tc2-usp-text"><strong>Veilig boeken</strong>ANVR &amp; SGR garantie voor zorgeloos reizen</div>
             </div>
             <div class="tc2-usp-item">
-                <div class="tc2-usp-icon"><?php echo $icons['message-circle']; ?></div>
-                <div class="tc2-usp-text"><strong>Persoonlijk advies</strong>Onze specialisten kennen de bestemming</div>
+                <div class="tc2-usp-icon usp-purple"><?php echo $icons['message-circle']; ?></div>
+                <div class="tc2-usp-text"><strong>Persoonlijk advies</strong>Onze reisspecialisten kennen de bestemming</div>
             </div>
         </div>
     </aside>
@@ -1202,6 +1241,11 @@ body { margin: 0 !important; padding: 0 !important; }
         var message = document.getElementById('tc2Message').value.trim();
         var result = document.getElementById('tc2FormResult');
 
+        // Collect star preferences
+        var starBoxes = document.querySelectorAll('input[name="tc2Stars"]:checked');
+        var stars = [];
+        starBoxes.forEach(function(cb) { stars.push(cb.value); });
+
         if (!name || !email) {
             result.className = 'tc2-form-result error';
             result.textContent = 'Vul je naam en e-mailadres in.';
@@ -1214,20 +1258,35 @@ body { margin: 0 !important; padding: 0 !important; }
             : 'Bedankt! Je informatie-aanvraag is verzonden.';
 
         // TODO: Send to backend via AJAX
-        console.log('[TravelC Quote]', { type: type, name: name, email: email, phone: phone, date: date, persons: persons, message: message, travel: '<?php echo esc_js($title); ?>' });
+        console.log('[TravelC Quote]', { type: type, name: name, email: email, phone: phone, date: date, persons: persons, stars: stars.join(','), message: message, travel: '<?php echo esc_js($title); ?>' });
     };
 
     // ============================================
-    // INIT
+    // INIT — wait for Leaflet to be available
     // ============================================
     function init() {
         initRouteMap();
     }
 
+    function waitForLeaflet(callback, maxWait) {
+        var waited = 0;
+        var interval = setInterval(function() {
+            waited += 100;
+            if (typeof L !== 'undefined') {
+                clearInterval(interval);
+                callback();
+            } else if (waited >= (maxWait || 5000)) {
+                clearInterval(interval);
+            }
+        }, 100);
+    }
+
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', function() {
+            waitForLeaflet(init);
+        });
     } else {
-        setTimeout(init, 100);
+        waitForLeaflet(init);
     }
 })();
 </script>
