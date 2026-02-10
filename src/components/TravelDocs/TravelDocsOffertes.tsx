@@ -1,13 +1,37 @@
-import { useState } from 'react';
-import { FileText, Plus, Search, Filter, Eye, Copy, Trash2, Send, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { FileText, Plus, Search, Filter, Eye, Copy, Trash2, Send, Clock, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { Offerte } from '../../types/offerte';
 import { OfferteEditor } from './OfferteEditor';
+import { offerteService } from '../../lib/offerteService';
+import { useAuth } from '../../contexts/AuthContext';
 
 export function TravelDocsOffertes() {
+  const { user } = useAuth();
   const [view, setView] = useState<'list' | 'editor'>('list');
   const [offertes, setOffertes] = useState<Offerte[]>([]);
   const [editingOfferte, setEditingOfferte] = useState<Offerte | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadOffertes = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await offerteService.list(user?.brand_id || undefined);
+      setOffertes(data);
+    } catch (err: any) {
+      console.error('Error loading offertes:', err);
+      setError(err.message || 'Kon offertes niet laden');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadOffertes();
+  }, [user?.brand_id]);
 
   const handleNewOfferte = () => {
     setEditingOfferte(undefined);
@@ -19,35 +43,55 @@ export function TravelDocsOffertes() {
     setView('editor');
   };
 
-  const handleSaveOfferte = (offerte: Offerte) => {
-    setOffertes(prev => {
-      const existing = prev.findIndex(o => o.id === offerte.id);
-      if (existing >= 0) {
-        const updated = [...prev];
-        updated[existing] = offerte;
-        return updated;
+  const handleSaveOfferte = async (offerte: Offerte) => {
+    try {
+      setSaving(true);
+      // Attach brand_id and agent_id if not set
+      if (!offerte.brand_id && user?.brand_id) {
+        offerte.brand_id = user.brand_id;
       }
-      return [offerte, ...prev];
-    });
-    setView('list');
-  };
-
-  const handleDeleteOfferte = (id: string) => {
-    if (confirm('Weet je zeker dat je deze offerte wilt verwijderen?')) {
-      setOffertes(prev => prev.filter(o => o.id !== id));
+      if (!offerte.agent_id && user?.role === 'agent') {
+        offerte.agent_id = user.id;
+      }
+      const saved = await offerteService.save(offerte);
+      setOffertes(prev => {
+        const existing = prev.findIndex(o => o.id === saved.id);
+        if (existing >= 0) {
+          const updated = [...prev];
+          updated[existing] = saved;
+          return updated;
+        }
+        return [saved, ...prev];
+      });
+      setView('list');
+    } catch (err: any) {
+      console.error('Error saving offerte:', err);
+      alert('Fout bij opslaan: ' + (err.message || 'Onbekende fout'));
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleDuplicateOfferte = (offerte: Offerte) => {
-    const duplicate: Offerte = {
-      ...offerte,
-      id: crypto.randomUUID(),
-      title: `${offerte.title} (kopie)`,
-      status: 'draft',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setOffertes(prev => [duplicate, ...prev]);
+  const handleDeleteOfferte = async (id: string) => {
+    if (confirm('Weet je zeker dat je deze offerte wilt verwijderen?')) {
+      try {
+        await offerteService.delete(id);
+        setOffertes(prev => prev.filter(o => o.id !== id));
+      } catch (err: any) {
+        console.error('Error deleting offerte:', err);
+        alert('Fout bij verwijderen: ' + (err.message || 'Onbekende fout'));
+      }
+    }
+  };
+
+  const handleDuplicateOfferte = async (offerte: Offerte) => {
+    try {
+      const duplicated = await offerteService.duplicate(offerte);
+      setOffertes(prev => [duplicated, ...prev]);
+    } catch (err: any) {
+      console.error('Error duplicating offerte:', err);
+      alert('Fout bij dupliceren: ' + (err.message || 'Onbekende fout'));
+    }
   };
 
   const getStatusConfig = (status: Offerte['status']) => {
@@ -121,8 +165,23 @@ export function TravelDocsOffertes() {
           </button>
         </div>
 
+        {/* Loading state */}
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
+          </div>
+        )}
+
+        {/* Error state */}
+        {error && !loading && (
+          <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6 text-sm text-red-700">
+            {error}
+            <button onClick={loadOffertes} className="ml-3 underline hover:no-underline">Opnieuw proberen</button>
+          </div>
+        )}
+
         {/* Offertes list */}
-        {filteredOffertes.length > 0 ? (
+        {!loading && filteredOffertes.length > 0 ? (
           <div className="space-y-3">
             {filteredOffertes.map(offerte => {
               const statusConfig = getStatusConfig(offerte.status);
@@ -190,7 +249,7 @@ export function TravelDocsOffertes() {
               );
             })}
           </div>
-        ) : (
+        ) : !loading ? (
           /* Empty State */
           <div className="bg-white rounded-2xl border border-gray-200 shadow-sm">
             <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
@@ -210,7 +269,7 @@ export function TravelDocsOffertes() {
               </button>
             </div>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
