@@ -15,7 +15,7 @@
 
 if (!defined('ABSPATH')) exit;
 
-define('TCC_VERSION', '1.0.73');
+define('TCC_VERSION', '1.0.74');
 define('TCC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('TCC_PLUGIN_URL', plugin_dir_url(__FILE__));
 
@@ -105,6 +105,12 @@ class TravelC_Content {
         
         // Register REST API webhook endpoint for automatic sync from TravelCStudio
         add_action('rest_api_init', array($this, 'register_webhook_endpoint'));
+        
+        // Mega Menu: auto-inject destinations dropdown into WordPress nav menus
+        if (get_option('tcc_mega_menu_enabled', '1') === '1') {
+            add_filter('wp_nav_menu_items', array($this, 'inject_mega_menu'), 10, 2);
+            add_action('wp_footer', array($this, 'mega_menu_script'));
+        }
     }
     
     /**
@@ -793,6 +799,8 @@ class TravelC_Content {
     public function register_settings() {
         register_setting('tcc_settings', 'tcc_brand_id');
         register_setting('tcc_settings', 'tcc_supabase_key');
+        register_setting('tcc_settings', 'tcc_mega_menu_enabled');
+        register_setting('tcc_settings', 'tcc_mega_menu_location');
     }
     
     /**
@@ -1649,6 +1657,150 @@ class TravelC_Content {
         </article>
         <?php
         return ob_get_clean();
+    }
+    
+    /**
+     * Inject Mega Menu into WordPress nav menus
+     * Looks for a menu item with CSS class 'tcc-mega-bestemmingen' or URL '#bestemmingen'
+     * and replaces it with a mega dropdown containing all destinations grouped by continent
+     */
+    public function inject_mega_menu($items, $args) {
+        // Only inject on frontend, not admin
+        if (is_admin()) return $items;
+        
+        // Check if specific menu location is configured
+        $target_location = get_option('tcc_mega_menu_location', '');
+        if (!empty($target_location) && isset($args->theme_location) && $args->theme_location !== $target_location) {
+            return $items;
+        }
+        
+        // Check if there's a menu item with class 'tcc-mega-bestemmingen' or href '#bestemmingen'
+        if (strpos($items, 'tcc-mega-bestemmingen') === false && strpos($items, '#bestemmingen') === false) {
+            return $items;
+        }
+        
+        // Get cached destinations grouped by continent
+        $cache_key = 'tcc_mega_menu_' . $this->brand_id;
+        $mega_html = get_transient($cache_key);
+        
+        if ($mega_html === false) {
+            $destinations = $this->get_destinations('continent');
+            
+            if (empty($destinations) || !is_array($destinations)) {
+                return $items;
+            }
+            
+            // Build mega menu HTML
+            $mega_html = '<div class="tcc-mega-dropdown">';
+            $mega_html .= '<div class="tcc-mega-inner">';
+            
+            foreach ($destinations as $continent => $dest_items) {
+                if (!is_array($dest_items) || empty($dest_items)) continue;
+                
+                $mega_html .= '<div class="tcc-mega-column">';
+                $mega_html .= '<h4 class="tcc-mega-continent">' . esc_html($continent) . '</h4>';
+                $mega_html .= '<ul class="tcc-mega-list">';
+                
+                foreach ($dest_items as $dest) {
+                    $url = $this->get_destination_url($dest['slug']);
+                    $title = esc_html($dest['title']);
+                    $flag = '';
+                    if (!empty($dest['flag_image'])) {
+                        $flag = '<img src="' . esc_url($dest['flag_image']) . '" alt="" class="tcc-mega-flag" />';
+                    }
+                    $mega_html .= '<li><a href="' . esc_url($url) . '">' . $flag . '<span>' . $title . '</span></a></li>';
+                }
+                
+                $mega_html .= '</ul>';
+                $mega_html .= '</div>';
+            }
+            
+            $mega_html .= '</div></div>';
+            
+            // Cache for 1 hour
+            set_transient($cache_key, $mega_html, HOUR_IN_SECONDS);
+        }
+        
+        // Inject the mega dropdown into the menu item
+        // Find the menu item with class or href and add the dropdown after the <a> tag
+        $pattern = '/(<li[^>]*class="[^"]*tcc-mega-bestemmingen[^"]*"[^>]*>)(.*?)(<\/li>)/s';
+        if (preg_match($pattern, $items)) {
+            $items = preg_replace($pattern, '$1$2' . $mega_html . '$3', $items);
+        } else {
+            // Try matching by href="#bestemmingen"
+            $pattern2 = '/(<li[^>]*>)\s*(<a[^>]*href=["\']#bestemmingen["\'][^>]*>.*?<\/a>)/s';
+            if (preg_match($pattern2, $items, $matches)) {
+                $replacement = str_replace($matches[1], $matches[1] . '<!-- tcc-mega -->', $items);
+                // Add class to the li
+                $items = preg_replace(
+                    '/(<li[^>]*)(>\s*<a[^>]*href=["\']#bestemmingen["\'])/s',
+                    '$1 class="tcc-mega-bestemmingen menu-item-has-children"$2',
+                    $items
+                );
+                // Add dropdown after the </a>
+                $items = preg_replace(
+                    '/(<a[^>]*href=["\']#bestemmingen["\'][^>]*>.*?<\/a>)/s',
+                    '$1' . $mega_html,
+                    $items
+                );
+            }
+        }
+        
+        return $items;
+    }
+    
+    /**
+     * Mega Menu JavaScript for hover/click behavior
+     */
+    public function mega_menu_script() {
+        if (is_admin()) return;
+        ?>
+        <script>
+        (function() {
+            var megaItems = document.querySelectorAll('.tcc-mega-bestemmingen');
+            megaItems.forEach(function(item) {
+                var dropdown = item.querySelector('.tcc-mega-dropdown');
+                if (!dropdown) return;
+                
+                // Prevent default click on #bestemmingen link
+                var link = item.querySelector('a[href*="#bestemmingen"]');
+                if (link) {
+                    link.addEventListener('click', function(e) { e.preventDefault(); });
+                }
+                
+                // Desktop: hover
+                var timeout;
+                item.addEventListener('mouseenter', function() {
+                    clearTimeout(timeout);
+                    dropdown.classList.add('tcc-mega-open');
+                });
+                item.addEventListener('mouseleave', function() {
+                    timeout = setTimeout(function() {
+                        dropdown.classList.remove('tcc-mega-open');
+                    }, 200);
+                });
+                
+                // Mobile: click toggle
+                item.addEventListener('click', function(e) {
+                    if (window.innerWidth <= 768) {
+                        if (e.target.closest('.tcc-mega-dropdown')) return;
+                        e.preventDefault();
+                        dropdown.classList.toggle('tcc-mega-open');
+                    }
+                });
+            });
+            
+            // Close on click outside
+            document.addEventListener('click', function(e) {
+                if (!e.target.closest('.tcc-mega-bestemmingen')) {
+                    document.querySelectorAll('.tcc-mega-dropdown.tcc-mega-open').forEach(function(d) {
+                        d.classList.remove('tcc-mega-open');
+                    });
+                }
+            });
+        })();
+        </script>
+        <?php
     }
     
     /**
