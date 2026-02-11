@@ -174,9 +174,9 @@ export function SocialMediaManager() {
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           },
           body: JSON.stringify({
+            contentType: 'social_media',
             prompt: formData.aiPrompt,
-            brand_voice: brandVoice,
-            type: 'social_media'
+            additionalContext: brandVoice || ''
           }),
         }
       );
