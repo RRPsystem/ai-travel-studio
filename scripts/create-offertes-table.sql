@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS travel_offertes (
   subtitle TEXT,
   intro_text TEXT,
   hero_image_url TEXT,
+  hero_images JSONB DEFAULT '[]'::jsonb,
   hero_video_url TEXT,
   
   destinations JSONB DEFAULT '[]'::jsonb,

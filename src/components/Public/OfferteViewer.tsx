@@ -68,6 +68,7 @@ export function OfferteViewer({ offerteId }: Props) {
   const [responseNote, setResponseNote] = useState('');
   const [submittingResponse, setSubmittingResponse] = useState(false);
   const [responseSubmitted, setResponseSubmitted] = useState(false);
+  const [heroSlideIndex, setHeroSlideIndex] = useState(0);
 
   // Override global overflow:hidden so this page can scroll
   useEffect(() => {
@@ -109,6 +110,7 @@ export function OfferteViewer({ offerteId }: Props) {
         subtitle: data.subtitle,
         intro_text: data.intro_text,
         hero_image_url: data.hero_image_url,
+        hero_images: data.hero_images || [],
         hero_video_url: data.hero_video_url,
         destinations: data.destinations || [],
         items: data.items || [],
@@ -225,6 +227,17 @@ export function OfferteViewer({ offerteId }: Props) {
     );
   }
 
+  const heroImages: string[] = offerte.hero_images?.length ? offerte.hero_images : offerte.hero_image_url ? [offerte.hero_image_url] : [];
+
+  // Auto-cycle hero slideshow every 6 seconds
+  useEffect(() => {
+    if (heroImages.length <= 1) return;
+    const timer = setInterval(() => {
+      setHeroSlideIndex(prev => (prev + 1) % heroImages.length);
+    }, 6000);
+    return () => clearInterval(timer);
+  }, [heroImages.length]);
+
   const items = (offerte.items || []).sort((a, b) => a.sort_order - b.sort_order);
   const destinations: OfferteDestination[] = offerte.destinations || [];
   const extraCosts: ExtraCost[] = offerte.extra_costs || [];
@@ -238,7 +251,7 @@ export function OfferteViewer({ offerteId }: Props) {
     <div className="min-h-screen bg-gray-50">
       {/* HERO */}
       <div className="relative w-full" style={{ minHeight: '70vh' }}>
-        {/* Background media */}
+        {/* Background media with slideshow */}
         {offerte.hero_video_url && isYouTubeUrl(offerte.hero_video_url) ? (
           <iframe
             src={getYouTubeEmbedUrl(offerte.hero_video_url) || offerte.hero_video_url}
@@ -249,8 +262,29 @@ export function OfferteViewer({ offerteId }: Props) {
           />
         ) : offerte.hero_video_url ? (
           <video src={offerte.hero_video_url} autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover" />
-        ) : offerte.hero_image_url ? (
-          <img src={offerte.hero_image_url} alt={offerte.title} className="absolute inset-0 w-full h-full object-cover" />
+        ) : heroImages.length > 0 ? (
+          <>
+            {heroImages.map((img, i) => (
+              <img
+                key={img}
+                src={img}
+                alt={offerte.title}
+                className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000"
+                style={{ opacity: i === heroSlideIndex ? 1 : 0 }}
+              />
+            ))}
+            {heroImages.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
+                {heroImages.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setHeroSlideIndex(i)}
+                    className={`w-2 h-2 rounded-full transition-all ${i === heroSlideIndex ? 'bg-white w-4' : 'bg-white/40 hover:bg-white/60'}`}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         ) : (
           <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900" />
         )}

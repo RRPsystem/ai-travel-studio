@@ -64,6 +64,7 @@ export interface Offerte {
   subtitle?: string;
   intro_text?: string;
   hero_image_url?: string;
+  hero_images?: string[];
   hero_video_url?: string;
   // Route map
   destinations?: OfferteDestination[];

@@ -117,8 +117,11 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
   const [title, setTitle] = useState(offerte?.title || '');
   const [subtitle, setSubtitle] = useState(offerte?.subtitle || '');
   const [introText, setIntroText] = useState(offerte?.intro_text || '');
-  const [heroImage, setHeroImage] = useState(offerte?.hero_image_url || '');
+  const [heroImages, setHeroImages] = useState<string[]>(
+    offerte?.hero_images?.length ? offerte.hero_images : offerte?.hero_image_url ? [offerte.hero_image_url] : []
+  );
   const [heroVideo, setHeroVideo] = useState(offerte?.hero_video_url || '');
+  const [heroSlideIndex, setHeroSlideIndex] = useState(0);
   const [clientName, setClientName] = useState(offerte?.client_name || '');
   const [clientEmail, setClientEmail] = useState(offerte?.client_email || '');
   const [clientPhone, setClientPhone] = useState(offerte?.client_phone || '');
@@ -163,7 +166,7 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
       if (result.title) setTitle(result.title);
       if (result.subtitle) setSubtitle(result.subtitle);
       if (result.introText) setIntroText(result.introText);
-      if (result.heroImage) setHeroImage(result.heroImage);
+      if (result.heroImage) setHeroImages([result.heroImage]);
       if (result.destinations.length > 0) setDestinations(result.destinations);
       if (result.numberOfTravelers) setNumberOfTravelers(result.numberOfTravelers);
       if (result.items.length > 0) {
@@ -238,7 +241,8 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
       title,
       subtitle: subtitle || undefined,
       intro_text: introText || undefined,
-      hero_image_url: heroImage || undefined,
+      hero_image_url: heroImages[0] || undefined,
+      hero_images: heroImages.length > 0 ? heroImages : undefined,
       hero_video_url: heroVideo || undefined,
       destinations,
       items,
@@ -463,7 +467,7 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
       <div className="flex-1 overflow-y-auto">
         {/* HERO SECTION - Full width inspirational */}
         <div className="relative w-full" style={{ minHeight: '70vh' }}>
-          {/* Background image/video */}
+          {/* Background image/video with slideshow */}
           {heroVideo && isYouTubeUrl(heroVideo) ? (
             <iframe
               src={getYouTubeEmbedUrl(heroVideo) || heroVideo}
@@ -481,12 +485,43 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
               playsInline
               className="absolute inset-0 w-full h-full object-cover"
             />
-          ) : heroImage ? (
-            <img
-              src={heroImage}
-              alt=""
-              className="absolute inset-0 w-full h-full object-cover"
-            />
+          ) : heroImages.length > 0 ? (
+            <>
+              {heroImages.map((img, i) => (
+                <img
+                  key={img}
+                  src={img}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700"
+                  style={{ opacity: i === heroSlideIndex ? 1 : 0 }}
+                />
+              ))}
+              {heroImages.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setHeroSlideIndex((heroSlideIndex - 1 + heroImages.length) % heroImages.length)}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <ArrowLeft size={18} />
+                  </button>
+                  <button
+                    onClick={() => setHeroSlideIndex((heroSlideIndex + 1) % heroImages.length)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-10 h-10 bg-black/30 hover:bg-black/50 backdrop-blur-sm text-white rounded-full flex items-center justify-center transition-colors"
+                  >
+                    <ArrowLeft size={18} className="rotate-180" />
+                  </button>
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
+                    {heroImages.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setHeroSlideIndex(i)}
+                        className={`w-2 h-2 rounded-full transition-all ${i === heroSlideIndex ? 'bg-white w-4' : 'bg-white/40 hover:bg-white/60'}`}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
           ) : (
             <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900" />
           )}
@@ -498,16 +533,22 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
           <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
             <button onClick={() => { setMediaSelectorMode('photo'); setShowMediaSelector(true); }} className="px-3 py-2 bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-2">
               <Image size={14} />
-              Foto
+              {heroImages.length > 0 ? 'Foto +' : 'Foto'}
             </button>
             <button onClick={() => { setMediaSelectorMode('video'); setShowMediaSelector(true); }} className="px-3 py-2 bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-2">
               <Video size={14} />
               Video
             </button>
-            {(heroImage || heroVideo) && (
-              <button onClick={() => { setHeroImage(''); setHeroVideo(''); }} className="px-3 py-2 bg-red-500/60 backdrop-blur-sm hover:bg-red-500/80 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-2">
+            {heroImages.length > 0 && !heroVideo && (
+              <button onClick={() => { setHeroImages(heroImages.filter((_, i) => i !== heroSlideIndex)); setHeroSlideIndex(0); }} className="px-3 py-2 bg-red-500/60 backdrop-blur-sm hover:bg-red-500/80 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-2">
                 <X size={14} />
-                Verwijder
+                {heroImages.length > 1 ? `Verwijder (${heroSlideIndex + 1}/${heroImages.length})` : 'Verwijder'}
+              </button>
+            )}
+            {heroVideo && (
+              <button onClick={() => setHeroVideo('')} className="px-3 py-2 bg-red-500/60 backdrop-blur-sm hover:bg-red-500/80 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-2">
+                <X size={14} />
+                Verwijder video
               </button>
             )}
           </div>
@@ -1095,9 +1136,10 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
         onSelect={(url) => {
           if (mediaSelectorMode === 'video' || url.includes('youtube.com/embed')) {
             setHeroVideo(url);
-            setHeroImage('');
+            setHeroImages([]);
           } else {
-            setHeroImage(url);
+            setHeroImages(prev => [...prev, url]);
+            setHeroSlideIndex(heroImages.length);
             setHeroVideo('');
           }
           setShowMediaSelector(false);
