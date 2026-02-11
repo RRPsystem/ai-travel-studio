@@ -151,7 +151,9 @@ export function SlidingMediaSelector({
 }: SlidingMediaSelectorProps) {
   const [searchTerm, setSearchTerm] = useState('travel');
   const [displayedImages, setDisplayedImages] = useState<string[]>(imageCollections.travel);
-  const [activeTab, setActiveTab] = useState<'upload' | 'unsplash' | 'youtube'>('unsplash');
+  const [activeTab, setActiveTab] = useState<'upload' | 'unsplash' | 'youtube' | 'aivideo'>('unsplash');
+  const [brandVideos, setBrandVideos] = useState<any[]>([]);
+  const [brandVideosLoading, setBrandVideosLoading] = useState(false);
   const [visibleCount, setVisibleCount] = useState(9);
   const [isSearching, setIsSearching] = useState(false);
   const [useRealAPI, setUseRealAPI] = useState(false);
@@ -432,11 +434,35 @@ export function SlidingMediaSelector({
     setVisibleCount(prev => Math.min(prev + 9, displayedImages.length));
   };
 
+  const loadBrandVideos = async () => {
+    if (!supabase) return;
+    setBrandVideosLoading(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return;
+      const { data: profile } = await supabase.from('users').select('brand_id').eq('id', userData.user.id).single();
+      if (!profile?.brand_id) return;
+      const { data } = await supabase
+        .from('brand_videos')
+        .select('*')
+        .eq('brand_id', profile.brand_id)
+        .eq('status', 'published')
+        .order('created_at', { ascending: false });
+      setBrandVideos(data || []);
+    } catch (err) {
+      console.error('Error loading brand videos:', err);
+    } finally {
+      setBrandVideosLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (activeTab === 'unsplash' && displayedImages.length === 0) {
       handleSearch();
     } else if (activeTab === 'youtube' && youtubeVideos.length === 0) {
       handleYouTubeSearch();
+    } else if (activeTab === 'aivideo' && brandVideos.length === 0) {
+      loadBrandVideos();
     }
   }, [activeTab]);
 
@@ -486,6 +512,16 @@ export function SlidingMediaSelector({
               }`}
             >
               📺 YouTube
+            </button>
+            <button
+              onClick={() => setActiveTab('aivideo')}
+              className={`flex-1 py-3 px-4 text-sm font-medium transition-colors ${
+                activeTab === 'aivideo'
+                  ? 'text-orange-600 border-b-2 border-orange-600 bg-orange-50'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              }`}
+            >
+              🎬 AI Video
             </button>
           </div>
 
@@ -664,6 +700,62 @@ export function SlidingMediaSelector({
                         </button>
                       </div>
                     )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'aivideo' && (
+              <div className="space-y-4">
+                {brandVideosLoading ? (
+                  <div className="text-center py-8">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+                    <p className="text-gray-600 mt-2">Video's laden...</p>
+                  </div>
+                ) : brandVideos.length > 0 ? (
+                  <div>
+                    <div className="mb-3 text-sm text-green-600 bg-green-50 px-3 py-2 rounded-lg">
+                      🎬 {brandVideos.length} AI video{brandVideos.length !== 1 ? "'s" : ''} beschikbaar
+                    </div>
+                    <div className="space-y-3">
+                      {brandVideos.map((video: any) => (
+                        <div
+                          key={video.id}
+                          onClick={() => onSelect(video.video_url)}
+                          className="border border-gray-200 rounded-lg overflow-hidden hover:bg-gray-50 cursor-pointer transition-all hover:shadow-md"
+                        >
+                          <div className="flex space-x-3">
+                            <div className="relative w-32 h-20 flex-shrink-0 bg-gray-100">
+                              {video.thumbnail_url ? (
+                                <img src={video.thumbnail_url} alt={video.title} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="flex items-center justify-center h-full"><span className="text-2xl">🎬</span></div>
+                              )}
+                              <div className="absolute inset-0 bg-black bg-opacity-20 flex items-center justify-center">
+                                <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center">
+                                  <span className="text-white text-sm ml-0.5">▶</span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex-1 py-2 pr-3 min-w-0">
+                              <div className="font-medium text-gray-900 text-sm line-clamp-2 mb-1">{video.title}</div>
+                              {video.description && <div className="text-xs text-gray-500 line-clamp-1">{video.description}</div>}
+                              <div className="text-xs text-gray-400 mt-1">
+                                {video.duration_seconds ? `${Math.floor(video.duration_seconds / 60)}:${(video.duration_seconds % 60).toString().padStart(2, '0')}` : ''}
+                                {video.duration_seconds ? ' · ' : ''}
+                                {new Date(video.created_at).toLocaleDateString('nl-NL')}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500">
+                    <div className="text-4xl mb-3">🎬</div>
+                    <p className="mb-2">Nog geen AI video's gemaakt</p>
+                    <p className="text-xs text-gray-400">Maak video's via de Video Generator in je dashboard</p>
                   </div>
                 )}
               </div>

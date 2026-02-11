@@ -7,6 +7,20 @@ import { supabase } from '../../lib/supabase';
 import { Offerte, OfferteItem, OfferteDestination, OFFERTE_ITEM_TYPES } from '../../types/offerte';
 import { RouteMap } from '../shared/RouteMap';
 
+function getYouTubeEmbedUrl(url: string): string | null {
+  if (!url) return null;
+  if (url.includes('youtube.com/embed/')) return url;
+  const watchMatch = url.match(/(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]+)/);
+  if (watchMatch) return `https://www.youtube.com/embed/${watchMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${watchMatch[1]}&controls=0&showinfo=0`;
+  const shortMatch = url.match(/(?:youtu\.be\/)([a-zA-Z0-9_-]+)/);
+  if (shortMatch) return `https://www.youtube.com/embed/${shortMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${shortMatch[1]}&controls=0&showinfo=0`;
+  return null;
+}
+
+function isYouTubeUrl(url: string): boolean {
+  return !!url && (url.includes('youtube.com') || url.includes('youtu.be'));
+}
+
 const iconMap: Record<string, React.ComponentType<any>> = {
   Plane, Car, Building2, Compass, CarFront, Ship, Train, Shield, StickyNote,
 };
@@ -167,85 +181,88 @@ export function OfferteViewer({ offerteId }: Props) {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* HERO */}
-      <div className="relative">
-        {offerte.hero_image_url ? (
-          <div className="relative h-[50vh] min-h-[400px]">
-            <img
-              src={offerte.hero_image_url}
-              alt={offerte.title}
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12">
-              <div className="max-w-4xl mx-auto flex items-end justify-between">
-                <div>
-                  {offerte.subtitle && (
-                    <p className="text-white/70 text-sm mb-2">{offerte.subtitle}</p>
-                  )}
-                  <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">{offerte.title}</h1>
-                  {offerte.intro_text && (
-                    <p className="text-white/80 text-lg max-w-2xl leading-relaxed">{offerte.intro_text}</p>
-                  )}
-                  {destinations.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      {destinations.map((dest, i) => (
-                        <div key={i} className="flex items-center gap-1.5">
-                          <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] flex items-center justify-center font-bold">{i + 1}</span>
-                          <span className="text-sm text-white/80">{dest.name}</span>
-                          {i < destinations.length - 1 && <span className="text-white/30 ml-1">→</span>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Price card */}
-                {priceDisplay !== 'hidden' && (
-                  <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10 min-w-[240px] hidden md:block">
-                    {(priceDisplay === 'per_person' || priceDisplay === 'both') && (
-                      <>
-                        <div className="text-sm text-white/60 mb-1">Vanaf</div>
-                        <div className="text-3xl font-bold text-white mb-1">
-                          € {pricePerPerson.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                        </div>
-                        <div className="text-sm text-white/60 mb-3">per persoon</div>
-                      </>
-                    )}
-                    {priceDisplay === 'total' && (
-                      <>
-                        <div className="text-sm text-white/60 mb-1">Totaalprijs</div>
-                        <div className="text-3xl font-bold text-white mb-1">
-                          € {totalPrice.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                        </div>
-                        <div className="text-sm text-white/60 mb-3">{offerte.number_of_travelers} reizigers</div>
-                      </>
-                    )}
-                    <div className="border-t border-white/10 pt-2 space-y-1">
-                      {priceDisplay === 'both' && (
-                        <div className="flex justify-between text-sm">
-                          <span className="text-white/60">Totaal</span>
-                          <span className="text-white font-medium">€ {totalPrice.toLocaleString('nl-NL', { minimumFractionDigits: 0 })}</span>
-                        </div>
-                      )}
-                      <div className="flex justify-between text-sm">
-                        <span className="text-white/60">Reizigers</span>
-                        <span className="text-white/80">{offerte.number_of_travelers}</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+      <div className="relative h-[50vh] min-h-[400px] overflow-hidden">
+        {/* Background media */}
+        {offerte.hero_video_url && isYouTubeUrl(offerte.hero_video_url) ? (
+          <iframe
+            src={getYouTubeEmbedUrl(offerte.hero_video_url) || offerte.hero_video_url}
+            className="absolute inset-0 w-full h-full"
+            style={{ border: 'none', pointerEvents: 'none', transform: 'scale(1.2)' }}
+            allow="autoplay; encrypted-media"
+            allowFullScreen
+          />
+        ) : offerte.hero_video_url ? (
+          <video src={offerte.hero_video_url} autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover" />
+        ) : offerte.hero_image_url ? (
+          <img src={offerte.hero_image_url} alt={offerte.title} className="absolute inset-0 w-full h-full object-cover" />
         ) : (
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 py-16 px-8">
-            <div className="max-w-4xl mx-auto">
-              <h1 className="text-4xl font-bold text-white mb-3">{offerte.title}</h1>
-              {offerte.subtitle && <p className="text-white/70 text-lg">{offerte.subtitle}</p>}
-              {offerte.intro_text && <p className="text-white/60 mt-4 max-w-2xl">{offerte.intro_text}</p>}
-            </div>
-          </div>
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900" />
         )}
+
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+
+        {/* Content */}
+        <div className="absolute bottom-0 left-0 right-0 p-8 md:p-12 z-10">
+          <div className="max-w-4xl mx-auto flex items-end justify-between">
+            <div>
+              {offerte.subtitle && (
+                <p className="text-white/70 text-sm mb-2">{offerte.subtitle}</p>
+              )}
+              <h1 className="text-4xl md:text-5xl font-bold text-white mb-3">{offerte.title}</h1>
+              {offerte.intro_text && (
+                <p className="text-white/80 text-lg max-w-2xl leading-relaxed">{offerte.intro_text}</p>
+              )}
+              {destinations.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {destinations.map((dest, i) => (
+                    <div key={i} className="flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-full bg-orange-500 text-white text-[10px] flex items-center justify-center font-bold">{i + 1}</span>
+                      <span className="text-sm text-white/80">{dest.name}</span>
+                      {i < destinations.length - 1 && <span className="text-white/30 ml-1">→</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Price card */}
+            {priceDisplay !== 'hidden' && (
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/10 min-w-[240px] hidden md:block">
+                {(priceDisplay === 'per_person' || priceDisplay === 'both') && (
+                  <>
+                    <div className="text-sm text-white/60 mb-1">Vanaf</div>
+                    <div className="text-3xl font-bold text-white mb-1">
+                      € {pricePerPerson.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </div>
+                    <div className="text-sm text-white/60 mb-3">per persoon</div>
+                  </>
+                )}
+                {priceDisplay === 'total' && (
+                  <>
+                    <div className="text-sm text-white/60 mb-1">Totaalprijs</div>
+                    <div className="text-3xl font-bold text-white mb-1">
+                      € {totalPrice.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                    </div>
+                    <div className="text-sm text-white/60 mb-3">{offerte.number_of_travelers} reizigers</div>
+                  </>
+                )}
+                <div className="border-t border-white/10 pt-2 space-y-1">
+                  {priceDisplay === 'both' && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/60">Totaal</span>
+                      <span className="text-white font-medium">€ {totalPrice.toLocaleString('nl-NL', { minimumFractionDigits: 0 })}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm">
+                    <span className="text-white/60">Reizigers</span>
+                    <span className="text-white/80">{offerte.number_of_travelers}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* ROUTE MAP - collapsible under hero */}

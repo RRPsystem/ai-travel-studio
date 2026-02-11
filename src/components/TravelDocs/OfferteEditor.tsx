@@ -12,6 +12,24 @@ import { OfferteItemPanel } from './OfferteItemPanel';
 import { SlidingMediaSelector } from '../shared/SlidingMediaSelector';
 import { RouteMap } from '../shared/RouteMap';
 
+// Convert YouTube URLs to embed format
+function getYouTubeEmbedUrl(url: string): string | null {
+  if (!url) return null;
+  // Already an embed URL
+  if (url.includes('youtube.com/embed/')) return url;
+  // Standard watch URL: youtube.com/watch?v=ID
+  const watchMatch = url.match(/(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]+)/);
+  if (watchMatch) return `https://www.youtube.com/embed/${watchMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${watchMatch[1]}&controls=0&showinfo=0`;
+  // Short URL: youtu.be/ID
+  const shortMatch = url.match(/(?:youtu\.be\/)([a-zA-Z0-9_-]+)/);
+  if (shortMatch) return `https://www.youtube.com/embed/${shortMatch[1]}?autoplay=1&mute=1&loop=1&playlist=${shortMatch[1]}&controls=0&showinfo=0`;
+  return null;
+}
+
+function isYouTubeUrl(url: string): boolean {
+  return !!url && (url.includes('youtube.com') || url.includes('youtu.be'));
+}
+
 const iconMap: Record<string, React.ComponentType<any>> = {
   Plane, Car, Building2, Compass, CarFront, Ship, Train, Shield, StickyNote,
 };
@@ -368,7 +386,15 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
         {/* HERO SECTION - Full width inspirational */}
         <div className="relative w-full" style={{ minHeight: '70vh' }}>
           {/* Background image/video */}
-          {heroVideo ? (
+          {heroVideo && isYouTubeUrl(heroVideo) ? (
+            <iframe
+              src={getYouTubeEmbedUrl(heroVideo) || heroVideo}
+              className="absolute inset-0 w-full h-full"
+              style={{ border: 'none', pointerEvents: 'none', transform: 'scale(1.2)' }}
+              allow="autoplay; encrypted-media"
+              allowFullScreen
+            />
+          ) : heroVideo ? (
             <video
               src={heroVideo}
               autoPlay
