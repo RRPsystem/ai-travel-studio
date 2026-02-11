@@ -1,5 +1,5 @@
-import { useState, useCallback, useEffect } from 'react';
-import { X, Star, Upload, Search, Loader2, MapPin, Building2 } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { X, Star, Upload, Search, Loader2, Building2 } from 'lucide-react';
 import { OfferteItem, OfferteItemType, OFFERTE_ITEM_TYPES } from '../../types/offerte';
 import { supabase } from '../../lib/supabase';
 
@@ -64,104 +64,156 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
     included_items: item?.included_items || [],
   });
 
-  // Step 1: Destination autocomplete
+  // Search in imported travels (travelc_travels table in Supabase)
   const [searchQuery, setSearchQuery] = useState('');
-  const [destinations, setDestinations] = useState<Array<{ id: string; name: string; country?: string }>>([]);
-  const [loadingDestinations, setLoadingDestinations] = useState(false);
-  const [selectedDestination, setSelectedDestination] = useState<{ id: string; name: string } | null>(null);
-
-  // Step 2: Search results after selecting destination
   const [searchResults, setSearchResults] = useState<TcSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const searchTimerRef = useState<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load destinations on mount
-  useEffect(() => {
-    if (!supabase) return;
-    setLoadingDestinations(true);
-    console.log('[TC] Loading destinations...');
-    supabase.functions.invoke('search-travel-compositor', {
-      body: { action: 'list-destinations', micrositeId: '' },
-    }).then(({ data, error }) => {
-      if (error) { console.error('[TC] Destinations error:', error); return; }
-      if (data?.results) {
-        console.log(`[TC] Loaded ${data.results.length} destinations`);
-        setDestinations(data.results);
-      }
-    }).catch(err => {
-      console.error('[TC] Failed to load destinations:', err);
-    }).finally(() => {
-      setLoadingDestinations(false);
-    });
-  }, []);
+  // Debounced search in travelc_travels
+  const doSearch = useCallback(async (query: string) => {
+    if (!supabase || !query || query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
 
-  // Filter destinations based on search query
-  const filteredDestinations = searchQuery.length >= 2
-    ? destinations.filter(d => {
-        const q = searchQuery.toLowerCase();
-        return d.name?.toLowerCase().includes(q) ||
-          d.country?.toLowerCase().includes(q) ||
-          d.id?.toLowerCase().includes(q);
-      }).slice(0, 10)
-    : [];
-
-  // Step 2: Search hotels/activities in selected destination
-  const searchInDestination = useCallback(async (dest: { id: string; name: string }) => {
-    if (!supabase) return;
-
-    setSelectedDestination(dest);
-    setSearchQuery(dest.name);
     setSearching(true);
     setSearchError(null);
-    setSearchResults([]);
-
-    const checkIn = formData.date_start || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
-    const checkOut = formData.date_end || new Date(new Date(checkIn).getTime() + 3 * 86400000).toISOString().split('T')[0];
 
     try {
-      let action = '';
-      let body: any = { micrositeId: '' };
+      const q = query.toLowerCase();
 
-      if (itemType === 'hotel') {
-        action = 'search-accommodations';
-        body = { ...body, action, destination: dest.id, checkIn, checkOut, adults: 2 };
-      } else if (itemType === 'activity') {
-        action = 'search-tickets';
-        body = { ...body, action, destination: dest.id, checkIn, checkOut, adults: 2 };
-      } else if (itemType === 'transfer') {
-        action = 'search-transfers';
-        body = { ...body, action, pickupDateTime: `${checkIn}T10:00:00`, adults: 2 };
-      } else if (itemType === 'flight') {
-        action = 'search-transports';
-        body = { ...body, action, departure: dest.id, departureDate: checkIn, adults: 2 };
-      }
-
-      if (!action) return;
-
-      const { data, error } = await supabase.functions.invoke('search-travel-compositor', { body });
+      // Search travels by title or text-search in JSONB fields
+      const { data: travels, error } = await supabase
+        .from('travelc_travels')
+        .select('id, title, destinations, hotels, flights, transfers, activities, images, countries, hero_image')
+        .or(`title.ilike.%${query}%`)
+        .limit(100);
 
       if (error) throw error;
-      if (data?.results) {
-        setSearchResults(data.results.slice(0, 15));
-        if (data.results.length === 0) {
-          setSearchError(`Geen resultaten gevonden in ${dest.name}`);
+
+      // Also search travels where destinations/countries contain the query
+      const { data: destTravels } = await supabase
+        .from('travelc_travels')
+        .select('id, title, destinations, hotels, flights, transfers, activities, images, countries, hero_image')
+        .not('id', 'in', `(${(travels || []).map(t => t.id).join(',') || '00000000-0000-0000-0000-000000000000'})`)
+        .limit(100);
+
+      const allTravels = [...(travels || []), ...(destTravels || [])];
+
+      // Filter destTravels by checking JSONB content
+      const matchingTravels = allTravels.filter(t => {
+        const titleMatch = t.title?.toLowerCase().includes(q);
+        const countryMatch = (t.countries || []).some((c: string) => c.toLowerCase().includes(q));
+        const destMatch = (t.destinations || []).some((d: any) =>
+          d.name?.toLowerCase().includes(q) || d.country?.toLowerCase().includes(q)
+        );
+        const hotelMatch = (t.hotels || []).some((h: any) =>
+          h.name?.toLowerCase().includes(q) || h.hotelData?.name?.toLowerCase().includes(q) ||
+          h.hotelData?.city?.toLowerCase().includes(q)
+        );
+        return titleMatch || countryMatch || destMatch || hotelMatch;
+      });
+
+      // Extract items based on itemType
+      const results: TcSearchResult[] = [];
+      const seen = new Set<string>();
+
+      for (const travel of matchingTravels) {
+        if (itemType === 'hotel') {
+          for (const hotel of (travel.hotels || [])) {
+            const name = hotel.name || hotel.hotelData?.name || '';
+            if (!name || seen.has(name.toLowerCase())) continue;
+            seen.add(name.toLowerCase());
+            const hd = hotel.hotelData || {};
+            const imgs = hotel.images || hd.images || hd.imageUrls || [];
+            const firstImg = imgs[0] || hotel.imageUrl || hd.imageUrl || '';
+            results.push({
+              type: 'hotel',
+              id: hotel.id || hotel.hotelId || name,
+              name,
+              stars: hotel.category ? parseInt(hotel.category) : (hd.category ? parseInt(hd.category) : undefined),
+              location: hd.city || hd.destinationName || '',
+              country: hd.country || '',
+              description: hd.description || '',
+              images: typeof firstImg === 'string' ? [firstImg] : [],
+              image: typeof firstImg === 'string' ? firstImg : '',
+              subtitle: `${travel.title}`,
+            });
+          }
+        } else if (itemType === 'flight') {
+          for (const flight of (travel.flights || [])) {
+            const label = [flight.originCode, '→', flight.targetCode].filter(Boolean).join(' ');
+            if (!label || seen.has(label)) continue;
+            seen.add(label);
+            results.push({
+              type: 'flight',
+              id: flight.id || label,
+              name: `${flight.company || ''} ${flight.transportNumber || ''}`.trim() || label,
+              subtitle: label,
+              description: `${flight.departureDate || ''} ${flight.departureTime || ''} - ${flight.arrivalTime || ''}`,
+              location: flight.originCode || '',
+              image: '',
+            });
+          }
+        } else if (itemType === 'transfer') {
+          for (const transfer of (travel.transfers || [])) {
+            const name = transfer.name || transfer.description || 'Transfer';
+            if (seen.has(name.toLowerCase())) continue;
+            seen.add(name.toLowerCase());
+            results.push({
+              type: 'transfer',
+              id: transfer.id || name,
+              name,
+              description: transfer.description || '',
+              location: transfer.origin || transfer.pickup || '',
+              image: transfer.imageUrl || '',
+            });
+          }
+        } else if (itemType === 'activity') {
+          for (const activity of (travel.activities || [])) {
+            const name = activity.name || activity.title || '';
+            if (!name || seen.has(name.toLowerCase())) continue;
+            seen.add(name.toLowerCase());
+            results.push({
+              type: 'activity',
+              id: activity.id || name,
+              name,
+              description: activity.description || '',
+              location: activity.location || activity.city || '',
+              image: activity.imageUrl || '',
+              duration: activity.duration,
+              durationType: activity.durationType,
+            });
+          }
         }
-      } else if (data?.error) {
-        setSearchError(data.error);
+
+        if (results.length >= 15) break;
+      }
+
+      setSearchResults(results.slice(0, 15));
+      if (results.length === 0) {
+        setSearchError(`Geen ${itemType}s gevonden voor "${query}"`);
       }
     } catch (err: any) {
-      console.error('[TC Search] Error:', err);
+      console.error('[Search] Error:', err);
       setSearchError('Zoeken mislukt. Probeer het opnieuw.');
     } finally {
       setSearching(false);
     }
-  }, [itemType, formData.date_start, formData.date_end]);
+  }, [itemType]);
 
   const handleSearchInput = (value: string) => {
     setSearchQuery(value);
-    setSelectedDestination(null);
-    setSearchResults([]);
     setSearchError(null);
+    // Debounce 500ms
+    if (searchTimerRef[0]) clearTimeout(searchTimerRef[0]);
+    if (value.length >= 2) {
+      searchTimerRef[0] = setTimeout(() => doSearch(value), 500);
+    } else {
+      setSearchResults([]);
+    }
   };
 
   const selectSearchResult = (result: TcSearchResult) => {
@@ -169,7 +221,7 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
       title: result.name,
       description: result.description || '',
       image_url: result.images?.[0] || result.image || '',
-      location: [result.location, result.country].filter(Boolean).join(', ') || selectedDestination?.name || '',
+      location: [result.location, result.country].filter(Boolean).join(', ') || '',
       price: result.price || undefined,
       supplier: result.provider || '',
     };
@@ -190,7 +242,6 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
     setFormData(prev => ({ ...prev, ...updates }));
     setSearchResults([]);
     setSearchQuery('');
-    setSelectedDestination(null);
   };
 
   const update = (field: string, value: any) => {
@@ -414,31 +465,8 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
           </div>
 
           {/* Hint */}
-          {!formData.date_start && !searchQuery && (
-            <p className="mt-1.5 text-[11px] text-gray-400">Vul datums in voor prijzen, of zoek direct op bestemming</p>
-          )}
-          {loadingDestinations && (
-            <p className="mt-1.5 text-[11px] text-gray-400 flex items-center gap-1"><Loader2 size={10} className="animate-spin" /> Bestemmingen laden...</p>
-          )}
-
-          {/* Step 1: Destination autocomplete */}
-          {filteredDestinations.length > 0 && !selectedDestination && (
-            <div className="mt-2 bg-white rounded-xl border border-gray-200 max-h-48 overflow-y-auto divide-y divide-gray-100">
-              {filteredDestinations.map((dest) => (
-                <button
-                  key={dest.id}
-                  onClick={() => searchInDestination(dest)}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-orange-50 transition-colors text-left"
-                >
-                  <MapPin size={14} className="text-orange-400 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <span className="font-medium text-sm text-gray-900">{dest.name}</span>
-                    {dest.country && <span className="text-xs text-gray-400 ml-1.5">{dest.country}</span>}
-                  </div>
-                  <Search size={12} className="text-gray-300 shrink-0" />
-                </button>
-              ))}
-            </div>
+          {!searchQuery && (
+            <p className="mt-1.5 text-[11px] text-gray-400">Zoek op bestemming, hotelnaam of land (bv. "Barcelona", "Bali")</p>
           )}
 
           {/* Search error */}
@@ -450,7 +478,7 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
           {searching && (
             <div className="mt-2 bg-white rounded-xl border border-gray-200 p-4 text-center">
               <Loader2 className="w-5 h-5 text-orange-500 animate-spin mx-auto mb-1" />
-              <p className="text-xs text-gray-500">Zoeken in {selectedDestination?.name || 'Travel Compositor'}...</p>
+              <p className="text-xs text-gray-500">Zoeken in geïmporteerde reizen...</p>
             </div>
           )}
 
@@ -458,7 +486,7 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
           {searchResults.length > 0 && (
             <div className="mt-2 bg-white rounded-xl border border-gray-200 max-h-64 overflow-y-auto divide-y divide-gray-100">
               <div className="px-3 py-1.5 bg-gray-50 text-[10px] font-medium text-gray-500 uppercase tracking-wider sticky top-0">
-                {searchResults.length} resultaten in {selectedDestination?.name}
+                {searchResults.length} resultaten gevonden
               </div>
               {searchResults.map((result) => (
                 <button
@@ -490,7 +518,7 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
                     </div>
                     {(result.location || result.country) && (
                       <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                        <MapPin size={10} />
+                        <Building2 size={10} />
                         {[result.location, result.country].filter(Boolean).join(', ')}
                       </p>
                     )}

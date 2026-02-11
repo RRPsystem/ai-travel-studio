@@ -20,9 +20,13 @@ function getCredentialsForMicrosite(micrositeId: string): { username: string; pa
       if (username && password) return { username, password };
     }
   }
-  const fallbackUser = Deno.env.get("TC_API_USERNAME");
-  const fallbackPass = Deno.env.get("TC_API_PASSWORD");
-  if (fallbackUser && fallbackPass) return { username: fallbackUser, password: fallbackPass };
+  // Fallback: try TRAVEL_COMPOSITOR_USERNAME / PASSWORD (without number)
+  const fallbackUser = Deno.env.get("TRAVEL_COMPOSITOR_USERNAME") || Deno.env.get("TC_API_USERNAME");
+  const fallbackPass = Deno.env.get("TRAVEL_COMPOSITOR_PASSWORD") || Deno.env.get("TC_API_PASSWORD");
+  if (fallbackUser && fallbackPass) {
+    console.log(`[TC Auth] Using fallback credentials for microsite: ${micrositeId}`);
+    return { username: fallbackUser, password: fallbackPass };
+  }
   throw new Error(`Geen TC credentials voor microsite "${micrositeId}"`);
 }
 
@@ -32,6 +36,9 @@ function getConfiguredMicrosites(): string[] {
     const msId = Deno.env.get(`TRAVEL_COMPOSITOR_MICROSITE_ID_${i}`);
     if (msId) result.push(msId);
   }
+  // Also check fallback (without number)
+  const fallbackMs = Deno.env.get("TRAVEL_COMPOSITOR_MICROSITE_ID");
+  if (fallbackMs && !result.includes(fallbackMs)) result.push(fallbackMs);
   return result;
 }
 
@@ -95,153 +102,135 @@ async function resolveDestinationId(token: string, micrositeId: string, query: s
 }
 
 async function searchAccommodations(micrositeId: string, params: any) {
-  const token = await getTcToken(micrositeId);
-  const { destination, checkIn, checkOut, adults, children, childAges } = params;
+  const { destination, checkIn, checkOut, adults, children, childAges, rooms } = params;
 
-  // Build persons array
-  const persons: any[] = [];
-  for (let i = 0; i < (adults || 2); i++) persons.push({ age: 30 });
-  if (children && childAges) {
-    for (const age of childAges) persons.push({ age });
-  }
-
-  // Resolve destination name to TC destination ID
-  let destinationId: string | null = null;
-  if (destination) {
-    destinationId = await resolveDestinationId(token, micrositeId, destination);
-    console.log(`[TC Search] Resolved "${destination}" → destinationId: ${destinationId}`);
-  }
-
-  // Try preferred hotels first (static content, no dates needed)
-  // This works even without a valid destinationId
-  try {
-    let prefUrl = `${TC_API_BASE}/accommodations/preferred/${micrositeId}?first=0&limit=20&lang=NL`;
-    if (destinationId) prefUrl += `&destinationId=${destinationId}`;
-    
-    console.log(`[TC Search] Trying preferred hotels: ${prefUrl}`);
-    const prefResponse = await fetch(prefUrl, { headers: { "auth-token": token } });
-    
-    if (prefResponse.ok) {
-      const prefResult = await prefResponse.json();
-      const hotels = prefResult.hotels || prefResult.accommodations || [];
-      
-      if (hotels.length > 0) {
-        console.log(`[TC Search] Found ${hotels.length} preferred hotels`);
-        // Filter by search query if no destinationId match
-        const q = (destination || "").toLowerCase();
-        const filtered = destinationId ? hotels : hotels.filter((h: any) => 
-          h.name?.toLowerCase().includes(q) || 
-          h.destinationName?.toLowerCase().includes(q) ||
-          h.city?.toLowerCase().includes(q) ||
-          h.country?.toLowerCase().includes(q)
-        );
-        
-        return filtered.map((acc: any) => ({
-          type: "hotel",
-          id: acc.code || acc.accommodationId || acc.id,
-          name: acc.name || "Onbekend hotel",
-          stars: acc.category ? parseInt(acc.category) : 0,
-          location: acc.destinationName || acc.city || "",
-          country: acc.country || "",
-          description: "",
-          images: acc.imageUrls || acc.images || [],
-          price: 0,
-          currency: "EUR",
-          roomType: "",
-          mealPlan: "",
-          geolocation: acc.geolocation || null,
-          provider: "",
-        }));
-      }
-    }
-  } catch (e) {
-    console.warn(`[TC Search] Preferred hotels failed, trying quote:`, e);
-  }
-
-  // Fallback: try the quote endpoint (needs valid dates + destinationId)
-  if (!destinationId) {
-    console.log(`[TC Search] No destinationId and no preferred hotels, returning empty`);
+  if (!destination || !checkIn || !checkOut) {
+    console.log(`[TC Search] Missing required params: dest=${destination}, checkIn=${checkIn}, checkOut=${checkOut}`);
     return [];
   }
 
-  const quoteBody: any = {
+  // Build distributions array (rooms with persons) — exact Postman format
+  const numRooms = rooms || 1;
+  const adultsPerRoom = Math.max(1, Math.floor((adults || 2) / numRooms));
+  const distributions: any[] = [];
+  for (let r = 0; r < numRooms; r++) {
+    const persons: any[] = [];
+    for (let a = 0; a < adultsPerRoom; a++) persons.push({ age: 30 });
+    if (children && childAges && r === 0) {
+      for (const age of childAges) persons.push({ age });
+    }
+    distributions.push({ persons });
+  }
+
+  // Exact format from Postman collection "Quote by destination"
+  const quoteBody = {
     checkIn,
     checkOut,
-    persons,
+    distributions,
     language: "NL",
-    bestCombinations: true,
-    destinationId,
+    sourceMarket: "NL",
+    filter: {
+      bestCombinations: true,
+    },
+    timeout: 20000,
+    destinationId: destination,
   };
 
-  console.log(`[TC Search] Accommodation quote:`, JSON.stringify(quoteBody));
+  // Try all microsites
+  const microsites = micrositeId ? [micrositeId] : getConfiguredMicrosites();
+  console.log(`[TC Search] Quote by destination "${destination}" | ${checkIn} → ${checkOut} | ${adults || 2} adults | ${numRooms} room(s)`);
+  console.log(`[TC Search] Request body: ${JSON.stringify(quoteBody)}`);
+  console.log(`[TC Search] Trying microsites: ${microsites.join(", ")}`);
 
-  const response = await fetch(`${TC_API_BASE}/booking/accommodations/quote`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "auth-token": token },
-    body: JSON.stringify(quoteBody),
-  });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    console.error(`[TC Search] Accommodation quote failed (${response.status}):`, errText);
-    // Don't throw - return empty instead
-    return [];
-  }
-
-  const result = await response.json();
-  const accommodations = result.accommodations || [];
-
-  // Fetch datasheets for first 20 results to get photos/descriptions
-  const accommodationIds = accommodations.slice(0, 20).map((a: any) => a.accommodationId).filter(Boolean);
-  let datasheets: Record<string, any> = {};
-
-  if (accommodationIds.length > 0) {
+  for (const ms of microsites) {
     try {
-      const dsParams = accommodationIds.map((id: string) => `accommodationId=${id}`).join("&");
-      const dsResponse = await fetch(`${TC_API_BASE}/accommodations/datasheet?${dsParams}&lang=NL`, {
-        headers: { "auth-token": token },
+      const token = await getTcToken(ms);
+
+      const response = await fetch(`${TC_API_BASE}/booking/accommodations/quote`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "auth-token": token,
+          "Accept-Encoding": "gzip",
+        },
+        body: JSON.stringify(quoteBody),
       });
-      if (dsResponse.ok) {
-        const dsResult = await dsResponse.json();
-        const sheets = dsResult.accommodations || dsResult.dataSheets || [];
-        for (const ds of sheets) {
-          if (ds.code || ds.accommodationId) {
-            datasheets[ds.code || ds.accommodationId] = ds;
+
+      const responseText = await response.text();
+      console.log(`[TC Search] ${ms} response (${response.status}): ${responseText.substring(0, 800)}`);
+
+      if (!response.ok) {
+        console.warn(`[TC Search] ${ms} quote failed: ${response.status}`);
+        continue;
+      }
+
+      let result;
+      try { result = JSON.parse(responseText); } catch { continue; }
+
+      const accommodations = result.accommodations || [];
+      console.log(`[TC Search] ${ms}: ${accommodations.length} hotels found`);
+
+      if (accommodations.length > 0) {
+        // Fetch datasheets for photos/descriptions
+        const accIds = accommodations.slice(0, 20).map((a: any) => String(a.code || a.accommodationId)).filter(Boolean);
+        let datasheets: Record<string, any> = {};
+
+        if (accIds.length > 0) {
+          try {
+            const dsParams = accIds.map((id: string) => `accommodationId=${id}`).join("&");
+            const dsResponse = await fetch(`${TC_API_BASE}/accommodations/datasheet?${dsParams}&lang=NL`, {
+              headers: { "auth-token": token, "Accept-Encoding": "gzip" },
+            });
+            if (dsResponse.ok) {
+              const dsResult = await dsResponse.json();
+              const sheets = Array.isArray(dsResult) ? dsResult : (dsResult.accommodations || dsResult.dataSheets || []);
+              for (const ds of sheets) {
+                const key = String(ds.code || ds.accommodationId || ds.id);
+                if (key) datasheets[key] = ds;
+              }
+              console.log(`[TC Search] Got ${Object.keys(datasheets).length} datasheets`);
+            }
+          } catch (e) {
+            console.warn("[TC Search] Datasheet fetch failed:", e);
           }
         }
+
+        return accommodations.slice(0, 15).map((acc: any) => {
+          const accId = String(acc.code || acc.accommodationId);
+          const ds = datasheets[accId] || {};
+          const dsLang = ds.datasheets?.NL || ds.datasheets?.EN || Object.values(ds.datasheets || {})[0] || {};
+          const images = ds.images || [];
+          const imageUrls = images.map((img: any) => typeof img === 'string' ? img : img.url || img.path).filter(Boolean);
+          const bestCombo = acc.combinations?.[0];
+          const price = bestCombo?.price?.amount || acc.fromPrice?.amount || 0;
+
+          return {
+            type: "hotel",
+            id: accId,
+            name: acc.name || ds.name || "Onbekend hotel",
+            stars: acc.category ? parseInt(acc.category) : 0,
+            location: acc.destinationName || ds.city || "",
+            country: ds.country || "",
+            description: dsLang.description || dsLang.shortDescription || "",
+            images: imageUrls.length > 0 ? imageUrls : (ds.imageUrls || []),
+            price,
+            currency: bestCombo?.price?.currency || "EUR",
+            roomType: bestCombo?.rooms?.[0]?.roomName || "",
+            mealPlan: bestCombo?.rooms?.[0]?.boardName || "",
+            geolocation: ds.geolocation || null,
+            provider: acc.provider || "",
+          };
+        });
       }
     } catch (e) {
-      console.warn("[TC Search] Datasheet fetch failed, continuing without:", e);
+      console.warn(`[TC Search] Quote failed on ${ms}:`, e);
     }
   }
 
-  // Map results
-  return accommodations.map((acc: any) => {
-    const ds = datasheets[acc.accommodationId] || {};
-    const dsLang = ds.datasheets?.NL || ds.datasheets?.EN || Object.values(ds.datasheets || {})[0] || {};
-    const bestCombo = acc.combinations?.[0];
-    const price = bestCombo?.price?.amount || acc.fromPrice?.amount || 0;
-
-    return {
-      type: "hotel",
-      id: acc.accommodationId,
-      name: acc.name || ds.name || "Onbekend hotel",
-      stars: acc.category ? parseInt(acc.category) : (ds.category ? parseInt(ds.category) : 0),
-      location: acc.destinationName || ds.city || "",
-      country: ds.country || "",
-      description: dsLang.description || dsLang.shortDescription || "",
-      images: ds.imageUrls || ds.images || [],
-      price: price,
-      currency: bestCombo?.price?.currency || "EUR",
-      pricePerNight: 0,
-      roomType: bestCombo?.rooms?.[0]?.roomName || "",
-      mealPlan: bestCombo?.rooms?.[0]?.boardName || "",
-      geolocation: ds.geolocation || null,
-      combinationKey: bestCombo?.combinationKey || null,
-      provider: acc.provider || "",
-    };
-  });
+  console.log(`[TC Search] No hotels found for ${destination} in any microsite`);
+  return [];
 }
+
 
 // ============================================================
 // ACCOMMODATION LIST (static content, no dates needed)
@@ -250,28 +239,53 @@ async function listAccommodations(micrositeId: string, params: any) {
   const token = await getTcToken(micrositeId);
   const { first, limit, destination, country } = params;
 
-  // Use preferred hotels endpoint if available
-  let url = `${TC_API_BASE}/accommodations/preferred/${micrositeId}?first=${first || 0}&limit=${limit || 20}&lang=NL`;
-  if (destination) url += `&destinationId=${destination}`;
-  if (country) url += `&countryCode=${country}`;
-
-  const response = await fetch(url, {
-    headers: { "auth-token": token },
-  });
-
-  if (!response.ok) {
-    // Fallback to all accommodations
-    const fallbackUrl = `${TC_API_BASE}/accommodations?first=${first || 0}&limit=${limit || 20}`;
-    const fallbackResponse = await fetch(fallbackUrl, {
+  // Try global /accommodations endpoint first (all hotels in the system)
+  try {
+    const globalUrl = `${TC_API_BASE}/accommodations?first=${first || 0}&limit=${limit || 50}`;
+    console.log(`[TC Search] Trying global accommodations: ${globalUrl}`);
+    const globalResponse = await fetch(globalUrl, {
       headers: { "auth-token": token },
     });
-    if (!fallbackResponse.ok) throw new Error(`Hotels ophalen mislukt`);
-    const fallbackResult = await fallbackResponse.json();
-    return (fallbackResult.accommodations || []).map(mapAccommodationListItem);
+    if (globalResponse.ok) {
+      const globalResult = await globalResponse.json();
+      const allAccs = globalResult.accommodations || [];
+      console.log(`[TC Search] Global accommodations: ${allAccs.length}`);
+      if (allAccs.length > 0) {
+        // Filter by destination/country if provided
+        let filtered = allAccs;
+        if (destination) {
+          const q = destination.toLowerCase();
+          filtered = allAccs.filter((a: any) => 
+            a.destinationId?.toLowerCase() === q ||
+            a.destinationName?.toLowerCase().includes(q) ||
+            a.city?.toLowerCase().includes(q)
+          );
+        }
+        if (country) {
+          filtered = filtered.filter((a: any) => a.country?.toLowerCase().includes(country.toLowerCase()));
+        }
+        return filtered.map(mapAccommodationListItem);
+      }
+    }
+  } catch (e) {
+    console.warn(`[TC Search] Global accommodations failed:`, e);
   }
 
-  const result = await response.json();
-  return (result.hotels || result.accommodations || []).map(mapAccommodationListItem);
+  // Fallback: preferred hotels
+  try {
+    let prefUrl = `${TC_API_BASE}/accommodations/preferred/${micrositeId}?first=${first || 0}&limit=${limit || 20}&lang=NL`;
+    if (destination) prefUrl += `&destinationId=${destination}`;
+    if (country) prefUrl += `&countryCode=${country}`;
+    const prefResponse = await fetch(prefUrl, { headers: { "auth-token": token } });
+    if (prefResponse.ok) {
+      const prefResult = await prefResponse.json();
+      return (prefResult.hotels || prefResult.accommodations || []).map(mapAccommodationListItem);
+    }
+  } catch (e) {
+    console.warn(`[TC Search] Preferred hotels failed:`, e);
+  }
+
+  return [];
 }
 
 function mapAccommodationListItem(acc: any) {
@@ -616,6 +630,44 @@ Deno.serve(async (req: Request) => {
       case "list-microsites":
         results = getConfiguredMicrosites().map(id => ({ id }));
         break;
+
+      case "debug-quote": {
+        // Raw debug: call TC API and return exact response
+        const debugMs = body.micrositeId || getConfiguredMicrosites()[0];
+        const debugToken = await getTcToken(debugMs);
+        const debugAdults = body.adults || 2;
+        const debugPersons = [];
+        for (let i = 0; i < debugAdults; i++) debugPersons.push({ age: 30 });
+        const debugBody: any = {
+          checkIn: body.checkIn,
+          checkOut: body.checkOut,
+          distributions: [{ persons: debugPersons }],
+          language: "NL",
+          sourceMarket: "NL",
+          filter: { bestCombinations: true, includeOnRequestOptions: true },
+          timeout: 20000,
+        };
+        if (body.destination) debugBody.destinationId = body.destination;
+        if (body.accommodations) debugBody.accommodations = body.accommodations;
+
+        const debugResp = await fetch(`${TC_API_BASE}/booking/accommodations/quote`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "auth-token": debugToken, "Accept-Encoding": "gzip" },
+          body: JSON.stringify(debugBody),
+        });
+        const debugText = await debugResp.text();
+        return new Response(
+          JSON.stringify({
+            debug: true,
+            microsite: debugMs,
+            token: debugToken.substring(0, 30) + "...",
+            requestBody: debugBody,
+            responseStatus: debugResp.status,
+            responseBody: debugText.substring(0, 2000),
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
       default:
         return new Response(
