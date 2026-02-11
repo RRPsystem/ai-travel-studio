@@ -17,6 +17,8 @@ interface RouteMapProps {
   height?: string;
   showPolyline?: boolean;
   polylineColor?: string;
+  borderRadius?: string;
+  showStats?: boolean;
   onGeocodingComplete?: (destinations: Destination[]) => void;
 }
 
@@ -66,6 +68,8 @@ export function RouteMap({
   height = '400px',
   showPolyline = true,
   polylineColor = '#2A81CB',
+  borderRadius = '12px',
+  showStats = true,
   onGeocodingComplete,
 }: RouteMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -242,9 +246,9 @@ export function RouteMap({
       )}
       <div
         ref={mapRef}
-        style={{ height, width: '100%', borderRadius: '12px' }}
+        style={{ height, width: '100%', borderRadius }}
       />
-      {!loading && geocodedDests.length >= 2 && (
+      {showStats && !loading && geocodedDests.length >= 2 && (
         <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
           <span>{geocodedDests.length} bestemmingen op kaart</span>
           {geocodedDests.length < destinations.length && (

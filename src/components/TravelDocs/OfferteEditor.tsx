@@ -47,6 +47,7 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
   const [showMediaSelector, setShowMediaSelector] = useState(false);
   const [mediaSelectorMode, setMediaSelectorMode] = useState<'photo' | 'video'>('photo');
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [mapOpen, setMapOpen] = useState(false);
   const [lightboxImages, setLightboxImages] = useState<string[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [tcImporting, setTcImporting] = useState(false);
@@ -480,27 +481,50 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
           </div>
         </div>
 
-        {/* ROUTE MAP & DESTINATIONS */}
+        {/* ROUTE MAP - full width, collapsible, directly under hero */}
         {destinations.length > 0 && (
+          <div className="relative">
+            {/* Toggle button */}
+            <button
+              onClick={() => setMapOpen(!mapOpen)}
+              className="w-full flex items-center justify-center gap-2 py-3 bg-gray-900/80 backdrop-blur-sm text-white hover:bg-gray-900/90 transition-all text-sm font-medium"
+            >
+              <MapPin size={16} />
+              Bekijk route · {destinations.length} bestemmingen
+              <ChevronDown size={16} className={`transition-transform duration-300 ${mapOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {/* Collapsible map */}
+            <div
+              className="overflow-hidden transition-all duration-500 ease-in-out"
+              style={{ maxHeight: mapOpen ? '500px' : '0px' }}
+            >
+              {mapOpen && (
+                <RouteMap
+                  destinations={destinations.map(d => ({
+                    name: d.name,
+                    country: d.country,
+                    lat: d.lat,
+                    lng: d.lng,
+                    image: d.images?.[0],
+                    description: d.description,
+                  }))}
+                  height="400px"
+                  borderRadius="0"
+                  showStats={false}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* DESTINATION INFO CARDS */}
+        {destinations.length > 0 && destinations.some(d => d.description || (d.images && d.images.length > 0)) && (
           <div className="max-w-4xl mx-auto px-6 pt-10 pb-4">
-            <h2 className="text-2xl font-bold text-gray-900 mb-1">Route</h2>
-            <p className="text-sm text-gray-500 mb-6">{destinations.length} bestemmingen</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-1">Bestemmingen</h2>
+            <p className="text-sm text-gray-500 mb-6">{destinations.length} bestemmingen op deze reis</p>
 
-            {/* Map */}
-            <RouteMap
-              destinations={destinations.map(d => ({
-                name: d.name,
-                country: d.country,
-                lat: d.lat,
-                lng: d.lng,
-                image: d.images?.[0],
-                description: d.description,
-              }))}
-              height="320px"
-            />
-
-            {/* Destination cards */}
-            <div className="mt-6 space-y-4">
+            <div className="space-y-4">
               {destinations.map((dest, idx) => (
                 <div key={idx} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                   <div className="flex">
