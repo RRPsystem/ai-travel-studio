@@ -332,21 +332,22 @@ export function SocialMediaManager() {
     console.log('[handleSaveForBrands] Loading set to true');
 
     try {
-      // For Admin without brand_id, get the first available brand or create a system entry
+      // For Admin without brand_id, use the Admin Workspace brand
       let brandIdToUse = effectiveBrandId;
       
       if (!brandIdToUse) {
-        console.log('[handleSaveForBrands] No effectiveBrandId, fetching first brand...');
+        console.log('[handleSaveForBrands] No effectiveBrandId, fetching Admin Workspace brand...');
         const { data: brands } = await db.supabase
           .from('brands')
           .select('id')
+          .eq('name', 'Admin Workspace')
           .limit(1);
         
         if (brands && brands.length > 0) {
           brandIdToUse = brands[0].id;
-          console.log('[handleSaveForBrands] Using first brand:', brandIdToUse);
+          console.log('[handleSaveForBrands] Using Admin Workspace brand:', brandIdToUse);
         } else {
-          throw new Error('Geen brand beschikbaar. Maak eerst een brand aan.');
+          throw new Error('Admin Workspace brand niet gevonden. Neem contact op met support.');
         }
       }
 
