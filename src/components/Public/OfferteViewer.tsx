@@ -176,7 +176,8 @@ export function OfferteViewer({ offerteId }: Props) {
   const destinations: OfferteDestination[] = offerte.destinations || [];
   const priceDisplay = offerte.price_display || 'both';
   const totalPrice = offerte.total_price || items.reduce((sum, item) => sum + (item.price || 0), 0);
-  const pricePerPerson = offerte.price_per_person || (offerte.number_of_travelers ? Math.round(totalPrice / offerte.number_of_travelers) : totalPrice);
+  const numberOfTravelers = offerte.number_of_travelers || 2;
+  const pricePerPerson = offerte.price_per_person || (numberOfTravelers ? Math.round(totalPrice / numberOfTravelers) : totalPrice);
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -256,7 +257,7 @@ export function OfferteViewer({ offerteId }: Props) {
                   )}
                   <div className="flex justify-between text-sm">
                     <span className="text-white/60">Reizigers</span>
-                    <span className="text-white/80">{offerte.number_of_travelers}</span>
+                    <span className="text-white/80">{numberOfTravelers}</span>
                   </div>
                 </div>
               </div>
@@ -466,30 +467,48 @@ export function OfferteViewer({ offerteId }: Props) {
         </div>
       </div>
 
-      {/* PRICE SUMMARY (mobile) */}
-      {priceDisplay !== 'hidden' && (
-        <div className="max-w-4xl mx-auto px-6 pb-10 md:hidden">
-          <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 text-white">
-            {(priceDisplay === 'per_person' || priceDisplay === 'both') && (
-              <>
-                <div className="text-sm text-white/60 mb-1">Vanaf</div>
-                <div className="text-3xl font-bold mb-1">€ {pricePerPerson.toLocaleString('nl-NL', { minimumFractionDigits: 0 })}</div>
-                <div className="text-sm text-white/60 mb-3">per persoon</div>
-              </>
-            )}
-            {priceDisplay === 'total' && (
-              <>
-                <div className="text-sm text-white/60 mb-1">Totaalprijs</div>
-                <div className="text-3xl font-bold mb-1">€ {totalPrice.toLocaleString('nl-NL', { minimumFractionDigits: 0 })}</div>
-                <div className="text-sm text-white/60 mb-3">{offerte.number_of_travelers} reizigers</div>
-              </>
-            )}
-            {priceDisplay === 'both' && (
-              <div className="border-t border-white/10 pt-2 flex justify-between text-sm">
-                <span className="text-white/60">Totaal ({offerte.number_of_travelers} pers.)</span>
-                <span className="font-medium">€ {totalPrice.toLocaleString('nl-NL', { minimumFractionDigits: 0 })}</span>
+      {/* PRICE BREAKDOWN */}
+      {priceDisplay !== 'hidden' && items.some(i => !i.price_hidden && i.price && i.price > 0) && (
+        <div className="max-w-4xl mx-auto px-6 pb-10">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-4">Prijsoverzicht</h3>
+            <div className="space-y-2">
+              {items.filter(i => !i.price_hidden && i.price && i.price > 0).map(item => {
+                const config = getItemConfig(item.type);
+                return (
+                  <div key={item.id} className="flex items-center justify-between py-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-6 h-6 rounded-md flex items-center justify-center" style={{ backgroundColor: config.bgColor }}>
+                        {getItemIcon(item.type)}
+                      </div>
+                      <span className="text-sm text-gray-700">{item.title}</span>
+                    </div>
+                    <div className="text-right">
+                      {(priceDisplay === 'total' || priceDisplay === 'both') && (
+                        <span className="text-sm font-medium text-gray-900">€ {item.price!.toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</span>
+                      )}
+                      {(priceDisplay === 'per_person' || priceDisplay === 'both') && numberOfTravelers > 0 && (
+                        <div className="text-xs text-gray-500">€ {(item.price! / numberOfTravelers).toLocaleString('nl-NL', { minimumFractionDigits: 2 })} p.p.</div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="border-t border-gray-200 pt-3 mt-3">
+                {(priceDisplay === 'total' || priceDisplay === 'both') && (
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-gray-900">Totaal</span>
+                    <span className="text-xl font-bold text-gray-900">€ {totalPrice.toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+                {(priceDisplay === 'per_person' || priceDisplay === 'both') && (
+                  <div className="flex items-center justify-between mt-1">
+                    <span className="text-sm text-gray-500">Per persoon ({numberOfTravelers} reizigers)</span>
+                    <span className="text-sm font-medium text-orange-600">€ {pricePerPerson.toLocaleString('nl-NL', { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}
