@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Save, AlertCircle, Settings, Globe, Copy, Check, FileText, Plane } from 'lucide-react';
+import { Upload, Save, AlertCircle, Settings, Globe, Copy, Check, FileText } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { DomainSettings } from './DomainSettings';
-import { TcMicrositeSettings } from './TcMicrositeSettings';
 import WebsiteIntakeForm from './WebsiteIntakeForm';
 
-type TabType = 'general' | 'domains' | 'koppelingen' | 'intake';
+type TabType = 'general' | 'domains' | 'intake';
 
 export function BrandSettings() {
   const { user, effectiveBrandId } = useAuth();
@@ -309,21 +308,6 @@ Plak deze gegevens in WordPress > Instellingen > AI News Plugin`;
 
           <button
             type="button"
-            onClick={() => setActiveTab('koppelingen')}
-            className={`px-6 py-3 font-medium text-sm transition-colors ${
-              activeTab === 'koppelingen'
-                ? 'border-b-2 border-orange-600 text-orange-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <div className="flex items-center space-x-2">
-              <Plane size={18} />
-              <span>Travel Compositor</span>
-            </div>
-          </button>
-
-          <button
-            type="button"
             onClick={() => setActiveTab('intake')}
             className={`px-6 py-3 font-medium text-sm transition-colors ${
               activeTab === 'intake'
@@ -343,10 +327,6 @@ Plak deze gegevens in WordPress > Instellingen > AI News Plugin`;
         {activeTab === 'domains' ? (
           <div className="p-6">
             <DomainSettings />
-          </div>
-        ) : activeTab === 'koppelingen' ? (
-          <div className="p-6 max-w-4xl mx-auto">
-            <TcMicrositeSettings />
           </div>
         ) : activeTab === 'intake' ? (
           <div className="p-6">

@@ -37,7 +37,8 @@ import {
   DollarSign,
   FileText,
   ClipboardList,
-  RefreshCw
+  RefreshCw,
+  Plane
 } from 'lucide-react';
 import RoadmapManagement from './RoadmapManagement';
 import TestManagement from './TestManagement';
@@ -56,6 +57,7 @@ import { TravelBroPreview } from './TravelBroPreview';
 import WebsiteIntakeQuestionManager from './WebsiteIntakeQuestionManager';
 import WebsiteIntakeSubmissionManager from './WebsiteIntakeSubmissionManager';
 import TravelCompositorSync from './TravelCompositorSync';
+import { TcMicrositeSettings } from './TcMicrositeSettings';
 
 export function OperatorDashboard() {
   const { user, signOut, impersonationContext, availableContexts, switchContext, resetContext } = useAuth();
@@ -113,7 +115,8 @@ export function OperatorDashboard() {
       items: [
         { id: 'api-settings', label: 'API Settings', icon: Key },
         { id: 'google-api-health', label: 'Google API Health', icon: Activity },
-        { id: 'compositor-sync', label: 'Travel Compositor', icon: RefreshCw },
+        { id: 'tc-credentials', label: 'TC Credentials', icon: Plane },
+        { id: 'compositor-sync', label: 'Travel Compositor Sync', icon: RefreshCw },
         { id: 'google-api-debug', label: 'Google API Debug', icon: Wrench },
         { id: 'flickr-api', label: 'Flickr Pro API', icon: ImageIcon },
         { id: 'gpt-management', label: 'GPT Management', icon: Bot },
@@ -271,6 +274,7 @@ export function OperatorDashboard() {
                 {activeSection === 'google-api-health' && 'Google API Health Check'}
                 {activeSection === 'google-api-debug' && 'Google API Debugger'}
                 {activeSection === 'api-settings' && 'API Settings'}
+                {activeSection === 'tc-credentials' && 'TC Credentials Beheer'}
                 {activeSection === 'compositor-sync' && 'Travel Compositor Sync'}
                 {activeSection === 'flickr-api' && 'Flickr Pro API'}
                 {activeSection === 'gpt-management' && 'GPT Management'}
@@ -298,6 +302,7 @@ export function OperatorDashboard() {
                 {activeSection === 'google-api-health' && 'Test Google Maps APIs op alle locaties - Geocoding, Directions, Places'}
                 {activeSection === 'google-api-debug' && 'Test alle Google APIs: Places Autocomplete, Routes, Places Search'}
                 {activeSection === 'api-settings' && 'Configure API keys and external service credentials'}
+                {activeSection === 'tc-credentials' && 'Beheer Travel Compositor credentials per brand'}
                 {activeSection === 'compositor-sync' && 'Synchroniseer trip data automatisch via External Builder'}
                 {activeSection === 'flickr-api' && 'Configureer Flickr Pro voor foto selectie in podcast onderwerpen'}
                 {activeSection === 'gpt-management' && 'Configure custom GPTs and content generation'}
@@ -458,6 +463,7 @@ export function OperatorDashboard() {
           {activeSection === 'google-api-health' && <div className="p-6"><GoogleAPIHealthCheck /></div>}
           {activeSection === 'google-api-debug' && <div className="p-6"><GoogleAPIDebugger /></div>}
           {activeSection === 'api-settings' && <div className="p-6"><APISettings /></div>}
+          {activeSection === 'tc-credentials' && <div className="p-6 max-w-4xl mx-auto"><TcMicrositeSettings /></div>}
           {activeSection === 'compositor-sync' && <TravelCompositorSync />}
           {activeSection === 'flickr-api' && <div className="p-6"><FlickrAPISettings /></div>}
           {activeSection === 'gpt-management' && <div className="p-6"><GPTManagement /></div>}
