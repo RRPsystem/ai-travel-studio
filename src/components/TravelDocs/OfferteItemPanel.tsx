@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { X, Star, Upload, Search, Loader2, Building2 } from 'lucide-react';
+import { X, Star, Upload, Search, Loader2, Building2, Database, PenLine, MapPin, Utensils, ChevronRight } from 'lucide-react';
 import { OfferteItem, OfferteItemType, OFFERTE_ITEM_TYPES } from '../../types/offerte';
 import { supabase } from '../../lib/supabase';
 
@@ -28,11 +28,125 @@ interface TcSearchResult {
   duration?: number;
   durationType?: string;
   image?: string;
+  nights?: number;
+  travelTitle?: string;
+}
+
+// NL → EN/ES city name mapping for common destinations
+const CITY_ALIASES: Record<string, string[]> = {
+  'wenen': ['vienna', 'wien', 'viena'],
+  'parijs': ['paris', 'parís'],
+  'londen': ['london', 'londres'],
+  'rome': ['roma', 'rome'],
+  'praag': ['prague', 'praga', 'praha'],
+  'brussel': ['brussels', 'bruxelles', 'bruselas'],
+  'athene': ['athens', 'atenas', 'athen'],
+  'lissabon': ['lisbon', 'lisboa'],
+  'kopenhagen': ['copenhagen', 'copenhague', 'københavn'],
+  'warschau': ['warsaw', 'varsovia', 'warszawa'],
+  'boedapest': ['budapest'],
+  'berlijn': ['berlin', 'berlín'],
+  'münchen': ['munich', 'múnich'],
+  'milaan': ['milan', 'milán', 'milano'],
+  'venetië': ['venice', 'venecia', 'venezia'],
+  'florence': ['firenze', 'florencia'],
+  'napels': ['naples', 'nápoles', 'napoli'],
+  'genève': ['geneva', 'ginebra'],
+  'zürich': ['zurich', 'zúrich'],
+  'edinburgh': ['edimburgo'],
+  'dublin': ['dublín'],
+  'stockholm': ['estocolmo'],
+  'oslo': ['oslo'],
+  'helsinki': ['helsinki'],
+  'moskou': ['moscow', 'moscú', 'moskva'],
+  'istanbul': ['estambul'],
+  'cairo': ['el cairo', 'kairo'],
+  'peking': ['beijing', 'pekín'],
+  'tokio': ['tokyo'],
+  'bangkok': ['bangkok'],
+  'new york': ['nueva york'],
+  'kaapstad': ['cape town', 'ciudad del cabo'],
+  'marrakech': ['marrakesh', 'marraquech'],
+  'dubrovnik': ['dubrovnik'],
+  'nice': ['niza'],
+  'barcelona': ['barcelona'],
+  'madrid': ['madrid'],
+  'sevilla': ['seville', 'sevilla'],
+  'granada': ['granada'],
+  'malaga': ['málaga'],
+  'valencia': ['valencia'],
+  'tenerife': ['tenerife'],
+  'lanzarote': ['lanzarote'],
+  'fuerteventura': ['fuerteventura'],
+  'gran canaria': ['gran canaria'],
+  'mallorca': ['majorca', 'mallorca'],
+  'ibiza': ['ibiza'],
+  'kreta': ['crete', 'creta'],
+  'rhodos': ['rhodes', 'rodas'],
+  'santorini': ['santorini'],
+  'corfu': ['corfú', 'kérkyra'],
+  // Countries NL → EN/ES
+  'spanje': ['spain', 'españa', 'espana'],
+  'frankrijk': ['france', 'francia'],
+  'italië': ['italy', 'italia'],
+  'duitsland': ['germany', 'alemania', 'deutschland'],
+  'oostenrijk': ['austria'],
+  'griekenland': ['greece', 'grecia'],
+  'portugal': ['portugal'],
+  'engeland': ['england', 'inglaterra'],
+  'ierland': ['ireland', 'irlanda'],
+  'schotland': ['scotland', 'escocia'],
+  'noorwegen': ['norway', 'noruega'],
+  'zweden': ['sweden', 'suecia'],
+  'denemarken': ['denmark', 'dinamarca'],
+  'finland': ['finland', 'finlandia'],
+  'polen': ['poland', 'polonia'],
+  'tsjechië': ['czech republic', 'república checa', 'czechia'],
+  'hongarije': ['hungary', 'hungría'],
+  'kroatië': ['croatia', 'croacia'],
+  'turkije': ['turkey', 'turquía'],
+  'egypte': ['egypt', 'egipto'],
+  'marokko': ['morocco', 'marruecos'],
+  'thailand': ['thailand', 'tailandia'],
+  'indonesië': ['indonesia'],
+  'japan': ['japan', 'japón'],
+  'china': ['china'],
+  'amerika': ['america', 'usa', 'united states', 'estados unidos'],
+  'canada': ['canada', 'canadá'],
+  'mexico': ['mexico', 'méxico'],
+  'brazilië': ['brazil', 'brasil'],
+  'argentinië': ['argentina'],
+  'zuid-afrika': ['south africa', 'sudáfrica'],
+  'australië': ['australia'],
+  'nieuw-zeeland': ['new zealand', 'nueva zelanda'],
+};
+
+function getSearchTerms(query: string): string[] {
+  const q = query.toLowerCase().trim();
+  const terms = [q];
+  // Check if query matches any NL alias key
+  for (const [nl, aliases] of Object.entries(CITY_ALIASES)) {
+    if (nl.includes(q) || q.includes(nl)) {
+      terms.push(...aliases);
+    }
+    // Also check reverse: if user types English name, add NL
+    for (const alias of aliases) {
+      if (alias.includes(q) || q.includes(alias)) {
+        terms.push(nl);
+        terms.push(...aliases);
+      }
+    }
+  }
+  return [...new Set(terms)];
 }
 
 export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
   const typeConfig = OFFERTE_ITEM_TYPES.find(t => t.type === itemType)!;
+  const isEditing = !!item;
   
+  // Panel mode: 'search' or 'manual'
+  const [panelMode, setPanelMode] = useState<'search' | 'manual'>(isEditing ? 'manual' : 'search');
+
   const [formData, setFormData] = useState<Partial<OfferteItem>>({
     type: itemType,
     title: item?.title || '',
@@ -64,7 +178,8 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
     included_items: item?.included_items || [],
   });
 
-  // Search in imported travels (travelc_travels table in Supabase)
+  // Search state
+  const [allTravelsCount] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<TcSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
@@ -89,42 +204,46 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
     setSearchError(null);
 
     try {
-      const q = query.toLowerCase().trim();
+      const searchTerms = getSearchTerms(query);
 
-      // Fetch all travels (we filter client-side on JSONB content)
+      // Fetch all travels with ai_summary for better matching
       const { data: allTravels, error } = await supabase
         .from('travelc_travels')
-        .select('id, title, destinations, hotels, flights, transfers, activities, images, countries, hero_image')
+        .select('id, title, destinations, hotels, flights, transfers, activities, images, countries, hero_image, ai_summary')
         .limit(500);
 
       if (error) throw error;
       if (!allTravels || allTravels.length === 0) {
-        setSearchError('Geen reizen gevonden in de database. Importeer eerst reizen.');
+        setSearchError('Geen reizen gevonden in de database. Importeer eerst reizen via Reisbeheer.');
         setSearching(false);
         return;
       }
 
-      // Score each travel by how well it matches the query
-      // Priority: destination name > country > title > hotel name
+      // Score each travel by how well it matches ANY of the search terms
       const scoredTravels = allTravels.map(t => {
         let score = 0;
-        const destMatch = (t.destinations || []).some((d: any) =>
-          d.name?.toLowerCase().includes(q)
-        );
-        const countryMatch = (t.countries || []).some((c: string) => c.toLowerCase().includes(q));
-        const destCountryMatch = (t.destinations || []).some((d: any) =>
-          d.country?.toLowerCase().includes(q)
-        );
-        const titleMatch = t.title?.toLowerCase().includes(q);
-        const hotelNameMatch = (t.hotels || []).some((h: any) =>
-          h.name?.toLowerCase().includes(q)
-        );
 
-        if (destMatch) score += 10;       // Destination name match (highest priority)
-        if (countryMatch) score += 8;     // Country match
-        if (destCountryMatch) score += 7; // Destination country field match
-        if (titleMatch) score += 5;       // Title match
-        if (hotelNameMatch) score += 3;   // Hotel name match
+        for (const q of searchTerms) {
+          const destMatch = (t.destinations || []).some((d: any) =>
+            d.name?.toLowerCase().includes(q)
+          );
+          const countryMatch = (t.countries || []).some((c: string) => c.toLowerCase().includes(q));
+          const destCountryMatch = (t.destinations || []).some((d: any) =>
+            d.country?.toLowerCase().includes(q)
+          );
+          const titleMatch = t.title?.toLowerCase().includes(q);
+          const summaryMatch = t.ai_summary?.toLowerCase().includes(q);
+          const hotelNameMatch = (t.hotels || []).some((h: any) =>
+            h.name?.toLowerCase().includes(q)
+          );
+
+          if (destMatch) score += 10;
+          if (countryMatch) score += 8;
+          if (destCountryMatch) score += 7;
+          if (titleMatch) score += 6;
+          if (summaryMatch) score += 4;
+          if (hotelNameMatch) score += 3;
+        }
 
         return { travel: t, score };
       }).filter(s => s.score > 0)
@@ -135,7 +254,6 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
       const seen = new Set<string>();
 
       for (const { travel } of scoredTravels) {
-        // Build location context from travel destinations
         const travelDests = travel.destinations || [];
         const travelCountries = (travel.countries || []).join(', ');
         const mainDest = travelDests[0];
@@ -147,7 +265,6 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
             if (!name || seen.has(name.toLowerCase())) continue;
             seen.add(name.toLowerCase());
 
-            // Collect all images from the hotel
             const imgs: string[] = [];
             for (const img of (hotel.images || [])) {
               const url = typeof img === 'string' ? img : img?.url;
@@ -155,22 +272,20 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
             }
             if (hotel.imageUrl && !imgs.includes(hotel.imageUrl)) imgs.unshift(hotel.imageUrl);
 
-            // Location: use travel destinations since hotels don't have city/country
-            const hotelLocation = travelLocation || '';
-            const hotelCountry = travelCountries || '';
-
             results.push({
               type: 'hotel',
               id: hotel.id || hotel.hotelId || name,
               name,
               stars: parseStars(hotel.category),
-              location: hotelLocation,
-              country: hotelCountry,
+              location: travelLocation || '',
+              country: travelCountries || '',
               description: hotel.description || hotel.shortDescription || '',
               images: imgs.length > 0 ? imgs : (mainDest?.images?.slice(0, 3) || []),
-              image: imgs[0] || mainDest?.images?.[0] || '',
+              image: imgs[0] || mainDest?.images?.[0] || travel.hero_image || '',
               subtitle: `${travelLocation}${travelCountries ? ' — ' + travelCountries : ''}`,
               mealPlan: hotel.mealPlan || hotel.mealPlanDescription || '',
+              nights: hotel.nights || undefined,
+              travelTitle: travel.title || '',
             });
           }
         } else if (itemType === 'flight') {
@@ -186,6 +301,7 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
               description: `${flight.departureDate || ''} ${flight.departureTime || ''} - ${flight.arrivalTime || ''}`,
               location: flight.originCode || '',
               image: '',
+              travelTitle: travel.title || '',
             });
           }
         } else if (itemType === 'transfer') {
@@ -200,6 +316,7 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
               description: transfer.description || '',
               location: transfer.origin || transfer.pickup || travelLocation || '',
               image: transfer.imageUrl || '',
+              travelTitle: travel.title || '',
             });
           }
         } else if (itemType === 'activity') {
@@ -217,16 +334,17 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
               image: activity.imageUrl || '',
               duration: activity.duration,
               durationType: activity.durationType,
+              travelTitle: travel.title || '',
             });
           }
         }
 
-        if (results.length >= 30) break;
+        if (results.length >= 50) break;
       }
 
-      setSearchResults(results.slice(0, 30));
+      setSearchResults(results.slice(0, 50));
       if (results.length === 0) {
-        setSearchError(`Geen ${itemType}s gevonden voor "${query}". Probeer een bestemming of land.`);
+        setSearchError(`Geen ${itemType}s gevonden voor "${query}". Tip: probeer de Engelse naam (bv. "Vienna" i.p.v. "Wenen").`);
       }
     } catch (err: any) {
       console.error('[Search] Error:', err);
@@ -239,10 +357,9 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
   const handleSearchInput = (value: string) => {
     setSearchQuery(value);
     setSearchError(null);
-    // Debounce 500ms
     if (searchTimerRef[0]) clearTimeout(searchTimerRef[0]);
     if (value.length >= 2) {
-      searchTimerRef[0] = setTimeout(() => doSearch(value), 500);
+      searchTimerRef[0] = setTimeout(() => doSearch(value), 400);
     } else {
       setSearchResults([]);
     }
@@ -263,6 +380,8 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
       updates.star_rating = result.stars || undefined;
       updates.room_type = result.roomType || '';
       updates.board_type = result.mealPlan || '';
+      updates.nights = result.nights || undefined;
+      updates.subtitle = result.subtitle || '';
     } else if (result.type === 'flight') {
       updates.subtitle = result.subtitle || '';
     } else if (result.type === 'activity') {
@@ -272,6 +391,8 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
     }
 
     setFormData(prev => ({ ...prev, ...updates }));
+    // Switch to manual mode so user can review/edit the filled fields
+    setPanelMode('manual');
     setSearchResults([]);
     setSearchQuery('');
   };
@@ -426,263 +547,294 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
     </>
   );
 
-  return (
-    <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
-      
-      {/* Panel */}
-      <div className="fixed right-0 top-0 h-full w-[480px] bg-white shadow-2xl z-50 flex flex-col animate-slide-in-right">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: typeConfig.bgColor }}>
-              <span style={{ color: typeConfig.color }} className="text-sm font-bold">{typeConfig.label[0]}</span>
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">{item ? 'Bewerk' : 'Voeg toe'}: {typeConfig.label}</h3>
-              <p className="text-xs text-gray-500">Vul de details in of zoek</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-            <X size={20} className="text-gray-500" />
-          </button>
+  // ==================== SEARCH MODE RENDER ====================
+  const renderSearchMode = () => (
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Search input area */}
+      <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/80">
+        <div className="relative">
+          {searching ? (
+            <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-500 animate-spin" />
+          ) : (
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          )}
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => handleSearchInput(e.target.value)}
+            autoFocus
+            placeholder={
+              itemType === 'hotel' ? 'Zoek hotel... (bv. "Wenen", "Bali", "Hilton")' :
+              itemType === 'activity' ? 'Zoek activiteit... (bv. "Barcelona", "safari")' :
+              itemType === 'flight' ? 'Zoek vlucht... (bv. "Amsterdam", "KLM")' :
+              itemType === 'transfer' ? 'Zoek transfer...' :
+              'Zoek...'
+            }
+            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none bg-white shadow-sm"
+          />
         </div>
+        {!searchQuery && !searching && searchResults.length === 0 && (
+          <p className="mt-2 text-[11px] text-gray-400">
+            Zoek op bestemming, hotelnaam, land of reisnaam. NL en EN namen worden herkend.
+          </p>
+        )}
+        {searchError && (
+          <p className="mt-2 text-xs text-red-500">{searchError}</p>
+        )}
+      </div>
 
-        {/* Search bar - TC zoekmachine */}
-        <div className="px-6 py-3 border-b border-gray-100 bg-gray-50">
-          {/* Date inputs for search context */}
-          <div className="flex items-center gap-2 mb-2">
-            <div className="flex-1">
-              <input
-                type="date"
-                value={formData.date_start || ''}
-                onChange={e => update('date_start', e.target.value)}
-                className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none bg-white"
-                placeholder="Check-in"
-              />
-            </div>
-            <span className="text-xs text-gray-400">→</span>
-            <div className="flex-1">
-              <input
-                type="date"
-                value={formData.date_end || ''}
-                onChange={e => update('date_end', e.target.value)}
-                className="w-full px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none bg-white"
-                placeholder="Check-out"
-              />
-            </div>
+      {/* Results area - fills entire remaining space */}
+      <div className="flex-1 overflow-y-auto">
+        {searching && (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="w-6 h-6 text-orange-500 animate-spin mb-2" />
+            <p className="text-sm text-gray-500">Zoeken in {allTravelsCount || ''} reizen...</p>
           </div>
+        )}
 
-          {/* Search input */}
-          <div className="relative">
-            {searching ? (
-              <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-500 animate-spin" />
-            ) : (
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            )}
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => handleSearchInput(e.target.value)}
-              placeholder={
-                itemType === 'hotel' ? 'Zoek hotels op bestemming (bv. "Barcelona")...' :
-                itemType === 'activity' ? 'Zoek activiteiten op bestemming...' :
-                itemType === 'flight' ? 'Zoek vluchten (bv. "AMS - BCN")...' :
-                itemType === 'transfer' ? 'Zoek transfers...' :
-                'Zoek in Travel Compositor...'
-              }
-              className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none bg-white"
-            />
-          </div>
-
-          {/* Hint */}
-          {!searchQuery && (
-            <p className="mt-1.5 text-[11px] text-gray-400">Zoek op bestemming, hotelnaam of land (bv. "Barcelona", "Bali")</p>
-          )}
-
-          {/* Search error */}
-          {searchError && (
-            <p className="mt-2 text-xs text-red-500">{searchError}</p>
-          )}
-
-          {/* Searching indicator */}
-          {searching && (
-            <div className="mt-2 bg-white rounded-xl border border-gray-200 p-4 text-center">
-              <Loader2 className="w-5 h-5 text-orange-500 animate-spin mx-auto mb-1" />
-              <p className="text-xs text-gray-500">Zoeken in geïmporteerde reizen...</p>
+        {!searching && searchResults.length > 0 && (
+          <>
+            <div className="px-4 py-2 bg-gray-50 text-[11px] font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 border-b border-gray-100">
+              {searchResults.length} resultaten gevonden
             </div>
-          )}
-
-          {/* Step 2: Hotel/Activity results */}
-          {searchResults.length > 0 && (
-            <div className="mt-2 bg-white rounded-xl border border-gray-200 max-h-96 overflow-y-auto divide-y divide-gray-100">
-              <div className="px-3 py-1.5 bg-gray-50 text-[10px] font-medium text-gray-500 uppercase tracking-wider sticky top-0">
-                {searchResults.length} resultaten gevonden
-              </div>
+            <div className="divide-y divide-gray-100">
               {searchResults.map((result) => (
                 <button
-                  key={result.id}
+                  key={result.id + result.travelTitle}
                   onClick={() => selectSearchResult(result)}
-                  className="w-full flex items-start gap-3 p-3 hover:bg-orange-50 transition-colors text-left"
+                  className="w-full flex items-start gap-3 px-4 py-3 hover:bg-orange-50 transition-colors text-left group"
                 >
                   {/* Thumbnail */}
-                  <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 shrink-0">
+                  <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 shrink-0 shadow-sm">
                     {(result.images?.[0] || result.image) ? (
                       <img src={result.images?.[0] || result.image} alt="" className="w-full h-full object-cover" />
                     ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Building2 size={18} className="text-gray-300" />
+                      <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                        <Building2 size={20} className="text-gray-300" />
                       </div>
                     )}
                   </div>
                   {/* Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-medium text-sm text-gray-900 truncate">{result.name}</span>
+                      <span className="font-semibold text-sm text-gray-900 truncate">{result.name}</span>
                       {result.stars && result.stars > 0 && (
-                        <span className="flex items-center shrink-0">
+                        <span className="flex items-center shrink-0 ml-1">
                           {Array.from({ length: result.stars }).map((_, i) => (
-                            <Star key={i} size={10} className="text-yellow-400 fill-yellow-400" />
+                            <Star key={i} size={11} className="text-yellow-400 fill-yellow-400" />
                           ))}
                         </span>
                       )}
                     </div>
-                    {result.subtitle && (
-                      <p className="text-xs text-orange-600 font-medium mt-0.5 truncate">{result.subtitle}</p>
-                    )}
-                    {(result.location || result.country) && !(result.subtitle) && (
-                      <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                        <Building2 size={10} />
-                        {[result.location, result.country].filter(Boolean).join(', ')}
+                    {(result.location || result.country) && (
+                      <p className="text-xs text-gray-600 flex items-center gap-1 mt-0.5">
+                        <MapPin size={10} className="text-orange-400 shrink-0" />
+                        <span className="truncate">{[result.location, result.country].filter(Boolean).join(', ')}</span>
                       </p>
                     )}
                     {result.mealPlan && (
-                      <p className="text-[11px] text-gray-500 mt-0.5">{result.mealPlan}</p>
+                      <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
+                        <Utensils size={9} className="shrink-0" />
+                        {result.mealPlan}
+                        {result.nights ? ` · ${result.nights} nachten` : ''}
+                      </p>
                     )}
                     {result.description && (
-                      <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-2">{result.description}</p>
+                      <p className="text-[11px] text-gray-400 mt-1 line-clamp-2 leading-relaxed">{result.description}</p>
+                    )}
+                    {result.travelTitle && (
+                      <p className="text-[10px] text-gray-400 mt-1 truncate italic">uit: {result.travelTitle}</p>
                     )}
                   </div>
-                  {/* Price */}
-                  {result.price !== undefined && result.price > 0 && (
-                    <div className="shrink-0 text-right">
-                      <span className="text-sm font-semibold text-orange-600">€ {result.price.toLocaleString('nl-NL')}</span>
-                      {result.provider && <p className="text-[10px] text-gray-400">{result.provider}</p>}
-                    </div>
-                  )}
+                  {/* Arrow */}
+                  <ChevronRight size={16} className="text-gray-300 group-hover:text-orange-400 shrink-0 mt-2 transition-colors" />
                 </button>
               ))}
             </div>
-          )}
+          </>
+        )}
+
+        {!searching && searchResults.length === 0 && searchQuery.length >= 2 && !searchError && (
+          <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+            <Search size={32} className="text-gray-200 mb-3" />
+            <p className="text-sm text-gray-500">Geen resultaten</p>
+          </div>
+        )}
+
+        {!searching && searchResults.length === 0 && searchQuery.length < 2 && (
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+            <Database size={36} className="text-gray-200 mb-4" />
+            <p className="text-sm font-medium text-gray-600 mb-1">Zoek in je reisdatabase</p>
+            <p className="text-xs text-gray-400 max-w-[280px]">
+              Typ een bestemming, hotelnaam of land om hotels uit je geïmporteerde reizen te vinden.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // ==================== MANUAL MODE RENDER ====================
+  const renderManualMode = () => (
+    <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+      {/* Common fields */}
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">Titel</label>
+        <input type="text" value={formData.title} onChange={e => update('title', e.target.value)} placeholder={typeConfig.label} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">Subtitel</label>
+        <input type="text" value={formData.subtitle} onChange={e => update('subtitle', e.target.value)} placeholder="Optionele subtitel" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
+      </div>
+
+      {/* Type-specific fields */}
+      {itemType === 'flight' && renderFlightFields()}
+      {itemType === 'hotel' && renderHotelFields()}
+      {itemType === 'transfer' && renderTransferFields()}
+      {itemType === 'activity' && renderActivityFields()}
+
+      {/* Common date fields */}
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Startdatum</label>
+          <input type="date" value={formData.date_start} onChange={e => update('date_start', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
         </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Einddatum</label>
+          <input type="date" value={formData.date_end} onChange={e => update('date_end', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
+        </div>
+      </div>
 
-        {/* Form */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          {/* Common fields */}
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Titel</label>
-            <input type="text" value={formData.title} onChange={e => update('title', e.target.value)} placeholder={typeConfig.label} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">Locatie</label>
+        <input type="text" value={formData.location} onChange={e => update('location', e.target.value)} placeholder="Stad, land" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">Beschrijving</label>
+        <textarea value={formData.description} onChange={e => update('description', e.target.value)} rows={3} placeholder="Optionele beschrijving..." className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none resize-none" />
+      </div>
+
+      {/* Image */}
+      <div>
+        <label className="block text-xs font-medium text-gray-500 mb-1">Afbeelding</label>
+        {formData.image_url ? (
+          <div className="relative rounded-xl overflow-hidden">
+            <img src={formData.image_url} alt="" className="w-full h-32 object-cover" />
+            <button onClick={() => update('image_url', '')} className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-lg hover:bg-black/70">
+              <X size={14} />
+            </button>
           </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Subtitel</label>
-            <input type="text" value={formData.subtitle} onChange={e => update('subtitle', e.target.value)} placeholder="Optionele subtitel" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
+        ) : (
+          <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-gray-300 transition-colors cursor-pointer">
+            <Upload size={20} className="mx-auto text-gray-400 mb-2" />
+            <p className="text-xs text-gray-500">Sleep een afbeelding of klik om te uploaden</p>
           </div>
+        )}
+        <input type="text" value={formData.image_url} onChange={e => update('image_url', e.target.value)} placeholder="Of plak een URL..." className="w-full mt-2 px-3 py-2 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
+      </div>
 
-          {/* Type-specific fields */}
-          {itemType === 'flight' && renderFlightFields()}
-          {itemType === 'hotel' && renderHotelFields()}
-          {itemType === 'transfer' && renderTransferFields()}
-          {itemType === 'activity' && renderActivityFields()}
+      {/* Pricing */}
+      <div className="border-t border-gray-100 pt-4">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Prijs</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Totaalprijs</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
+              <input type="number" value={formData.price || ''} onChange={e => update('price', parseFloat(e.target.value) || undefined)} placeholder="0.00" className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Per persoon</label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
+              <input type="number" value={formData.price_per_person || ''} onChange={e => update('price_per_person', parseFloat(e.target.value) || undefined)} placeholder="0.00" className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
+            </div>
+          </div>
+        </div>
+      </div>
 
-          {/* Common date fields */}
-          <div className="grid grid-cols-2 gap-3">
+      {/* Supplier / Booking ref */}
+      <div className="border-t border-gray-100 pt-4">
+        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Leverancier</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Leverancier</label>
+            <input type="text" value={formData.supplier} onChange={e => update('supplier', e.target.value)} placeholder="Naam leverancier" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Boekingsreferentie</label>
+            <input type="text" value={formData.booking_reference} onChange={e => update('booking_reference', e.target.value)} placeholder="REF-123" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
+      
+      {/* Panel */}
+      <div className="fixed right-0 top-0 h-full w-[520px] bg-white shadow-2xl z-50 flex flex-col animate-slide-in-right">
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: typeConfig.bgColor }}>
+              <span style={{ color: typeConfig.color }} className="text-sm font-bold">{typeConfig.label[0]}</span>
+            </div>
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Startdatum</label>
-              <input type="date" value={formData.date_start} onChange={e => update('date_start', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Einddatum</label>
-              <input type="date" value={formData.date_end} onChange={e => update('date_end', e.target.value)} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
+              <h3 className="font-semibold text-gray-900 text-sm">{isEditing ? 'Bewerk' : 'Voeg toe'}: {typeConfig.label}</h3>
             </div>
           </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Locatie</label>
-            <input type="text" value={formData.location} onChange={e => update('location', e.target.value)} placeholder="Stad, land" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
-          </div>
-
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Beschrijving</label>
-            <textarea value={formData.description} onChange={e => update('description', e.target.value)} rows={3} placeholder="Optionele beschrijving..." className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none resize-none" />
-          </div>
-
-          {/* Image */}
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Afbeelding</label>
-            {formData.image_url ? (
-              <div className="relative rounded-xl overflow-hidden">
-                <img src={formData.image_url} alt="" className="w-full h-32 object-cover" />
-                <button onClick={() => update('image_url', '')} className="absolute top-2 right-2 bg-black/50 text-white p-1 rounded-lg hover:bg-black/70">
-                  <X size={14} />
-                </button>
-              </div>
-            ) : (
-              <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-gray-300 transition-colors cursor-pointer">
-                <Upload size={20} className="mx-auto text-gray-400 mb-2" />
-                <p className="text-xs text-gray-500">Sleep een afbeelding of klik om te uploaden</p>
-              </div>
-            )}
-            <input type="text" value={formData.image_url} onChange={e => update('image_url', e.target.value)} placeholder="Of plak een URL..." className="w-full mt-2 px-3 py-2 border border-gray-200 rounded-lg text-xs focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
-          </div>
-
-          {/* Pricing */}
-          <div className="border-t border-gray-100 pt-4">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Prijs</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Totaalprijs</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
-                  <input type="number" value={formData.price || ''} onChange={e => update('price', parseFloat(e.target.value) || undefined)} placeholder="0.00" className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Per persoon</label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">€</span>
-                  <input type="number" value={formData.price_per_person || ''} onChange={e => update('price_per_person', parseFloat(e.target.value) || undefined)} placeholder="0.00" className="w-full pl-7 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Supplier / Booking ref */}
-          <div className="border-t border-gray-100 pt-4">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Leverancier</p>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Leverancier</label>
-                <input type="text" value={formData.supplier} onChange={e => update('supplier', e.target.value)} placeholder="Naam leverancier" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Boekingsreferentie</label>
-                <input type="text" value={formData.booking_reference} onChange={e => update('booking_reference', e.target.value)} placeholder="REF-123" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
-          <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors">
-            Annuleren
-          </button>
-          <button onClick={handleSave} className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium transition-colors shadow-sm">
-            {item ? 'Opslaan' : 'Toevoegen'}
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <X size={18} className="text-gray-500" />
           </button>
         </div>
+
+        {/* Mode tabs */}
+        <div className="flex border-b border-gray-200">
+          <button
+            onClick={() => setPanelMode('search')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              panelMode === 'search'
+                ? 'text-orange-600 border-b-2 border-orange-500 bg-orange-50/50'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Database size={15} />
+            Zoek in database
+          </button>
+          <button
+            onClick={() => setPanelMode('manual')}
+            className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors ${
+              panelMode === 'manual'
+                ? 'text-orange-600 border-b-2 border-orange-500 bg-orange-50/50'
+                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <PenLine size={15} />
+            Handmatig invullen
+          </button>
+        </div>
+
+        {/* Content based on mode */}
+        {panelMode === 'search' ? renderSearchMode() : renderManualMode()}
+
+        {/* Footer - only show in manual mode */}
+        {panelMode === 'manual' && (
+          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors">
+              Annuleren
+            </button>
+            <button onClick={handleSave} className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium transition-colors shadow-sm">
+              {isEditing ? 'Opslaan' : 'Toevoegen'}
+            </button>
+          </div>
+        )}
       </div>
     </>
   );
