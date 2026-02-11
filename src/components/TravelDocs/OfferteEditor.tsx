@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   ArrowLeft, Save, Send, Eye, MapPin, Plus, GripVertical, X,
   Plane, Car, Building2, Compass, CarFront, Ship, Train, Shield, StickyNote,
-  ChevronDown, ChevronUp, Image, Video, FileDown, Star, Users, Calendar, Euro,
+  ChevronDown, ChevronUp, Image, Video, FileDown, Star, Users, Calendar,
   Download, Loader2, AlertCircle, CheckCircle2
 } from 'lucide-react';
 import { importTcTravel } from '../../lib/tcImportToOfferte';
@@ -45,6 +45,8 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [showMediaSelector, setShowMediaSelector] = useState(false);
   const [mediaSelectorMode, setMediaSelectorMode] = useState<'photo' | 'video'>('photo');
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
   const [tcImporting, setTcImporting] = useState(false);
   const [tcImportError, setTcImportError] = useState<string | null>(null);
   const [tcImportSuccess, setTcImportSuccess] = useState<string | null>(null);
@@ -550,21 +552,6 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
                           )}
                         </div>
                         <div className="flex items-center gap-2 shrink-0 ml-4">
-                          {priceDisplay !== 'hidden' && !item.price_hidden && item.price !== undefined && item.price > 0 && (
-                            <div className="text-right">
-                              {(priceDisplay === 'total' || priceDisplay === 'both') && (
-                                <span className="text-sm font-semibold text-gray-900 flex items-center gap-0.5">
-                                  <Euro size={12} className="text-gray-400" />
-                                  {item.price.toLocaleString('nl-NL', { minimumFractionDigits: 2 })}
-                                </span>
-                              )}
-                              {(priceDisplay === 'per_person' || priceDisplay === 'both') && numberOfTravelers > 0 && (
-                                <span className="text-xs text-gray-500">
-                                  {priceDisplay === 'both' ? '' : '€ '}{(item.price / numberOfTravelers).toLocaleString('nl-NL', { minimumFractionDigits: 2 })} p.p.
-                                </span>
-                              )}
-                            </div>
-                          )}
                           {item.star_rating && (
                             <div className="flex items-center gap-0.5">
                               {Array.from({ length: item.star_rating }).map((_, i) => (
@@ -597,25 +584,30 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
 
                   {/* Photo grid for hotels with multiple images */}
                   {item.images && item.images.length > 1 ? (
-                    <div className="px-4 pb-3 ml-14">
-                      <div className="flex gap-1.5" style={{ height: '160px' }}>
+                    <div className="px-3 pb-3">
+                      <div className="flex gap-1.5 cursor-pointer" style={{ height: '160px' }} onClick={() => { setLightboxImages(item.images!); setLightboxIndex(0); }}>
                         {/* Large image left */}
                         <div className="flex-1 min-w-0 overflow-hidden rounded-lg">
-                          <img src={item.images[0]} alt="" className="w-full h-full object-cover" />
+                          <img src={item.images[0]} alt="" className="w-full h-full object-cover hover:brightness-90 transition-all" />
                         </div>
                         {/* Small images right in 2x2 grid */}
                         <div className="grid grid-cols-2 gap-1.5" style={{ width: '40%' }}>
                           {item.images.slice(1, 5).map((img, i) => (
-                            <div key={i} className="overflow-hidden rounded-lg">
-                              <img src={img} alt="" className="w-full h-full object-cover" />
+                            <div key={i} className="overflow-hidden rounded-lg relative" onClick={(e) => { e.stopPropagation(); setLightboxImages(item.images!); setLightboxIndex(i + 1); }}>
+                              <img src={img} alt="" className="w-full h-full object-cover hover:brightness-90 transition-all" />
+                              {i === 3 && item.images!.length > 5 && (
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-lg">
+                                  <span className="text-white font-semibold text-sm">+{item.images!.length - 5}</span>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
                       </div>
                     </div>
                   ) : item.image_url ? (
-                    <div className="px-4 pb-3 ml-14">
-                      <img src={item.image_url} alt="" className="w-full h-32 object-cover rounded-lg" />
+                    <div className="px-3 pb-3">
+                      <img src={item.image_url} alt="" className="w-full h-32 object-cover rounded-lg cursor-pointer hover:brightness-90 transition-all" onClick={() => { setLightboxImages([item.image_url!]); setLightboxIndex(0); }} />
                     </div>
                   ) : null}
                 </div>
@@ -711,6 +703,40 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
           onSave={handleSaveItem}
           onClose={() => setEditingItem(null)}
         />
+      )}
+
+      {/* Lightbox slideshow */}
+      {lightboxImages.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center" onClick={() => setLightboxImages([])}>
+          <button onClick={() => setLightboxImages([])} className="absolute top-4 right-4 text-white/80 hover:text-white p-2 z-10">
+            <X size={28} />
+          </button>
+          {lightboxImages.length > 1 && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); setLightboxIndex((lightboxIndex - 1 + lightboxImages.length) % lightboxImages.length); }}
+                className="absolute left-4 text-white/80 hover:text-white p-3 bg-black/30 rounded-full z-10"
+              >
+                <ArrowLeft size={24} />
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setLightboxIndex((lightboxIndex + 1) % lightboxImages.length); }}
+                className="absolute right-4 text-white/80 hover:text-white p-3 bg-black/30 rounded-full z-10"
+                style={{ right: '1rem' }}
+              >
+                <ArrowLeft size={24} className="rotate-180" />
+              </button>
+            </>
+          )}
+          <div className="max-w-5xl max-h-[85vh] px-16" onClick={(e) => e.stopPropagation()}>
+            <img src={lightboxImages[lightboxIndex]} alt="" className="max-w-full max-h-[85vh] object-contain rounded-lg" />
+          </div>
+          {lightboxImages.length > 1 && (
+            <div className="absolute bottom-6 text-white/60 text-sm">
+              {lightboxIndex + 1} / {lightboxImages.length}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Media Selector for hero image/video */}
