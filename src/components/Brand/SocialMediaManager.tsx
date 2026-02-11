@@ -722,7 +722,12 @@ export function SocialMediaManager() {
                 {isAdmin ? (
                   <>
                     <button
-                      onClick={handleSaveForBrands}
+                      onClick={() => {
+                        console.log('[Button Click] handleSaveForBrands clicked');
+                        console.log('[Button Click] loading:', loading);
+                        console.log('[Button Click] content:', formData.content.substring(0, 50));
+                        handleSaveForBrands();
+                      }}
                       disabled={loading || !formData.content.trim()}
                       className="flex-1 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
                     >
