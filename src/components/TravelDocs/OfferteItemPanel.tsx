@@ -155,12 +155,17 @@ function wordMatch(text: string, query: string): boolean {
   const t = text.toLowerCase();
   const q = query.toLowerCase();
   if (t === q) return true;
-  // Check word boundaries: space, comma, dash, start/end
-  const idx = t.indexOf(q);
-  if (idx === -1) return false;
-  const before = idx === 0 || /[\s,\-\(\)/]/.test(t[idx - 1]);
-  const after = idx + q.length >= t.length || /[\s,\-\(\)/]/.test(t[idx + q.length]);
-  return before && after;
+  // Check ALL occurrences for word boundary match
+  let startPos = 0;
+  while (startPos < t.length) {
+    const idx = t.indexOf(q, startPos);
+    if (idx === -1) return false;
+    const before = idx === 0 || /[\s,.\-:;\(\)\/\|]/.test(t[idx - 1]);
+    const after = idx + q.length >= t.length || /[\s,.\-:;\(\)\/\|]/.test(t[idx + q.length]);
+    if (before && after) return true;
+    startPos = idx + 1;
+  }
+  return false;
 }
 
 export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
@@ -274,7 +279,7 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
             wordMatch(d.country || '', q)
           );
           const titleMatch = wordMatch(t.title || '', q);
-          const summaryMatch = (t.ai_summary || '').toLowerCase().includes(q);
+          const summaryMatch = wordMatch(t.ai_summary || '', q);
           const hotelNameMatch = (t.hotels || []).some((h: any) =>
             wordMatch(h.name || '', q)
           );
