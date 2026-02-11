@@ -317,13 +317,13 @@ export function SocialMediaManager() {
       return;
     }
 
-    if (!effectiveBrandId) {
-      setError('Geen brand geselecteerd');
+    if (!db.supabase) {
+      setError('Database niet beschikbaar');
       return;
     }
 
-    if (!db.supabase) {
-      setError('Database niet beschikbaar');
+    if (!user?.id) {
+      setError('Niet ingelogd');
       return;
     }
 
@@ -332,9 +332,27 @@ export function SocialMediaManager() {
     console.log('[handleSaveForBrands] Loading set to true');
 
     try {
+      // For Admin without brand_id, get the first available brand or create a system entry
+      let brandIdToUse = effectiveBrandId;
+      
+      if (!brandIdToUse) {
+        console.log('[handleSaveForBrands] No effectiveBrandId, fetching first brand...');
+        const { data: brands } = await db.supabase
+          .from('brands')
+          .select('id')
+          .limit(1);
+        
+        if (brands && brands.length > 0) {
+          brandIdToUse = brands[0].id;
+          console.log('[handleSaveForBrands] Using first brand:', brandIdToUse);
+        } else {
+          throw new Error('Geen brand beschikbaar. Maak eerst een brand aan.');
+        }
+      }
+
       const postData = {
-        brand_id: effectiveBrandId,
-        created_by: user?.id,
+        brand_id: brandIdToUse,
+        created_by: user.id,
         content: formData.content,
         platforms: formData.platforms,
         media_urls: formData.media_urls,
