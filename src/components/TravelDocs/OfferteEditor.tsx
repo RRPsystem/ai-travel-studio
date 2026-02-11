@@ -598,15 +598,19 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
                   {/* Photo grid for hotels with multiple images */}
                   {item.images && item.images.length > 1 ? (
                     <div className="px-4 pb-3 ml-14">
-                      <div className="grid grid-cols-3 gap-1.5 h-36">
-                        <div className="col-span-2 row-span-2">
-                          <img src={item.images[0]} alt="" className="w-full h-full object-cover rounded-lg" />
+                      <div className="flex gap-1.5" style={{ height: '160px' }}>
+                        {/* Large image left */}
+                        <div className="flex-1 min-w-0 overflow-hidden rounded-lg">
+                          <img src={item.images[0]} alt="" className="w-full h-full object-cover" />
                         </div>
-                        {item.images.slice(1, 5).map((img, i) => (
-                          <div key={i} className="relative">
-                            <img src={img} alt="" className="w-full h-full object-cover rounded-lg" style={{ height: '100%' }} />
-                          </div>
-                        ))}
+                        {/* Small images right in 2x2 grid */}
+                        <div className="grid grid-cols-2 gap-1.5" style={{ width: '40%' }}>
+                          {item.images.slice(1, 5).map((img, i) => (
+                            <div key={i} className="overflow-hidden rounded-lg">
+                              <img src={img} alt="" className="w-full h-full object-cover" />
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   ) : item.image_url ? (
