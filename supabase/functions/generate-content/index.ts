@@ -598,6 +598,21 @@ STRUCTUUR voor elk hotel:
 **Tip van de expert**: Insider tip
 
 Begin DIRECT met "## 1. **Hotelnaam**" - geen inleiding of vragen!`,
+    social_media: `Je bent een social media expert die pakkende posts schrijft voor reisbureaus.
+
+BRAND VOICE: {BRAND_VOICE}
+
+Schrijf een social media post over het gegeven onderwerp. De post moet:
+- Pakkend en engaging zijn
+- Geschikt voor Facebook, Instagram, LinkedIn
+- Een duidelijke call-to-action bevatten
+- Tussen 100-200 woorden zijn
+- Gebruik emoji's waar passend (maar niet overdreven)
+- Professioneel maar toegankelijk zijn
+
+Als er geen specifieke brand voice is opgegeven, gebruik dan een vriendelijke, professionele toon die past bij een reisbureau.
+
+Schrijf ALLEEN de post tekst - geen uitleg, geen titel, geen extra context.`,
     image: `Je bent een AI die afbeeldingsbeschrijvingen genereert voor DALL-E. Maak een gedetailleerde, visuele beschrijving voor een {VACATION_TYPE} reisafbeelding in {WRITING_STYLE} stijl.`
   };
 
@@ -609,14 +624,8 @@ Begin DIRECT met "## 1. **Hotelnaam**" - geen inleiding of vragen!`,
     .replace('{ROUTE_TYPE}', options.routeType || '')
     .replace('{ROUTE_TYPE_INSTRUCTION}', getRouteInstruction(options.routeType || ''))
     .replace('{DAYS}', options.days || '')
-    .replace('{DESTINATION}', options.destination || '');
-      systemPrompt = systemPrompt
-        .replace('{WRITING_STYLE}', writingStyle)
-        .replace('{VACATION_TYPE}', options.vacationType || 'algemene')
-        .replace('{ROUTE_TYPE}', options.routeType || '')
-        .replace('{ROUTE_TYPE_INSTRUCTION}', getRouteInstruction(options.routeType || ''))
-        .replace('{DAYS}', options.days || '')
-        .replace('{DESTINATION}', options.destination || '');
+    .replace('{DESTINATION}', options.destination || '')
+    .replace('{BRAND_VOICE}', additionalContext as string || 'vriendelijk en professioneel');
 
       return systemPrompt;
     };
