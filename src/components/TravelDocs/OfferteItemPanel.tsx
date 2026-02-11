@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { X, Star, Upload, Search, Loader2, Building2, Database, PenLine, MapPin, Utensils, ChevronRight } from 'lucide-react';
 import { OfferteItem, OfferteItemType, OFFERTE_ITEM_TYPES } from '../../types/offerte';
 import { supabase } from '../../lib/supabase';
@@ -124,20 +124,35 @@ const CITY_ALIASES: Record<string, string[]> = {
 function getSearchTerms(query: string): string[] {
   const q = query.toLowerCase().trim();
   const terms = [q];
-  // Check if query matches any NL alias key
+  // Only match if query IS the alias or alias IS the query (exact or near-exact)
+  // Use equality or startsWith to avoid 'barcelona' matching 'barceló'
   for (const [nl, aliases] of Object.entries(CITY_ALIASES)) {
-    if (nl.includes(q) || q.includes(nl)) {
+    if (nl === q || nl.startsWith(q) || q.startsWith(nl)) {
       terms.push(...aliases);
     }
-    // Also check reverse: if user types English name, add NL
     for (const alias of aliases) {
-      if (alias.includes(q) || q.includes(alias)) {
+      if (alias === q || alias.startsWith(q) || q.startsWith(alias)) {
         terms.push(nl);
         terms.push(...aliases);
       }
     }
   }
   return [...new Set(terms)];
+}
+
+// Helper: check if text contains query as a whole word (not substring)
+// e.g. 'barcelona' should NOT match 'barceló fuerteventura mar'
+function wordMatch(text: string, query: string): boolean {
+  if (!text) return false;
+  const t = text.toLowerCase();
+  const q = query.toLowerCase();
+  if (t === q) return true;
+  // Check word boundaries: space, comma, dash, start/end
+  const idx = t.indexOf(q);
+  if (idx === -1) return false;
+  const before = idx === 0 || /[\s,\-\(\)/]/.test(t[idx - 1]);
+  const after = idx + q.length >= t.length || /[\s,\-\(\)/]/.test(t[idx + q.length]);
+  return before && after;
 }
 
 export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
@@ -179,12 +194,12 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
   });
 
   // Search state
-  const [allTravelsCount] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<TcSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const searchTimerRef = useState<ReturnType<typeof setTimeout> | null>(null);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchVersionRef = useRef(0); // prevents race conditions between searches
 
   // Safely parse star rating from category string like "4", "4 estrellas", etc.
   const parseStars = (val: any): number | undefined => {
@@ -200,17 +215,25 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
       return;
     }
 
+    const thisVersion = ++searchVersionRef.current;
     setSearching(true);
     setSearchError(null);
 
     try {
       const searchTerms = getSearchTerms(query);
+      console.log('[Search] Query:', query, '→ terms:', searchTerms);
 
       // Fetch all travels with ai_summary for better matching
       const { data: allTravels, error } = await supabase
         .from('travelc_travels')
         .select('id, title, destinations, hotels, flights, transfers, activities, images, countries, hero_image, ai_summary')
         .limit(500);
+
+      // If a newer search was started, discard this result
+      if (thisVersion !== searchVersionRef.current) {
+        console.log('[Search] Discarding stale result for:', query);
+        return;
+      }
 
       if (error) throw error;
       if (!allTravels || allTravels.length === 0) {
@@ -220,21 +243,22 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
       }
 
       // Score each travel by how well it matches ANY of the search terms
+      // Use wordMatch for hotel names to prevent 'barcelona' matching 'barceló'
       const scoredTravels = allTravels.map(t => {
         let score = 0;
 
         for (const q of searchTerms) {
           const destMatch = (t.destinations || []).some((d: any) =>
-            d.name?.toLowerCase().includes(q)
+            wordMatch(d.name || '', q)
           );
-          const countryMatch = (t.countries || []).some((c: string) => c.toLowerCase().includes(q));
+          const countryMatch = (t.countries || []).some((c: string) => wordMatch(c, q));
           const destCountryMatch = (t.destinations || []).some((d: any) =>
-            d.country?.toLowerCase().includes(q)
+            wordMatch(d.country || '', q)
           );
-          const titleMatch = t.title?.toLowerCase().includes(q);
-          const summaryMatch = t.ai_summary?.toLowerCase().includes(q);
+          const titleMatch = wordMatch(t.title || '', q);
+          const summaryMatch = (t.ai_summary || '').toLowerCase().includes(q);
           const hotelNameMatch = (t.hotels || []).some((h: any) =>
-            h.name?.toLowerCase().includes(q)
+            wordMatch(h.name || '', q)
           );
 
           if (destMatch) score += 10;
@@ -342,26 +366,34 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
         if (results.length >= 50) break;
       }
 
+      // Check again if this search is still the latest
+      if (thisVersion !== searchVersionRef.current) return;
+
       setSearchResults(results.slice(0, 50));
       if (results.length === 0) {
         setSearchError(`Geen ${itemType}s gevonden voor "${query}". Tip: probeer de Engelse naam (bv. "Vienna" i.p.v. "Wenen").`);
       }
     } catch (err: any) {
+      if (thisVersion !== searchVersionRef.current) return;
       console.error('[Search] Error:', err);
       setSearchError('Zoeken mislukt. Probeer het opnieuw.');
     } finally {
-      setSearching(false);
+      if (thisVersion === searchVersionRef.current) {
+        setSearching(false);
+      }
     }
   }, [itemType]);
 
   const handleSearchInput = (value: string) => {
     setSearchQuery(value);
     setSearchError(null);
-    if (searchTimerRef[0]) clearTimeout(searchTimerRef[0]);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
     if (value.length >= 2) {
-      searchTimerRef[0] = setTimeout(() => doSearch(value), 400);
+      searchTimerRef.current = setTimeout(() => doSearch(value), 400);
     } else {
+      searchVersionRef.current++; // cancel any pending search
       setSearchResults([]);
+      setSearching(false);
     }
   };
 
@@ -588,7 +620,7 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
         {searching && (
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 className="w-6 h-6 text-orange-500 animate-spin mb-2" />
-            <p className="text-sm text-gray-500">Zoeken in {allTravelsCount || ''} reizen...</p>
+            <p className="text-sm text-gray-500">Zoeken in reizen...</p>
           </div>
         )}
 
