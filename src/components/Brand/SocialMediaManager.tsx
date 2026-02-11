@@ -916,7 +916,7 @@ export function SocialMediaManager() {
           </div>
         )}
 
-        {activeTab === 'planner' && isAdmin && (
+        {activeTab === 'planner' && (
           <div className="max-w-6xl mx-auto">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
               <div className="flex items-center justify-between mb-6">
@@ -937,9 +937,9 @@ export function SocialMediaManager() {
                             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
                           },
                           body: JSON.stringify({
-                            type: 'content_calendar',
+                            contentType: 'content_calendar',
                             brand_voice: brandVoice,
-                            brand_id: effectiveBrandId
+                            brand_id: effectiveBrandId || '00000000-0000-0000-0000-000000000999'
                           }),
                         }
                       );
@@ -1015,7 +1015,7 @@ export function SocialMediaManager() {
           </div>
         )}
 
-        {activeTab === 'suggestions' && isAdmin && (
+        {activeTab === 'suggestions' && (
           <div className="max-w-4xl mx-auto">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
               <div className="flex items-center justify-between mb-6">
@@ -1036,9 +1036,9 @@ export function SocialMediaManager() {
                             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
                           },
                           body: JSON.stringify({
-                            type: 'suggestions',
+                            contentType: 'suggestions',
                             brand_voice: brandVoice,
-                            brand_id: effectiveBrandId,
+                            brand_id: effectiveBrandId || '00000000-0000-0000-0000-000000000999',
                             count: 5
                           }),
                         }
