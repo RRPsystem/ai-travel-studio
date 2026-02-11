@@ -143,13 +143,12 @@ export function SocialMediaManager() {
 
   const loadAvailablePosts = async () => {
     // Load posts from Admin that are enabled for brands
-    const SYSTEM_BRAND_ID = '00000000-0000-0000-0000-000000000999';
     try {
       const { data, error } = await db.supabase
         .from('social_media_posts')
         .select('*')
-        .eq('brand_id', SYSTEM_BRAND_ID)
         .eq('enabled_for_brands', true)
+        .neq('brand_id', effectiveBrandId) // Don't show own posts
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -316,15 +315,17 @@ export function SocialMediaManager() {
       return;
     }
 
+    if (!effectiveBrandId) {
+      setError('Geen brand geselecteerd');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
-      // Admin saves to system brand
-      const SYSTEM_BRAND_ID = '00000000-0000-0000-0000-000000000999';
-      
       const postData = {
-        brand_id: SYSTEM_BRAND_ID,
+        brand_id: effectiveBrandId,
         created_by: user?.id,
         content: formData.content,
         platforms: formData.platforms,
