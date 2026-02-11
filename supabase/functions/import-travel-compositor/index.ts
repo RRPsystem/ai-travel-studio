@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,23 +13,67 @@ const TC_API_BASE = "https://online.travelcompositor.com/resources";
 // Cache tokens in memory per micrositeId (per Edge Function instance)
 const tokenCache: Record<string, { token: string; expiresAt: number }> = {};
 
-// Find credentials for a micrositeId by scanning numbered env vars
-// Pattern: TRAVEL_COMPOSITOR_USERNAME_N, TRAVEL_COMPOSITOR_PASSWORD_N, TRAVEL_COMPOSITOR_MICROSITE_ID_N
-function getCredentialsForMicrosite(micrositeId: string): { username: string; password: string } {
-  // Scan numbered credential sets (1..10)
+// Cache DB credentials in memory (refreshed per cold start)
+let dbCredentialsCache: Array<{ microsite_id: string; username: string; password: string; name: string }> | null = null;
+let dbCredentialsCacheTime = 0;
+const DB_CACHE_TTL = 300_000; // 5 minutes
+
+// Create Supabase service-role client for reading tc_microsites
+function getServiceClient() {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  return createClient(supabaseUrl, serviceRoleKey);
+}
+
+// Load all active TC credentials from database
+async function loadDbCredentials(): Promise<Array<{ microsite_id: string; username: string; password: string; name: string }>> {
+  if (dbCredentialsCache && Date.now() - dbCredentialsCacheTime < DB_CACHE_TTL) {
+    return dbCredentialsCache;
+  }
+  try {
+    const sb = getServiceClient();
+    const { data, error } = await sb
+      .from("tc_microsites")
+      .select("microsite_id, username, password, name")
+      .eq("is_active", true);
+    if (error) {
+      console.error("[TC Auth] Error loading tc_microsites:", error.message);
+      return dbCredentialsCache || [];
+    }
+    dbCredentialsCache = data || [];
+    dbCredentialsCacheTime = Date.now();
+    console.log(`[TC Auth] Loaded ${dbCredentialsCache.length} microsites from database`);
+    return dbCredentialsCache;
+  } catch (err: any) {
+    console.error("[TC Auth] Failed to load tc_microsites:", err.message);
+    return dbCredentialsCache || [];
+  }
+}
+
+// Find credentials: database first, then env vars fallback
+async function getCredentialsForMicrosite(micrositeId: string): Promise<{ username: string; password: string }> {
+  // 1. Try database (tc_microsites table)
+  const dbCreds = await loadDbCredentials();
+  const dbMatch = dbCreds.find(c => c.microsite_id === micrositeId);
+  if (dbMatch) {
+    console.log(`[TC Auth] Found credentials in database for microsite: ${micrositeId} (${dbMatch.name})`);
+    return { username: dbMatch.username, password: dbMatch.password };
+  }
+
+  // 2. Fallback: scan numbered env vars (legacy)
   for (let i = 1; i <= 10; i++) {
     const msId = Deno.env.get(`TRAVEL_COMPOSITOR_MICROSITE_ID_${i}`);
     if (msId && msId === micrositeId) {
       const username = Deno.env.get(`TRAVEL_COMPOSITOR_USERNAME_${i}`);
       const password = Deno.env.get(`TRAVEL_COMPOSITOR_PASSWORD_${i}`);
       if (username && password) {
-        console.log(`[TC Auth] Found credentials set ${i} for microsite: ${micrositeId}`);
+        console.log(`[TC Auth] Found credentials in env set ${i} for microsite: ${micrositeId}`);
         return { username, password };
       }
     }
   }
 
-  // Fallback: try simple TC_API_USERNAME / TC_API_PASSWORD
+  // 3. Fallback: simple TC_API_USERNAME / TC_API_PASSWORD
   const fallbackUser = Deno.env.get("TC_API_USERNAME");
   const fallbackPass = Deno.env.get("TC_API_PASSWORD");
   if (fallbackUser && fallbackPass) {
@@ -38,19 +83,33 @@ function getCredentialsForMicrosite(micrositeId: string): { username: string; pa
 
   throw new Error(
     `Geen TC credentials gevonden voor microsite "${micrositeId}". ` +
-    `Stel TRAVEL_COMPOSITOR_USERNAME_N, TRAVEL_COMPOSITOR_PASSWORD_N en TRAVEL_COMPOSITOR_MICROSITE_ID_N in als Supabase secrets.`
+    `Voeg credentials toe in Brand Instellingen > Travel Compositor.`
   );
 }
 
-// Get list of all configured microsites
-function getConfiguredMicrosites(): Array<{ id: string; index: number }> {
+// Get list of all configured microsites: database + env vars
+async function getConfiguredMicrosites(): Promise<Array<{ id: string; index: number }>> {
   const result: Array<{ id: string; index: number }> = [];
+  const seen = new Set<string>();
+
+  // 1. Database microsites
+  const dbCreds = await loadDbCredentials();
+  dbCreds.forEach((c, i) => {
+    if (!seen.has(c.microsite_id)) {
+      result.push({ id: c.microsite_id, index: 100 + i });
+      seen.add(c.microsite_id);
+    }
+  });
+
+  // 2. Env var microsites (legacy fallback)
   for (let i = 1; i <= 10; i++) {
     const msId = Deno.env.get(`TRAVEL_COMPOSITOR_MICROSITE_ID_${i}`);
-    if (msId) {
+    if (msId && !seen.has(msId)) {
       result.push({ id: msId, index: i });
+      seen.add(msId);
     }
   }
+
   return result;
 }
 
@@ -62,7 +121,7 @@ async function getTcToken(micrositeId: string): Promise<string> {
     return cached.token;
   }
 
-  const { username, password } = getCredentialsForMicrosite(micrositeId);
+  const { username, password } = await getCredentialsForMicrosite(micrositeId);
 
   console.log(`[TC Auth] Fetching new token for microsite: ${micrositeId}`);
   const authUrl = `${TC_API_BASE}/authentication/authenticate`;
@@ -202,7 +261,7 @@ Deno.serve(async (req: Request) => {
     }
 
     // Build list of microsites to try: requested one first, then all others
-    const allMicrosites = getConfiguredMicrosites();
+    const allMicrosites = await getConfiguredMicrosites();
     const fallbackMsId = Deno.env.get("TRAVEL_COMPOSITOR_MICROSITE_ID");
     
     // Collect unique microsite IDs to try

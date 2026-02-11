@@ -1,4 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -7,13 +8,47 @@ const corsHeaders = {
 };
 
 const TC_API_BASE = "https://online.travelcompositor.com/resources";
-// Accommodation-specific API (separate domain from Ideas/Packages)
 const TC_ACCOM_API_BASE = Deno.env.get("TC_ACCOMMODATION_API_BASE") || "https://online.travelcompositor.com/resources";
 
 // Token cache per micrositeId
 const tokenCache: Record<string, { token: string; expiresAt: number }> = {};
 
-function getCredentialsForMicrosite(micrositeId: string): { username: string; password: string } {
+// Cache DB credentials in memory
+let dbCredentialsCache: Array<{ microsite_id: string; username: string; password: string; name: string }> | null = null;
+let dbCredentialsCacheTime = 0;
+const DB_CACHE_TTL = 300_000; // 5 minutes
+
+function getServiceClient() {
+  return createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+}
+
+async function loadDbCredentials(): Promise<Array<{ microsite_id: string; username: string; password: string; name: string }>> {
+  if (dbCredentialsCache && Date.now() - dbCredentialsCacheTime < DB_CACHE_TTL) {
+    return dbCredentialsCache;
+  }
+  try {
+    const sb = getServiceClient();
+    const { data, error } = await sb.from("tc_microsites").select("microsite_id, username, password, name").eq("is_active", true);
+    if (error) { console.error("[TC Auth] Error loading tc_microsites:", error.message); return dbCredentialsCache || []; }
+    dbCredentialsCache = data || [];
+    dbCredentialsCacheTime = Date.now();
+    console.log(`[TC Auth] Loaded ${dbCredentialsCache.length} microsites from database`);
+    return dbCredentialsCache;
+  } catch (err: any) {
+    console.error("[TC Auth] Failed to load tc_microsites:", err.message);
+    return dbCredentialsCache || [];
+  }
+}
+
+async function getCredentialsForMicrosite(micrositeId: string): Promise<{ username: string; password: string }> {
+  // 1. Database first
+  const dbCreds = await loadDbCredentials();
+  const dbMatch = dbCreds.find(c => c.microsite_id === micrositeId);
+  if (dbMatch) {
+    console.log(`[TC Auth] Found credentials in database for: ${micrositeId} (${dbMatch.name})`);
+    return { username: dbMatch.username, password: dbMatch.password };
+  }
+  // 2. Env vars fallback
   for (let i = 1; i <= 10; i++) {
     const msId = Deno.env.get(`TRAVEL_COMPOSITOR_MICROSITE_ID_${i}`);
     if (msId && msId === micrositeId) {
@@ -22,23 +57,22 @@ function getCredentialsForMicrosite(micrositeId: string): { username: string; pa
       if (username && password) return { username, password };
     }
   }
-  // Fallback: try TRAVEL_COMPOSITOR_USERNAME / PASSWORD (without number)
   const fallbackUser = Deno.env.get("TRAVEL_COMPOSITOR_USERNAME") || Deno.env.get("TC_API_USERNAME");
   const fallbackPass = Deno.env.get("TRAVEL_COMPOSITOR_PASSWORD") || Deno.env.get("TC_API_PASSWORD");
-  if (fallbackUser && fallbackPass) {
-    console.log(`[TC Auth] Using fallback credentials for microsite: ${micrositeId}`);
-    return { username: fallbackUser, password: fallbackPass };
-  }
-  throw new Error(`Geen TC credentials voor microsite "${micrositeId}"`);
+  if (fallbackUser && fallbackPass) return { username: fallbackUser, password: fallbackPass };
+  throw new Error(`Geen TC credentials voor microsite "${micrositeId}". Voeg toe in Brand Instellingen > Travel Compositor.`);
 }
 
-function getConfiguredMicrosites(): string[] {
+async function getConfiguredMicrosites(): Promise<string[]> {
   const result: string[] = [];
+  // 1. Database
+  const dbCreds = await loadDbCredentials();
+  dbCreds.forEach(c => { if (!result.includes(c.microsite_id)) result.push(c.microsite_id); });
+  // 2. Env vars
   for (let i = 1; i <= 10; i++) {
     const msId = Deno.env.get(`TRAVEL_COMPOSITOR_MICROSITE_ID_${i}`);
-    if (msId) result.push(msId);
+    if (msId && !result.includes(msId)) result.push(msId);
   }
-  // Also check fallback (without number)
   const fallbackMs = Deno.env.get("TRAVEL_COMPOSITOR_MICROSITE_ID");
   if (fallbackMs && !result.includes(fallbackMs)) result.push(fallbackMs);
   return result;
@@ -48,7 +82,7 @@ async function getTcToken(micrositeId: string): Promise<string> {
   const cached = tokenCache[micrositeId];
   if (cached && Date.now() / 1000 < cached.expiresAt - 60) return cached.token;
 
-  const { username, password } = getCredentialsForMicrosite(micrositeId);
+  const { username, password } = await getCredentialsForMicrosite(micrositeId);
   const authResponse = await fetch(`${TC_API_BASE}/authentication/authenticate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -112,7 +146,7 @@ async function searchAccommodations(micrositeId: string, params: any) {
   }
 
   // Use GET /accommodations (works!) instead of POST /booking/accommodations/quote (401)
-  const ms = micrositeId || getConfiguredMicrosites()[0];
+  const ms = micrositeId || (await getConfiguredMicrosites())[0];
   const token = await getTcToken(ms);
 
   // Step 1: Resolve destination to country code using destinations endpoint
@@ -618,7 +652,7 @@ Deno.serve(async (req: Request) => {
   try {
     const body = await req.json();
     const { action, micrositeId } = body;
-    const microsite = micrositeId || getConfiguredMicrosites()[0] || "rondreis-planner";
+    const microsite = micrositeId || (await getConfiguredMicrosites())[0] || "rondreis-planner";
 
     console.log(`[TC Search] Action: ${action}, Microsite: ${microsite}`);
 
@@ -654,13 +688,13 @@ Deno.serve(async (req: Request) => {
         break;
 
       case "list-microsites":
-        results = getConfiguredMicrosites().map(id => ({ id }));
+        results = (await getConfiguredMicrosites()).map(id => ({ id }));
         break;
 
       case "debug-auth": {
         // Try authenticating with different micrositeId formats to find booking access
-        const baseMs = body.micrositeId || getConfiguredMicrosites()[0] || "rondreis-planner";
-        const { username, password } = getCredentialsForMicrosite(baseMs);
+        const baseMs = body.micrositeId || (await getConfiguredMicrosites())[0] || "rondreis-planner";
+        const { username, password } = await getCredentialsForMicrosite(baseMs);
         
         const msVariants = [
           baseMs,
@@ -730,7 +764,7 @@ Deno.serve(async (req: Request) => {
 
       case "debug-quote": {
         // Raw debug: try multiple API domains and return results
-        const debugMs = body.micrositeId || getConfiguredMicrosites()[0];
+        const debugMs = body.micrositeId || (await getConfiguredMicrosites())[0];
         const debugToken = await getTcToken(debugMs);
         const debugAdults = body.adults || 2;
         const debugPersons = [];
