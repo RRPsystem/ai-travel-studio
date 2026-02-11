@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { X, Star, Upload, Search, Loader2, Building2, Database, PenLine, MapPin, Utensils, ChevronRight } from 'lucide-react';
+import { X, Star, Upload, Search, Loader2, Building2, Database, PenLine, MapPin, Utensils, ChevronRight, ChevronLeft, Clock, ArrowLeft, Check, Bed, Eye } from 'lucide-react';
 import { OfferteItem, OfferteItemType, OFFERTE_ITEM_TYPES } from '../../types/offerte';
 import { supabase } from '../../lib/supabase';
 
@@ -18,8 +18,10 @@ interface TcSearchResult {
   location?: string;
   country?: string;
   description?: string;
+  shortDescription?: string;
   images?: string[];
   price?: number;
+  pricePerNight?: number;
   currency?: string;
   roomType?: string;
   mealPlan?: string;
@@ -30,6 +32,12 @@ interface TcSearchResult {
   image?: string;
   nights?: number;
   travelTitle?: string;
+  // Hotel-specific detail fields
+  address?: string;
+  highlights?: string[];
+  facilities?: Record<string, any>;
+  checkInTime?: string;
+  checkOutTime?: string;
 }
 
 // NL → EN/ES city name mapping for common destinations
@@ -201,6 +209,16 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchVersionRef = useRef(0); // prevents race conditions between searches
 
+  // Detail view state
+  const [detailResult, setDetailResult] = useState<TcSearchResult | null>(null);
+  const [detailPhotoIdx, setDetailPhotoIdx] = useState(0);
+  // Agent choices for the offerte
+  const [chosenRoomType, setChosenRoomType] = useState('');
+  const [chosenBoardType, setChosenBoardType] = useState('');
+  const [chosenViewType, setChosenViewType] = useState('');
+  const [chosenBedType, setChosenBedType] = useState('');
+  const [chosenNights, setChosenNights] = useState<number | undefined>(undefined);
+
   // Safely parse star rating from category string like "4", "4 estrellas", etc.
   const parseStars = (val: any): number | undefined => {
     if (!val) return undefined;
@@ -303,13 +321,21 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
               stars: parseStars(hotel.category),
               location: travelLocation || '',
               country: travelCountries || '',
-              description: hotel.description || hotel.shortDescription || '',
+              description: hotel.description || '',
+              shortDescription: hotel.shortDescription || '',
               images: imgs.length > 0 ? imgs : (mainDest?.images?.slice(0, 3) || []),
               image: imgs[0] || mainDest?.images?.[0] || travel.hero_image || '',
               subtitle: `${travelLocation}${travelCountries ? ' — ' + travelCountries : ''}`,
               mealPlan: hotel.mealPlan || hotel.mealPlanDescription || '',
               nights: hotel.nights || undefined,
               travelTitle: travel.title || '',
+              price: hotel.price || undefined,
+              pricePerNight: hotel.pricePerNight || undefined,
+              address: hotel.address || '',
+              highlights: hotel.highlights || [],
+              facilities: hotel.facilities || {},
+              checkInTime: hotel.checkInTime || '',
+              checkOutTime: hotel.checkOutTime || '',
             });
           }
         } else if (itemType === 'flight') {
@@ -397,10 +423,26 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
     }
   };
 
+  const openDetail = (result: TcSearchResult) => {
+    if (result.type === 'hotel') {
+      // Open detail view for hotels
+      setDetailResult(result);
+      setDetailPhotoIdx(0);
+      setChosenRoomType('');
+      setChosenBoardType(result.mealPlan || '');
+      setChosenViewType('');
+      setChosenBedType('');
+      setChosenNights(result.nights || undefined);
+    } else {
+      // Non-hotel items: select directly
+      selectSearchResult(result);
+    }
+  };
+
   const selectSearchResult = (result: TcSearchResult) => {
     const updates: Partial<OfferteItem> = {
       title: result.name,
-      description: result.description || '',
+      description: result.description || result.shortDescription || '',
       image_url: result.images?.[0] || result.image || '',
       location: [result.location, result.country].filter(Boolean).join(', ') || '',
       price: result.price || undefined,
@@ -423,8 +465,40 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
     }
 
     setFormData(prev => ({ ...prev, ...updates }));
-    // Switch to manual mode so user can review/edit the filled fields
     setPanelMode('manual');
+    setDetailResult(null);
+    setSearchResults([]);
+    setSearchQuery('');
+  };
+
+  const confirmDetailSelection = () => {
+    if (!detailResult) return;
+    const r = detailResult;
+    const updates: Partial<OfferteItem> = {
+      title: r.name,
+      hotel_name: r.name,
+      description: r.description || r.shortDescription || '',
+      image_url: r.images?.[detailPhotoIdx] || r.images?.[0] || r.image || '',
+      location: [r.location, r.country].filter(Boolean).join(', ') || '',
+      star_rating: r.stars || undefined,
+      room_type: chosenRoomType,
+      board_type: chosenBoardType,
+      nights: chosenNights || r.nights || undefined,
+      subtitle: [r.location, r.country].filter(Boolean).join(', '),
+      price: r.price || undefined,
+      price_per_person: r.pricePerNight ? r.pricePerNight : undefined,
+    };
+    // Add view/bed info to description if chosen
+    const extras: string[] = [];
+    if (chosenViewType) extras.push(chosenViewType);
+    if (chosenBedType) extras.push(chosenBedType);
+    if (extras.length > 0) {
+      updates.description = (updates.description ? updates.description + '\n' : '') + extras.join(' · ');
+    }
+
+    setFormData(prev => ({ ...prev, ...updates }));
+    setPanelMode('manual');
+    setDetailResult(null);
     setSearchResults([]);
     setSearchQuery('');
   };
@@ -579,132 +653,426 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
     </>
   );
 
-  // ==================== SEARCH MODE RENDER ====================
-  const renderSearchMode = () => (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* Search input area */}
-      <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/80">
-        <div className="relative">
-          {searching ? (
-            <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-500 animate-spin" />
-          ) : (
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          )}
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={e => handleSearchInput(e.target.value)}
-            autoFocus
-            placeholder={
-              itemType === 'hotel' ? 'Zoek hotel... (bv. "Wenen", "Bali", "Hilton")' :
-              itemType === 'activity' ? 'Zoek activiteit... (bv. "Barcelona", "safari")' :
-              itemType === 'flight' ? 'Zoek vlucht... (bv. "Amsterdam", "KLM")' :
-              itemType === 'transfer' ? 'Zoek transfer...' :
-              'Zoek...'
-            }
-            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none bg-white shadow-sm"
-          />
+  // ==================== HOTEL DETAIL VIEW ====================
+  const renderDetailView = () => {
+    if (!detailResult) return null;
+    const r = detailResult;
+    const photos = r.images && r.images.length > 0 ? r.images : [];
+    const facilityKeys = r.facilities ? Object.keys(r.facilities).filter(k => r.facilities![k]) : [];
+
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Back button */}
+        <div className="px-4 py-2.5 border-b border-gray-100 bg-gray-50/80 flex items-center gap-2">
+          <button
+            onClick={() => setDetailResult(null)}
+            className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-orange-600 transition-colors"
+          >
+            <ArrowLeft size={16} />
+            <span>Terug naar resultaten</span>
+          </button>
         </div>
-        {!searchQuery && !searching && searchResults.length === 0 && (
-          <p className="mt-2 text-[11px] text-gray-400">
-            Zoek op bestemming, hotelnaam, land of reisnaam. NL en EN namen worden herkend.
-          </p>
-        )}
-        {searchError && (
-          <p className="mt-2 text-xs text-red-500">{searchError}</p>
-        )}
-      </div>
 
-      {/* Results area - fills entire remaining space */}
-      <div className="flex-1 overflow-y-auto">
-        {searching && (
-          <div className="flex flex-col items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 text-orange-500 animate-spin mb-2" />
-            <p className="text-sm text-gray-500">Zoeken in reizen...</p>
-          </div>
-        )}
-
-        {!searching && searchResults.length > 0 && (
-          <>
-            <div className="px-4 py-2 bg-gray-50 text-[11px] font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 border-b border-gray-100">
-              {searchResults.length} resultaten gevonden
-            </div>
-            <div className="divide-y divide-gray-100">
-              {searchResults.map((result) => (
-                <button
-                  key={result.id + result.travelTitle}
-                  onClick={() => selectSearchResult(result)}
-                  className="w-full flex items-start gap-3 px-4 py-3 hover:bg-orange-50 transition-colors text-left group"
-                >
-                  {/* Thumbnail */}
-                  <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 shrink-0 shadow-sm">
-                    {(result.images?.[0] || result.image) ? (
-                      <img src={result.images?.[0] || result.image} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gray-50">
-                        <Building2 size={20} className="text-gray-300" />
-                      </div>
-                    )}
+        {/* Scrollable detail content */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Photo carousel */}
+          {photos.length > 0 && (
+            <div className="relative">
+              <img
+                src={photos[detailPhotoIdx]}
+                alt={r.name}
+                className="w-full h-52 object-cover"
+              />
+              {photos.length > 1 && (
+                <>
+                  <button
+                    onClick={() => setDetailPhotoIdx(i => (i - 1 + photos.length) % photos.length)}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-1.5 rounded-full transition-colors"
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <button
+                    onClick={() => setDetailPhotoIdx(i => (i + 1) % photos.length)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white p-1.5 rounded-full transition-colors"
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                  <div className="absolute bottom-2 left-1/2 -translate-x-1/2 bg-black/50 text-white text-[10px] px-2 py-0.5 rounded-full">
+                    {detailPhotoIdx + 1} / {photos.length}
                   </div>
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-semibold text-sm text-gray-900 truncate">{result.name}</span>
-                      {result.stars && result.stars > 0 && (
-                        <span className="flex items-center shrink-0 ml-1">
-                          {Array.from({ length: result.stars }).map((_, i) => (
-                            <Star key={i} size={11} className="text-yellow-400 fill-yellow-400" />
-                          ))}
-                        </span>
+                </>
+              )}
+              {/* Thumbnail strip */}
+              {photos.length > 1 && (
+                <div className="flex gap-1 px-4 py-2 bg-gray-50 overflow-x-auto">
+                  {photos.slice(0, 8).map((p, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setDetailPhotoIdx(i)}
+                      className={`w-12 h-9 rounded overflow-hidden shrink-0 border-2 transition-colors ${
+                        i === detailPhotoIdx ? 'border-orange-500' : 'border-transparent opacity-70 hover:opacity-100'
+                      }`}
+                    >
+                      <img src={p} alt="" className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                  {photos.length > 8 && (
+                    <div className="w-12 h-9 rounded bg-gray-200 flex items-center justify-center shrink-0 text-[10px] text-gray-500">
+                      +{photos.length - 8}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Hotel info */}
+          <div className="px-5 py-4 space-y-3">
+            {/* Name + stars */}
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="font-bold text-lg text-gray-900">{r.name}</h3>
+                {r.stars && r.stars > 0 && (
+                  <span className="flex items-center shrink-0">
+                    {Array.from({ length: r.stars }).map((_, i) => (
+                      <Star key={i} size={14} className="text-yellow-400 fill-yellow-400" />
+                    ))}
+                  </span>
+                )}
+              </div>
+              {(r.location || r.country) && (
+                <p className="text-sm text-gray-600 flex items-center gap-1 mt-1">
+                  <MapPin size={12} className="text-orange-400" />
+                  {[r.location, r.country].filter(Boolean).join(', ')}
+                </p>
+              )}
+              {r.address && (
+                <p className="text-xs text-gray-400 mt-0.5">{r.address}</p>
+              )}
+            </div>
+
+            {/* Quick info badges */}
+            <div className="flex flex-wrap gap-2">
+              {r.mealPlan && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 text-green-700 rounded-lg text-xs">
+                  <Utensils size={11} /> {r.mealPlan}
+                </span>
+              )}
+              {r.nights && r.nights > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs">
+                  <Clock size={11} /> {r.nights} nachten
+                </span>
+              )}
+              {r.checkInTime && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs">
+                  Check-in: {r.checkInTime}
+                </span>
+              )}
+              {r.checkOutTime && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs">
+                  Check-out: {r.checkOutTime}
+                </span>
+              )}
+              {r.price && r.price > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-1 bg-orange-50 text-orange-700 rounded-lg text-xs font-medium">
+                  € {r.price.toLocaleString('nl-NL')}
+                  {r.pricePerNight ? ` (€ ${r.pricePerNight}/nacht)` : ''}
+                </span>
+              )}
+            </div>
+
+            {/* Description */}
+            {(r.description || r.shortDescription) && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Beschrijving</p>
+                <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+                  {r.description || r.shortDescription}
+                </p>
+              </div>
+            )}
+
+            {/* Highlights */}
+            {r.highlights && r.highlights.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Highlights</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {r.highlights.map((h, i) => (
+                    <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-yellow-50 text-yellow-800 rounded text-xs">
+                      <Check size={10} /> {h}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Facilities */}
+            {facilityKeys.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Faciliteiten</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {facilityKeys.slice(0, 20).map((f) => (
+                    <span key={f} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                      {f.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()).trim()}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {r.travelTitle && (
+              <p className="text-xs text-gray-400 italic">Uit reis: {r.travelTitle}</p>
+            )}
+
+            {/* ==================== AGENT KEUZES ==================== */}
+            <div className="border-t border-gray-200 pt-4 mt-4 space-y-3">
+              <p className="text-xs font-bold text-orange-600 uppercase tracking-wider">Keuzes voor offerte</p>
+
+              {/* Room type */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+                  <Bed size={12} /> Kamertype
+                </label>
+                <select
+                  value={chosenRoomType}
+                  onChange={e => setChosenRoomType(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none"
+                >
+                  <option value="">Standaard kamer</option>
+                  <option value="Standard Room">Standard Room</option>
+                  <option value="Superior Room">Superior Room</option>
+                  <option value="Deluxe Room">Deluxe Room</option>
+                  <option value="Junior Suite">Junior Suite</option>
+                  <option value="Suite">Suite</option>
+                  <option value="Family Room">Family Room</option>
+                  <option value="Studio">Studio</option>
+                  <option value="Apartment">Apartment</option>
+                  <option value="Villa">Villa</option>
+                  <option value="Bungalow">Bungalow</option>
+                </select>
+              </div>
+
+              {/* Board type */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+                  <Utensils size={12} /> Arrangement
+                </label>
+                <select
+                  value={chosenBoardType}
+                  onChange={e => setChosenBoardType(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none"
+                >
+                  <option value="">Selecteer...</option>
+                  <option value="RO">Room Only (logies)</option>
+                  <option value="BB">Bed & Breakfast</option>
+                  <option value="HB">Halfpension</option>
+                  <option value="FB">Volpension</option>
+                  <option value="AI">All Inclusive</option>
+                  <option value="UAI">Ultra All Inclusive</option>
+                </select>
+              </div>
+
+              {/* View type */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+                  <Eye size={12} /> Uitzicht
+                </label>
+                <select
+                  value={chosenViewType}
+                  onChange={e => setChosenViewType(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none"
+                >
+                  <option value="">Geen voorkeur</option>
+                  <option value="Zeezicht">Zeezicht</option>
+                  <option value="Tuinzicht">Tuinzicht</option>
+                  <option value="Zwembadzicht">Zwembadzicht</option>
+                  <option value="Stadszicht">Stadszicht</option>
+                  <option value="Bergzicht">Bergzicht</option>
+                  <option value="Zijdelings zeezicht">Zijdelings zeezicht</option>
+                </select>
+              </div>
+
+              {/* Bed type */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+                  <Bed size={12} /> Bedtype
+                </label>
+                <select
+                  value={chosenBedType}
+                  onChange={e => setChosenBedType(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none"
+                >
+                  <option value="">Geen voorkeur</option>
+                  <option value="Tweepersoonsbed (king)">Tweepersoonsbed (king)</option>
+                  <option value="Tweepersoonsbed (queen)">Tweepersoonsbed (queen)</option>
+                  <option value="Twee aparte bedden (twin)">Twee aparte bedden (twin)</option>
+                  <option value="Eenpersoonsbed">Eenpersoonsbed</option>
+                </select>
+              </div>
+
+              {/* Nights */}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1 flex items-center gap-1">
+                  <Clock size={12} /> Aantal nachten
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={30}
+                  value={chosenNights || ''}
+                  onChange={e => setChosenNights(parseInt(e.target.value) || undefined)}
+                  placeholder={r.nights ? String(r.nights) : '3'}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Confirm button */}
+        <div className="px-5 py-3 border-t border-gray-200 bg-gray-50">
+          <button
+            onClick={confirmDetailSelection}
+            className="w-full py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl text-sm font-medium transition-colors shadow-sm flex items-center justify-center gap-2"
+          >
+            <Check size={16} />
+            Selecteer dit hotel
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // ==================== SEARCH MODE RENDER ====================
+  const renderSearchMode = () => {
+    // If detail view is open, show that instead
+    if (detailResult) return renderDetailView();
+
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Search input area */}
+        <div className="px-5 py-4 border-b border-gray-100 bg-gray-50/80">
+          <div className="relative">
+            {searching ? (
+              <Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-orange-500 animate-spin" />
+            ) : (
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            )}
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => handleSearchInput(e.target.value)}
+              autoFocus
+              placeholder={
+                itemType === 'hotel' ? 'Zoek hotel... (bv. "Wenen", "Bali", "Hilton")' :
+                itemType === 'activity' ? 'Zoek activiteit... (bv. "Barcelona", "safari")' :
+                itemType === 'flight' ? 'Zoek vlucht... (bv. "Amsterdam", "KLM")' :
+                itemType === 'transfer' ? 'Zoek transfer...' :
+                'Zoek...'
+              }
+              className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none bg-white shadow-sm"
+            />
+          </div>
+          {!searchQuery && !searching && searchResults.length === 0 && (
+            <p className="mt-2 text-[11px] text-gray-400">
+              Zoek op bestemming, hotelnaam, land of reisnaam. NL en EN namen worden herkend.
+            </p>
+          )}
+          {searchError && (
+            <p className="mt-2 text-xs text-red-500">{searchError}</p>
+          )}
+        </div>
+
+        {/* Results area - fills entire remaining space */}
+        <div className="flex-1 overflow-y-auto">
+          {searching && (
+            <div className="flex flex-col items-center justify-center py-12">
+              <Loader2 className="w-6 h-6 text-orange-500 animate-spin mb-2" />
+              <p className="text-sm text-gray-500">Zoeken in reizen...</p>
+            </div>
+          )}
+
+          {!searching && searchResults.length > 0 && (
+            <>
+              <div className="px-4 py-2 bg-gray-50 text-[11px] font-medium text-gray-500 uppercase tracking-wider sticky top-0 z-10 border-b border-gray-100">
+                {searchResults.length} resultaten gevonden
+              </div>
+              <div className="divide-y divide-gray-100">
+                {searchResults.map((result) => (
+                  <button
+                    key={result.id + result.travelTitle}
+                    onClick={() => openDetail(result)}
+                    className="w-full flex items-start gap-3 px-4 py-3 hover:bg-orange-50 transition-colors text-left group"
+                  >
+                    {/* Thumbnail */}
+                    <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-100 shrink-0 shadow-sm">
+                      {(result.images?.[0] || result.image) ? (
+                        <img src={result.images?.[0] || result.image} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-50">
+                          <Building2 size={20} className="text-gray-300" />
+                        </div>
                       )}
                     </div>
-                    {(result.location || result.country) && (
-                      <p className="text-xs text-gray-600 flex items-center gap-1 mt-0.5">
-                        <MapPin size={10} className="text-orange-400 shrink-0" />
-                        <span className="truncate">{[result.location, result.country].filter(Boolean).join(', ')}</span>
-                      </p>
-                    )}
-                    {result.mealPlan && (
-                      <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
-                        <Utensils size={9} className="shrink-0" />
-                        {result.mealPlan}
-                        {result.nights ? ` · ${result.nights} nachten` : ''}
-                      </p>
-                    )}
-                    {result.description && (
-                      <p className="text-[11px] text-gray-400 mt-1 line-clamp-2 leading-relaxed">{result.description}</p>
-                    )}
-                    {result.travelTitle && (
-                      <p className="text-[10px] text-gray-400 mt-1 truncate italic">uit: {result.travelTitle}</p>
-                    )}
-                  </div>
-                  {/* Arrow */}
-                  <ChevronRight size={16} className="text-gray-300 group-hover:text-orange-400 shrink-0 mt-2 transition-colors" />
-                </button>
-              ))}
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold text-sm text-gray-900 truncate">{result.name}</span>
+                        {result.stars && result.stars > 0 && (
+                          <span className="flex items-center shrink-0 ml-1">
+                            {Array.from({ length: result.stars }).map((_, i) => (
+                              <Star key={i} size={11} className="text-yellow-400 fill-yellow-400" />
+                            ))}
+                          </span>
+                        )}
+                      </div>
+                      {(result.location || result.country) && (
+                        <p className="text-xs text-gray-600 flex items-center gap-1 mt-0.5">
+                          <MapPin size={10} className="text-orange-400 shrink-0" />
+                          <span className="truncate">{[result.location, result.country].filter(Boolean).join(', ')}</span>
+                        </p>
+                      )}
+                      {result.mealPlan && (
+                        <p className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
+                          <Utensils size={9} className="shrink-0" />
+                          {result.mealPlan}
+                          {result.nights ? ` · ${result.nights} nachten` : ''}
+                        </p>
+                      )}
+                      {result.description && (
+                        <p className="text-[11px] text-gray-400 mt-1 line-clamp-2 leading-relaxed">{result.description}</p>
+                      )}
+                      {result.travelTitle && (
+                        <p className="text-[10px] text-gray-400 mt-1 truncate italic">uit: {result.travelTitle}</p>
+                      )}
+                    </div>
+                    {/* Arrow */}
+                    <ChevronRight size={16} className="text-gray-300 group-hover:text-orange-400 shrink-0 mt-2 transition-colors" />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {!searching && searchResults.length === 0 && searchQuery.length >= 2 && !searchError && (
+            <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+              <Search size={32} className="text-gray-200 mb-3" />
+              <p className="text-sm text-gray-500">Geen resultaten</p>
             </div>
-          </>
-        )}
+          )}
 
-        {!searching && searchResults.length === 0 && searchQuery.length >= 2 && !searchError && (
-          <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-            <Search size={32} className="text-gray-200 mb-3" />
-            <p className="text-sm text-gray-500">Geen resultaten</p>
-          </div>
-        )}
-
-        {!searching && searchResults.length === 0 && searchQuery.length < 2 && (
-          <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-            <Database size={36} className="text-gray-200 mb-4" />
-            <p className="text-sm font-medium text-gray-600 mb-1">Zoek in je reisdatabase</p>
-            <p className="text-xs text-gray-400 max-w-[280px]">
-              Typ een bestemming, hotelnaam of land om hotels uit je geïmporteerde reizen te vinden.
-            </p>
-          </div>
-        )}
+          {!searching && searchResults.length === 0 && searchQuery.length < 2 && (
+            <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+              <Database size={36} className="text-gray-200 mb-4" />
+              <p className="text-sm font-medium text-gray-600 mb-1">Zoek in je reisdatabase</p>
+              <p className="text-xs text-gray-400 max-w-[280px]">
+                Typ een bestemming, hotelnaam of land om hotels uit je geïmporteerde reizen te vinden.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   // ==================== MANUAL MODE RENDER ====================
   const renderManualMode = () => (
