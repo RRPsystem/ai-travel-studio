@@ -83,6 +83,10 @@ export interface Offerte {
 
 export interface OfferteDestination {
   name: string;
+  country?: string;
+  description?: string;
+  highlights?: string[];
+  images?: string[];
   lat: number;
   lng: number;
   order: number;

@@ -210,6 +210,10 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
   // --- Destinations ---
   const destinations: OfferteDestination[] = (tc.destinations || []).map((d: any, i: number) => ({
     name: d.name || `Bestemming ${i + 1}`,
+    country: d.country || '',
+    description: stripHtml(d.description || ''),
+    highlights: d.highlights || [],
+    images: d.images || d.imageUrls || [],
     lat: d.geolocation?.latitude || 0,
     lng: d.geolocation?.longitude || 0,
     order: i,

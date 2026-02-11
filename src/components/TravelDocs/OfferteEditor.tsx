@@ -10,6 +10,7 @@ import { Offerte, OfferteItem, OfferteItemType, OfferteDestination, OFFERTE_ITEM
 import { OfferteItemTypeSelector } from './OfferteItemTypeSelector';
 import { OfferteItemPanel } from './OfferteItemPanel';
 import { SlidingMediaSelector } from '../shared/SlidingMediaSelector';
+import { RouteMap } from '../shared/RouteMap';
 
 const iconMap: Record<string, React.ComponentType<any>> = {
   Plane, Car, Building2, Compass, CarFront, Ship, Train, Shield, StickyNote,
@@ -478,6 +479,109 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
             </div>
           </div>
         </div>
+
+        {/* ROUTE MAP & DESTINATIONS */}
+        {destinations.length > 0 && (
+          <div className="max-w-4xl mx-auto px-6 pt-10 pb-4">
+            <h2 className="text-2xl font-bold text-gray-900 mb-1">Route</h2>
+            <p className="text-sm text-gray-500 mb-6">{destinations.length} bestemmingen</p>
+
+            {/* Map */}
+            <RouteMap
+              destinations={destinations.map(d => ({
+                name: d.name,
+                country: d.country,
+                lat: d.lat,
+                lng: d.lng,
+                image: d.images?.[0],
+                description: d.description,
+              }))}
+              height="320px"
+            />
+
+            {/* Destination cards */}
+            <div className="mt-6 space-y-4">
+              {destinations.map((dest, idx) => (
+                <div key={idx} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="flex">
+                    {/* Destination image */}
+                    {dest.images && dest.images.length > 0 ? (
+                      <div
+                        className="w-48 shrink-0 cursor-pointer"
+                        onClick={() => { setLightboxImages(dest.images!); setLightboxIndex(0); }}
+                      >
+                        <img src={dest.images[0]} alt={dest.name} className="w-full h-full object-cover hover:brightness-90 transition-all" />
+                      </div>
+                    ) : (
+                      <div className="w-48 shrink-0 bg-gray-100 flex items-center justify-center">
+                        <MapPin size={24} className="text-gray-300" />
+                      </div>
+                    )}
+
+                    {/* Destination info */}
+                    <div className="flex-1 p-4 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                          {idx + 1}
+                        </span>
+                        <h3 className="font-semibold text-gray-900">{dest.name}</h3>
+                        {dest.country && (
+                          <span className="text-xs text-gray-400">{dest.country}</span>
+                        )}
+                      </div>
+
+                      {dest.description && (
+                        <div className="mt-1">
+                          <p className={`text-sm text-gray-500 ${expandedItems.has(`dest-${idx}`) ? '' : 'line-clamp-3'}`}>
+                            {dest.description}
+                          </p>
+                          {dest.description.length > 180 && (
+                            <button
+                              onClick={() => setExpandedItems(prev => { const next = new Set(prev); const key = `dest-${idx}`; next.has(key) ? next.delete(key) : next.add(key); return next; })}
+                              className="text-xs text-blue-500 hover:text-blue-700 mt-0.5 font-medium"
+                            >
+                              {expandedItems.has(`dest-${idx}`) ? 'Minder tonen' : 'Lees verder...'}
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {dest.highlights && dest.highlights.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-2">
+                          {dest.highlights.map((h, i) => (
+                            <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-600">
+                              {h}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Extra images thumbnails */}
+                      {dest.images && dest.images.length > 1 && (
+                        <div className="flex gap-1.5 mt-2">
+                          {dest.images.slice(1, 5).map((img, i) => (
+                            <div
+                              key={i}
+                              className="w-12 h-12 rounded-lg overflow-hidden cursor-pointer relative"
+                              onClick={() => { setLightboxImages(dest.images!); setLightboxIndex(i + 1); }}
+                            >
+                              <img src={img} alt="" className="w-full h-full object-cover hover:brightness-90 transition-all" />
+                              {i === 3 && dest.images!.length > 5 && (
+                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center rounded-lg">
+                                  <span className="text-white font-semibold text-[10px]">+{dest.images!.length - 5}</span>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ITINERARY BUILDER */}
         <div className="max-w-4xl mx-auto px-6 py-10">
