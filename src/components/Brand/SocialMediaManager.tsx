@@ -1322,79 +1322,113 @@ export function SocialMediaManager() {
         )}
 
         {activeTab === 'saved-posts' && isAdmin && (
-          <div className="max-w-6xl mx-auto">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold mb-4">Opgeslagen Posts voor Brands/Agents</h3>
-              <p className="text-gray-600 mb-6">
-                Beheer posts die beschikbaar zijn voor brands en agents
-              </p>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold">Opgeslagen Posts</h3>
+              <p className="text-sm text-gray-600 mt-1">{posts.length} post{posts.length !== 1 ? 's' : ''}</p>
+            </div>
 
-              {posts.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  <Share2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Nog geen opgeslagen posts</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {posts.map((post) => (
-                    <div key={post.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex-1">
-                          <p className="text-gray-900 whitespace-pre-wrap line-clamp-3">{post.content}</p>
-                          <p className="text-xs text-gray-500 mt-2">
+            {posts.length === 0 ? (
+              <div className="text-center py-12 text-gray-500">
+                <Share2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Nog geen opgeslagen posts</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Content</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Datum</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Brands</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Agents</th>
+                      <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acties</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {posts.map((post) => (
+                      <tr key={post.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4">
+                          <p className="text-sm text-gray-900 line-clamp-2 max-w-md">{post.content}</p>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <p className="text-sm text-gray-500">
                             {new Date(post.created_at).toLocaleDateString('nl-NL', { 
                               day: 'numeric', 
-                              month: 'long', 
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
+                              month: 'numeric',
+                              year: 'numeric'
                             })}
                           </p>
-                        </div>
-                        <button
-                          onClick={() => handleDeletePost(post.id)}
-                          className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-
-                      <div className="flex items-center space-x-4 pt-3 border-t border-gray-200">
-                        <label className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={post.enabled_for_brands || false}
-                            onChange={() => toggleBrandAvailability(post.id, post.enabled_for_brands || false)}
-                            className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                          />
-                          <span className="text-sm text-gray-700">Beschikbaar voor Brands</span>
-                        </label>
-                        <label className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={post.enabled_for_agents || false}
-                            onChange={() => {
-                              // Toggle enabled_for_agents
-                              db.supabase
-                                ?.from('social_media_posts')
-                                .update({ enabled_for_agents: !post.enabled_for_agents })
-                                .eq('id', post.id)
-                                .then(() => {
-                                  setSuccess('Post bijgewerkt!');
-                                  loadPosts();
-                                })
-                                .catch((err) => setError('Fout: ' + err.message));
-                            }}
-                            className="w-4 h-4 text-orange-600 border-gray-300 rounded focus:ring-orange-500"
-                          />
-                          <span className="text-sm text-gray-700">Beschikbaar voor Agents</span>
-                        </label>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <label className="inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={post.enabled_for_brands || false}
+                              onChange={() => toggleBrandAvailability(post.id, post.enabled_for_brands || false)}
+                              className="w-10 h-5 bg-gray-200 rounded-full peer appearance-none cursor-pointer checked:bg-blue-600 relative
+                                before:content-[''] before:absolute before:top-0.5 before:left-0.5 before:w-4 before:h-4 before:bg-white before:rounded-full before:transition-transform
+                                checked:before:translate-x-5"
+                            />
+                          </label>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <label className="inline-flex items-center cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={post.enabled_for_agents || false}
+                              onChange={() => {
+                                db.supabase
+                                  ?.from('social_media_posts')
+                                  .update({ enabled_for_agents: !post.enabled_for_agents })
+                                  .eq('id', post.id)
+                                  .then(() => {
+                                    setSuccess('Post bijgewerkt!');
+                                    loadPosts();
+                                  })
+                                  .catch((err) => setError('Fout: ' + err.message));
+                              }}
+                              className="w-10 h-5 bg-gray-200 rounded-full peer appearance-none cursor-pointer checked:bg-blue-600 relative
+                                before:content-[''] before:absolute before:top-0.5 before:left-0.5 before:w-4 before:h-4 before:bg-white before:rounded-full before:transition-transform
+                                checked:before:translate-x-5"
+                            />
+                          </label>
+                        </td>
+                        <td className="px-6 py-4 text-center">
+                          <div className="flex items-center justify-center space-x-2">
+                            <button
+                              onClick={() => {
+                                setFormData({
+                                  aiPrompt: '',
+                                  content: post.content,
+                                  platforms: post.platforms || [],
+                                  scheduled_for: '',
+                                  media_urls: post.media_urls || [],
+                                  enabled_for_brands: post.enabled_for_brands || false,
+                                  enabled_for_agents: post.enabled_for_agents || false,
+                                });
+                                setActiveTab('create');
+                              }}
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="Bewerken"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeletePost(post.id)}
+                              className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Verwijderen"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
