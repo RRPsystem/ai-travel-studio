@@ -18,6 +18,7 @@ export interface OfferteItem {
   booking_reference?: string;
   details?: Record<string, any>;
   images?: string[]; // Multiple images for photo grid
+  facilities?: string[]; // Hotel facilities/amenities
   price_hidden?: boolean; // Hide price for this item
   // Flight specific
   departure_airport?: string;

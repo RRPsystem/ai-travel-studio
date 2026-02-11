@@ -561,6 +561,20 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
                               )}
                             </div>
                           )}
+                          {item.facilities && item.facilities.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1.5">
+                              {item.facilities.slice(0, expandedItems.has(item.id) ? undefined : 6).map((f, i) => (
+                                <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600">
+                                  {f}
+                                </span>
+                              ))}
+                              {!expandedItems.has(item.id) && item.facilities.length > 6 && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-500">
+                                  +{item.facilities.length - 6}
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-2 shrink-0 ml-4">
                           {item.star_rating && (

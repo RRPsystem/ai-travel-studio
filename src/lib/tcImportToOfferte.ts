@@ -101,6 +101,24 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
       .filter((url: string) => url);
     const firstImage = imageUrls[0] || '';
 
+    // Extract facilities as string array
+    const rawFacilities = hotelData.facilities || h.facilities || {};
+    let facilityList: string[] = [];
+    if (Array.isArray(rawFacilities)) {
+      facilityList = rawFacilities.map((f: any) => typeof f === 'string' ? f : f.name || '').filter(Boolean);
+    } else if (typeof rawFacilities === 'object') {
+      // TC API returns facilities as { "Pool": true, "WiFi": true, ... } or { category: [items] }
+      for (const [key, val] of Object.entries(rawFacilities)) {
+        if (Array.isArray(val)) {
+          facilityList.push(...val.map((v: any) => typeof v === 'string' ? v : v.name || '').filter(Boolean));
+        } else if (val === true || val === 'true') {
+          facilityList.push(key);
+        } else if (typeof val === 'string' && val) {
+          facilityList.push(val);
+        }
+      }
+    }
+
     items.push({
       id: crypto.randomUUID(),
       type: 'hotel',
@@ -109,6 +127,7 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
       description: stripHtml(hotelData.shortDescription || hotelData.description || h.description || ''),
       image_url: firstImage,
       images: imageUrls.slice(0, 5),
+      facilities: facilityList.length > 0 ? facilityList : undefined,
       location: hotelData.address || h.address || '',
       nights,
       star_rating: stars,
