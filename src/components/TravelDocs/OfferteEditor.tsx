@@ -2,8 +2,10 @@ import { useState } from 'react';
 import {
   ArrowLeft, Save, Send, Eye, MapPin, Plus, GripVertical, X,
   Plane, Car, Building2, Compass, CarFront, Ship, Train, Shield, StickyNote,
-  ChevronDown, ChevronUp, Image, Video, FileDown, Star, Users, Calendar, Euro
+  ChevronDown, ChevronUp, Image, Video, FileDown, Star, Users, Calendar, Euro,
+  Download, Loader2, AlertCircle, CheckCircle2
 } from 'lucide-react';
+import { importTcTravel, TC_MICROSITES } from '../../lib/tcImportToOfferte';
 import { Offerte, OfferteItem, OfferteItemType, OfferteDestination, OFFERTE_ITEM_TYPES } from '../../types/offerte';
 import { OfferteItemTypeSelector } from './OfferteItemTypeSelector';
 import { OfferteItemPanel } from './OfferteItemPanel';
@@ -42,8 +44,40 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [showMediaSelector, setShowMediaSelector] = useState(false);
   const [mediaSelectorMode, setMediaSelectorMode] = useState<'photo' | 'video'>('photo');
+  const [tcImporting, setTcImporting] = useState(false);
+  const [tcMicrosite, setTcMicrosite] = useState('rondreis-planner');
+  const [tcImportError, setTcImportError] = useState<string | null>(null);
+  const [tcImportSuccess, setTcImportSuccess] = useState<string | null>(null);
 
   const totalPrice = items.reduce((sum, item) => sum + (item.price || 0), 0);
+
+  const handleTcImport = async () => {
+    if (!travelCompositorId.trim()) return;
+    setTcImporting(true);
+    setTcImportError(null);
+    setTcImportSuccess(null);
+    try {
+      const result = await importTcTravel(travelCompositorId, tcMicrosite);
+      // Fill offerte fields with imported data
+      if (result.title) setTitle(result.title);
+      if (result.subtitle) setSubtitle(result.subtitle);
+      if (result.introText) setIntroText(result.introText);
+      if (result.heroImage) setHeroImage(result.heroImage);
+      if (result.destinations.length > 0) setDestinations(result.destinations);
+      if (result.numberOfTravelers) setNumberOfTravelers(result.numberOfTravelers);
+      if (result.items.length > 0) {
+        // Re-index sort_order
+        result.items.forEach((item, idx) => { item.sort_order = idx; });
+        setItems(result.items);
+      }
+      setTcImportSuccess(`${result.items.length} items ge\u00EFmporteerd (${result.destinations.length} bestemmingen)`);
+    } catch (err: any) {
+      console.error('TC Import error:', err);
+      setTcImportError(err.message || 'Import mislukt');
+    } finally {
+      setTcImporting(false);
+    }
+  };
   const pricePerPerson = numberOfTravelers > 0 ? totalPrice / numberOfTravelers : 0;
 
   const handleAddItem = (type: OfferteItemType, insertIndex: number) => {
@@ -230,9 +264,47 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
               <label className="block text-xs font-medium text-gray-500 mb-1">Aantal reizigers</label>
               <input type="number" value={numberOfTravelers} onChange={e => setNumberOfTravelers(parseInt(e.target.value) || 1)} min={1} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none" />
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Travel Compositor ID</label>
-              <input type="text" value={travelCompositorId} onChange={e => setTravelCompositorId(e.target.value)} placeholder="TC-12345" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none" />
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-500 mb-1">Importeer vanuit Travel Compositor</label>
+              <div className="flex items-center gap-2">
+                <select
+                  value={tcMicrosite}
+                  onChange={e => setTcMicrosite(e.target.value)}
+                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none"
+                >
+                  {TC_MICROSITES.map(ms => (
+                    <option key={ms.id} value={ms.id}>{ms.emoji} {ms.name}</option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  value={travelCompositorId}
+                  onChange={e => { setTravelCompositorId(e.target.value); setTcImportError(null); setTcImportSuccess(null); }}
+                  placeholder="Reis ID (bijv. 12345)"
+                  className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none"
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleTcImport(); } }}
+                />
+                <button
+                  onClick={handleTcImport}
+                  disabled={tcImporting || !travelCompositorId.trim()}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg text-sm font-medium transition-colors whitespace-nowrap"
+                >
+                  {tcImporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                  {tcImporting ? 'Ophalen...' : 'Importeer'}
+                </button>
+              </div>
+              {tcImportError && (
+                <div className="flex items-center gap-1.5 mt-1.5 text-xs text-red-600">
+                  <AlertCircle size={12} />
+                  {tcImportError}
+                </div>
+              )}
+              {tcImportSuccess && (
+                <div className="flex items-center gap-1.5 mt-1.5 text-xs text-green-600">
+                  <CheckCircle2 size={12} />
+                  {tcImportSuccess}
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Geldig tot</label>
