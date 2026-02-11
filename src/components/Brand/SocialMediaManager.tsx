@@ -938,6 +938,7 @@ export function SocialMediaManager() {
                           },
                           body: JSON.stringify({
                             contentType: 'content_calendar',
+                            prompt: 'Genereer een weekplanning met 7 social media posts voor een reisbureau',
                             brand_voice: brandVoice,
                             brand_id: effectiveBrandId || '00000000-0000-0000-0000-000000000999'
                           }),
@@ -1037,6 +1038,7 @@ export function SocialMediaManager() {
                           },
                           body: JSON.stringify({
                             contentType: 'suggestions',
+                            prompt: 'Genereer 5 creatieve social media content ideeën voor een reisbureau',
                             brand_voice: brandVoice,
                             brand_id: effectiveBrandId || '00000000-0000-0000-0000-000000000999',
                             count: 5
