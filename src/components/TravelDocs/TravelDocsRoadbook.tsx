@@ -3,7 +3,7 @@ import {
   ArrowLeft, Save, Send, MapPin, Plus, GripVertical, X,
   Plane, Car, Building2, Compass, CarFront, Ship, Train, Shield, StickyNote,
   ChevronDown, ChevronUp, Image, Video, FileDown, Star, Users, Calendar,
-  Download, Loader2, AlertCircle, CheckCircle2, ExternalLink, MessageSquare, Phone
+  Download, Loader2, AlertCircle, CheckCircle2, ExternalLink, Phone
 } from 'lucide-react';
 import { importTcTravel } from '../../lib/tcImportToOfferte';
 import { supabase } from '../../lib/supabase';
@@ -193,6 +193,9 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave, brandColor = '#2e7
   const [travelbroTripId, setTravelbroTripId] = useState(offerte?.travelbro_trip_id || '');
   const [travelbroShareToken, setTravelbroShareToken] = useState(offerte?.travelbro_share_token || '');
   const [creatingTravelbro, setCreatingTravelbro] = useState(false);
+  const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
+  const [intakeTravelers, setIntakeTravelers] = useState<any[]>([{ name: clientName || '', age: '', relation: 'adult', favoriteFood: '', dietary: '', lookingForward: '', specialNeeds: '' }]);
+  const [intakeSaved, setIntakeSaved] = useState(false);
 
   const [items, setItems] = useState<OfferteItem[]>(offerte?.items || []);
   const [addMenuIndex, setAddMenuIndex] = useState<number | null>(null);
@@ -218,6 +221,26 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave, brandColor = '#2e7
   const [expandedDests, setExpandedDests] = useState<Set<number>>(new Set());
   const [destMediaIdx, setDestMediaIdx] = useState<number | null>(null);
   const [generatingAI, setGeneratingAI] = useState<number | null>(null);
+
+  // Load WhatsApp number for TravelBro section
+  useEffect(() => {
+    const loadWhatsApp = async () => {
+      if (!supabase || !offerte?.brand_id) return;
+      try {
+        const { data } = await supabase
+          .from('api_settings')
+          .select('twilio_whatsapp_number')
+          .or(`brand_id.eq.${offerte.brand_id},provider.eq.system`)
+          .order('brand_id', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (data?.twilio_whatsapp_number) setWhatsappNumber(data.twilio_whatsapp_number);
+      } catch (err) {
+        console.error('Error loading WhatsApp number:', err);
+      }
+    };
+    loadWhatsApp();
+  }, [offerte?.brand_id]);
 
   const extraCostsTotal = extraCosts.reduce((sum, ec) => sum + (ec.per_person ? ec.amount * numberOfTravelers : ec.amount), 0);
   const totalPrice = items.reduce((sum, item) => sum + (item.price || 0), 0) + extraCostsTotal;
@@ -1337,59 +1360,172 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave, brandColor = '#2e7
                 <ChatEmbed shareToken={travelbroShareToken} />
               </div>
 
-              {/* Links for client: WhatsApp QR, Intake form, Chat link */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* WhatsApp QR */}
-                <div className="bg-green-50 border border-green-200 rounded-xl p-5 text-center">
-                  <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center mx-auto mb-3">
-                    <Phone size={20} className="text-white" />
+              {/* Two-column: WhatsApp + Intake */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                {/* ===== WHATSAPP CARD ===== */}
+                <div className="bg-white rounded-2xl shadow-xl p-8 text-center border border-gray-100">
+                  <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mx-auto mb-5">
+                    <Phone size={32} className="text-white" />
                   </div>
-                  <p className="text-sm font-bold text-gray-800 mb-1">WhatsApp QR Code</p>
-                  <p className="text-[11px] text-gray-500 mb-3">Klant scant deze code om TravelBro via WhatsApp te gebruiken</p>
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}/travelbro/${travelbroShareToken}`)}`}
-                    alt="WhatsApp QR"
-                    className="w-28 h-28 rounded-lg shadow bg-white p-1.5 mx-auto"
-                  />
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Chat via WhatsApp</h3>
+                  <p className="text-sm text-gray-600 mb-5">
+                    Scan de QR code of klik op de knop om TravelBro te openen in WhatsApp
+                  </p>
+
+                  {whatsappNumber ? (() => {
+                    const waLink = `https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hoi! Ik heb een vraag over mijn reis: ${title || 'mijn reis'}`)}`;
+                    return (
+                      <>
+                        <div className="bg-gray-50 rounded-xl p-4 mb-5 inline-block">
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(waLink)}`}
+                            alt="WhatsApp QR Code"
+                            className="w-48 h-48 mx-auto"
+                          />
+                        </div>
+                        <a
+                          href={waLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center space-x-2 w-full bg-green-500 hover:bg-green-600 text-white font-semibold py-4 px-6 rounded-xl transition-colors mb-4"
+                        >
+                          <Phone size={20} />
+                          <span>Open in WhatsApp</span>
+                          <ExternalLink size={16} />
+                        </a>
+                        <p className="text-sm text-gray-500">WhatsApp nummer: {whatsappNumber}</p>
+                      </>
+                    );
+                  })() : (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                      <p className="text-sm text-yellow-800">WhatsApp is nog niet geconfigureerd. Stel het WhatsApp nummer in via Instellingen &gt; API Settings.</p>
+                    </div>
+                  )}
                 </div>
 
-                {/* Intake formulier */}
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 text-center">
-                  <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center mx-auto mb-3">
-                    <StickyNote size={20} className="text-white" />
+                {/* ===== INTAKE FORMULIER ===== */}
+                <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+                  <div className="w-16 h-16 bg-blue-500 rounded-full flex items-center justify-center mx-auto mb-5">
+                    <StickyNote size={32} className="text-white" />
                   </div>
-                  <p className="text-sm font-bold text-gray-800 mb-1">Intake Formulier</p>
-                  <p className="text-[11px] text-gray-500 mb-3">Klant vult voorkeuren, allergieën en wensen in</p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      readOnly
-                      value={`${window.location.origin}/travelbro/${travelbroShareToken}`}
-                      className="flex-1 px-2 py-1.5 bg-white border border-gray-300 rounded-lg text-[10px] font-mono text-gray-600 min-w-0"
-                    />
+                  <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">Intake Formulier</h3>
+                  <p className="text-sm text-gray-600 mb-5 text-center">
+                    Vul de gegevens en voorkeuren van de reizigers in
+                  </p>
+
+                  <div className="space-y-4">
+                    {intakeTravelers.map((traveler: any, idx: number) => (
+                      <div key={idx} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
+                        <h4 className="text-sm font-bold text-gray-800 mb-3">
+                          {traveler.name || `Reiziger ${idx + 1}`}
+                        </h4>
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                          <div>
+                            <label className="block text-[11px] font-medium text-gray-500 mb-1">Naam</label>
+                            <input
+                              type="text"
+                              value={traveler.name}
+                              onChange={(e) => { const u = [...intakeTravelers]; u[idx] = {...u[idx], name: e.target.value}; setIntakeTravelers(u); }}
+                              placeholder="Naam reiziger"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[11px] font-medium text-gray-500 mb-1">Leeftijd</label>
+                            <input
+                              type="number"
+                              value={traveler.age}
+                              onChange={(e) => { const u = [...intakeTravelers]; u[idx] = {...u[idx], age: e.target.value}; setIntakeTravelers(u); }}
+                              placeholder="Leeftijd"
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none"
+                            />
+                          </div>
+                        </div>
+                        <div className="mb-3">
+                          <label className="block text-[11px] font-medium text-gray-500 mb-1">Favoriet eten</label>
+                          <input
+                            type="text"
+                            value={traveler.favoriteFood || ''}
+                            onChange={(e) => { const u = [...intakeTravelers]; u[idx] = {...u[idx], favoriteFood: e.target.value}; setIntakeTravelers(u); }}
+                            placeholder="Bijv: Pizza, Pasta, Sushi"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none"
+                          />
+                        </div>
+                        <div className="mb-3">
+                          <label className="block text-[11px] font-medium text-gray-500 mb-1">Allergieën of dieetwensen</label>
+                          <input
+                            type="text"
+                            value={traveler.dietary || ''}
+                            onChange={(e) => { const u = [...intakeTravelers]; u[idx] = {...u[idx], dietary: e.target.value}; setIntakeTravelers(u); }}
+                            placeholder="Bijv: Lactose intolerant, vegetarisch"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[11px] font-medium text-gray-500 mb-1">Waar kijk je naar uit?</label>
+                          <textarea
+                            value={traveler.lookingForward || ''}
+                            onChange={(e) => { const u = [...intakeTravelers]; u[idx] = {...u[idx], lookingForward: e.target.value}; setIntakeTravelers(u); }}
+                            placeholder="Bijv: Zwemmen, musea bezoeken, lekker eten"
+                            rows={2}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none resize-none"
+                          />
+                        </div>
+                        {idx > 0 && (
+                          <button
+                            onClick={() => setIntakeTravelers(intakeTravelers.filter((_: any, i: number) => i !== idx))}
+                            className="mt-2 text-xs text-red-500 hover:text-red-700"
+                          >
+                            Verwijder reiziger
+                          </button>
+                        )}
+                      </div>
+                    ))}
                     <button
-                      onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/travelbro/${travelbroShareToken}`); alert('Intake link gekopieerd!'); }}
-                      className="px-2.5 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors shrink-0"
+                      type="button"
+                      onClick={() => setIntakeTravelers([...intakeTravelers, { name: '', age: '', relation: 'adult', favoriteFood: '', dietary: '', lookingForward: '', specialNeeds: '' }])}
+                      className="w-full py-2.5 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 hover:border-blue-400 hover:text-blue-600 transition-colors"
                     >
-                      Kopieer
+                      + Voeg reiziger toe
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!travelbroTripId || !supabase) return;
+                        try {
+                          setIntakeSaved(false);
+                          const sessionToken = `editor-${travelbroTripId}`;
+                          await supabase.from('travel_intakes').upsert({
+                            trip_id: travelbroTripId,
+                            brand_id: offerte?.brand_id,
+                            session_token: sessionToken,
+                            travelers_count: intakeTravelers.length,
+                            intake_data: { travelers: intakeTravelers },
+                            completed_at: new Date().toISOString(),
+                          }, { onConflict: 'session_token' });
+                          setIntakeSaved(true);
+                          setTimeout(() => setIntakeSaved(false), 3000);
+                        } catch (err) {
+                          console.error('Intake save error:', err);
+                          alert('Opslaan mislukt');
+                        }
+                      }}
+                      className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+                    >
+                      {intakeSaved ? <><CheckCircle2 size={16} /> Opgeslagen!</> : <><Save size={16} /> Intake opslaan</>}
                     </button>
                   </div>
                 </div>
+              </div>
 
-                {/* Chat / Preview */}
-                <div className="bg-orange-50 border border-orange-200 rounded-xl p-5 text-center">
-                  <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center mx-auto mb-3">
-                    <MessageSquare size={20} className="text-white" />
-                  </div>
-                  <p className="text-sm font-bold text-gray-800 mb-1">AI Chat Assistent</p>
-                  <p className="text-[11px] text-gray-500 mb-3">Klant kan vragen stellen over de reis, tips krijgen, foto's sturen</p>
-                  <button
-                    onClick={() => window.open(`${window.location.origin}/travelbro/${travelbroShareToken}`, '_blank')}
-                    className="w-full px-3 py-2 bg-orange-600 text-white text-xs font-medium rounded-lg hover:bg-orange-700 transition-colors"
-                  >
-                    <ExternalLink size={12} className="inline mr-1" /> Preview openen
-                  </button>
-                </div>
+              {/* Preview button */}
+              <div className="mt-4 text-center">
+                <button
+                  onClick={() => window.open(`${window.location.origin}/travelbro/${travelbroShareToken}`, '_blank')}
+                  className="px-5 py-2.5 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors inline-flex items-center gap-2"
+                >
+                  <ExternalLink size={14} /> Volledige TravelBro pagina openen
+                </button>
               </div>
             </>
           ) : (
