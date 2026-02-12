@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { Offerte, OfferteItem, OfferteDestination, ExtraCost, OFFERTE_ITEM_TYPES } from '../../types/offerte';
 import { RouteMap } from '../shared/RouteMap';
 import { DayByDaySection } from '../TravelDocs/DayByDaySection';
+import { ChatEmbed } from '../TravelBro/ChatEmbed';
 
 function getYouTubeEmbedUrl(url: string): string | null {
   if (!url) return null;
@@ -675,29 +676,73 @@ export function OfferteViewer({ offerteId }: Props) {
         </div>
       )}
 
-      {/* TRAVELBRO — QR code + intake link for traveler */}
+      {/* TRAVELBRO — feature overview + embedded chat for traveler */}
       {offerte.travelbro_share_token && (
-        <div className="max-w-4xl mx-auto px-6 pb-8">
-          <div className="bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-200 rounded-2xl p-8 text-center">
-            <div className="w-14 h-14 bg-gradient-to-br from-orange-500 to-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Globe size={28} className="text-white" />
+        <div className="max-w-5xl mx-auto px-6 pb-10">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-orange-500 to-amber-500 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+              <Compass size={32} className="text-white" />
             </div>
-            <h3 className="text-xl font-bold text-gray-900 mb-1">Jouw persoonlijke reisassistent</h3>
-            <p className="text-sm text-gray-600 mb-6">Scan de QR code of klik op de knop om TravelBro te openen — je AI reisassistent die al je vragen beantwoordt.</p>
-            <div className="flex flex-col items-center gap-4">
-              <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}/travelbro/${offerte.travelbro_share_token}`)}`}
-                alt="TravelBro QR"
-                className="w-40 h-40 rounded-xl shadow-lg bg-white p-2"
-              />
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">TravelBro — Jouw Reisassistent</h2>
+            <p className="text-gray-500 max-w-lg mx-auto">Stel vragen, ontdek nieuwe plekken en maak het meeste van je reis met je persoonlijke AI reisassistent.</p>
+          </div>
+
+          {/* Feature cards */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
+            <div className="bg-white rounded-xl border border-gray-200 p-4 text-center hover:shadow-md transition-shadow">
+              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mx-auto mb-2">
+                <MapPin size={20} className="text-blue-600" />
+              </div>
+              <p className="text-xs font-semibold text-gray-800">Wandelroutes</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">In de buurt ontdekken</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-4 text-center hover:shadow-md transition-shadow">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-2">
+                <Car size={20} className="text-green-600" />
+              </div>
+              <p className="text-xs font-semibold text-gray-800">Fietsverhuur</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">Verhuurpunten zoeken</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-4 text-center hover:shadow-md transition-shadow">
+              <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center mx-auto mb-2">
+                <Building2 size={20} className="text-purple-600" />
+              </div>
+              <p className="text-xs font-semibold text-gray-800">Foto herkenning</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">Stuur een foto, wij vertellen wat het is</p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-4 text-center hover:shadow-md transition-shadow">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-2">
+                <Star size={20} className="text-amber-600" />
+              </div>
+              <p className="text-xs font-semibold text-gray-800">Restaurants</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">Tips en reserveringen</p>
+            </div>
+          </div>
+
+          {/* Embedded Chat */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden" style={{ height: '500px' }}>
+            <ChatEmbed shareToken={offerte.travelbro_share_token} />
+          </div>
+
+          {/* QR Code + WhatsApp fallback */}
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-6 bg-gray-50 rounded-xl p-5 border border-gray-200">
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}/travelbro/${offerte.travelbro_share_token}`)}`}
+              alt="TravelBro QR"
+              className="w-24 h-24 rounded-lg shadow bg-white p-1.5"
+            />
+            <div className="text-center sm:text-left">
+              <p className="text-sm font-semibold text-gray-800">Liever op je telefoon?</p>
+              <p className="text-xs text-gray-500 mb-2">Scan de QR code om TravelBro op je mobiel te openen</p>
               <a
                 href={`${window.location.origin}/travelbro/${offerte.travelbro_share_token}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-6 py-3 text-white font-semibold rounded-xl transition-colors hover:opacity-90"
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-white text-xs font-medium rounded-lg transition-colors hover:opacity-90"
                 style={{ backgroundColor: brand?.primary_color || '#f97316' }}
               >
-                <Globe size={18} /> Open TravelBro
+                <Globe size={14} /> Open in nieuw venster
               </a>
             </div>
           </div>
