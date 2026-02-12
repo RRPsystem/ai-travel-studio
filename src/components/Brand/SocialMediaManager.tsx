@@ -996,13 +996,42 @@ export function SocialMediaManager() {
                         .filter(p => p.scheduled_for && new Date(p.scheduled_for).getDay() === ((index + 1) % 7))
                         .slice(0, 3)
                         .map(post => (
-                          <div key={post.id} className="bg-orange-50 border border-orange-200 rounded p-2 text-xs">
-                            <div className="flex items-center space-x-1 mb-1">
-                              {post.platforms.slice(0, 2).map(platform => (
-                                <div key={platform} className="text-orange-600">
-                                  {getPlatformIcon(platform)}
-                                </div>
-                              ))}
+                          <div 
+                            key={post.id} 
+                            onClick={() => {
+                              setFormData({
+                                aiPrompt: '',
+                                content: post.content,
+                                platforms: post.platforms || [],
+                                scheduled_for: post.scheduled_for || '',
+                                media_urls: post.media_urls || [],
+                                enabled_for_brands: false,
+                                enabled_for_agents: false,
+                              });
+                              setActiveTab('create');
+                              setSuccess('Post geladen in editor - pas aan en sla op!');
+                            }}
+                            className="bg-orange-50 border border-orange-200 rounded p-2 text-xs hover:bg-orange-100 hover:border-orange-300 cursor-pointer transition-colors group"
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <div className="flex items-center space-x-1">
+                                {post.platforms.slice(0, 2).map(platform => (
+                                  <div key={platform} className="text-orange-600">
+                                    {getPlatformIcon(platform)}
+                                  </div>
+                                ))}
+                              </div>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (confirm('Post verwijderen?')) {
+                                    handleDeletePost(post.id);
+                                  }
+                                }}
+                                className="opacity-0 group-hover:opacity-100 text-red-600 hover:text-red-700 transition-opacity"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
                             </div>
                             <p className="text-gray-900 line-clamp-2">{post.content}</p>
                             {post.scheduled_for && (
