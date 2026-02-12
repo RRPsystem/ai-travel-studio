@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Send, Loader, Bot, User, MapPin } from 'lucide-react';
 import { MultimodalInput } from './MultimodalInput';
@@ -24,6 +24,36 @@ interface Message {
   response?: any;
 }
 
+// Simple markdown renderer: converts **bold**, [text](url), and bare URLs to React elements
+function renderMarkdown(text: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  // Split on: **bold**, [text](url), or bare https:// URLs
+  const regex = /(\*\*(.+?)\*\*)|\[([^\]]+)\]\(([^)]+)\)|(https?:\/\/[^\s)]+)/g;
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    if (match[1]) {
+      // **bold**
+      parts.push(<strong key={key++}>{match[2]}</strong>);
+    } else if (match[3] && match[4]) {
+      // [text](url)
+      parts.push(<a key={key++} href={match[4]} target="_blank" rel="noopener noreferrer" className="text-orange-600 underline hover:text-orange-800">{match[3]}</a>);
+    } else if (match[5]) {
+      // bare URL
+      parts.push(<a key={key++} href={match[5]} target="_blank" rel="noopener noreferrer" className="text-orange-600 underline hover:text-orange-800">{match[5].length > 60 ? match[5].slice(0, 57) + '...' : match[5]}</a>);
+    }
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+  return parts;
+}
+
 /**
  * Embeddable TravelBro chat component - can be used in iframes
  * URL: /travelbro/embed/[share_token] or /travelbro/embed?trip_id=[trip_id]
@@ -45,7 +75,7 @@ export function ChatEmbed({ tripId, shareToken }: ChatEmbedProps) {
   }, [tripId, shareToken]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages]);
 
   const requestLocation = async () => {
@@ -314,7 +344,7 @@ export function ChatEmbed({ tripId, shareToken }: ChatEmbedProps) {
                   {msg.role === 'assistant' && msg.response ? (
                     <ResponseDisplay response={msg.response} />
                   ) : (
-                    <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                    <p className="text-sm whitespace-pre-wrap">{renderMarkdown(msg.content)}</p>
                   )}
                 </div>
               </div>

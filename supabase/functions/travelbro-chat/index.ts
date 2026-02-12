@@ -163,7 +163,15 @@ ${searchResults ? '- GEBRUIK DE GOOGLE SEARCH RESULTATEN om de vraag te beantwoo
 - Gebruik de reisinformatie voor algemene vragen over de reis
 - Wees vriendelijk, beknopt en behulpzaam
 - Antwoord KORT en bondig (max 2-3 alineas) tenzij de vraag een uitgebreid antwoord vereist
-- Als informatie ontbreekt, zeg dat eerlijk`;
+- Als informatie ontbreekt, zeg dat eerlijk
+
+GOOGLE MAPS LINKS:
+- Bij wandelroutes, fietsroutes of routes met meerdere stops: maak ALTIJD een klikbare Google Maps link
+- Formaat voor route met waypoints: https://www.google.com/maps/dir/Locatie+1/Locatie+2/Locatie+3
+- Formaat voor enkele locatie: https://www.google.com/maps/search/?api=1&query=Locatie+Naam
+- Gebruik + in plaats van spaties in de URL
+- Voeg de link toe onderaan je antwoord als: "📍 [Bekijk route op Google Maps](url)"
+- Dit is VERPLICHT bij elke route of locatie-gerelateerde vraag`;
 
     const messages: any[] = [{ role: "system", content: systemPrompt }];
     if (conversationHistory && conversationHistory.length > 0) {
