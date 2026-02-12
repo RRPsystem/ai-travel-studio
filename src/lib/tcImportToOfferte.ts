@@ -121,15 +121,27 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
       .filter((url: string) => url);
     const firstImage = imageUrls[0] || '';
 
-    // Extract facilities as string array
+    // Extract facilities — Swagger: AccommodationFacilitiesVO
+    // { includedFacilities: [{name}], nonIncludedFacilities: [{name}], otherFacilities: [{name}] }
     const rawFacilities = hotelData.facilities || h.facilities || rawHd.facilities || {};
     let facilityList: string[] = [];
-    if (Array.isArray(rawFacilities)) {
-      facilityList = rawFacilities.map((f: any) => typeof f === 'string' ? f : f.name || '').filter(Boolean);
+    console.log(`[TC Map] Hotel "${name}" facilities type:`, typeof rawFacilities, Array.isArray(rawFacilities) ? 'array' : '', rawFacilities ? Object.keys(rawFacilities).join(',') : 'empty');
+
+    // Swagger structure: { includedFacilities: FacilityVO[], nonIncludedFacilities: FacilityVO[], otherFacilities: FacilityVO[] }
+    const extractFacilityNames = (arr: any[]): string[] =>
+      (arr || []).map((f: any) => typeof f === 'string' ? f : f?.name || '').filter(Boolean);
+
+    if (rawFacilities.includedFacilities || rawFacilities.nonIncludedFacilities || rawFacilities.otherFacilities) {
+      facilityList = [
+        ...extractFacilityNames(rawFacilities.includedFacilities),
+        ...extractFacilityNames(rawFacilities.otherFacilities),
+      ];
+    } else if (Array.isArray(rawFacilities)) {
+      facilityList = extractFacilityNames(rawFacilities);
     } else if (typeof rawFacilities === 'object') {
       for (const [key, val] of Object.entries(rawFacilities)) {
         if (Array.isArray(val)) {
-          facilityList.push(...val.map((v: any) => typeof v === 'string' ? v : v.name || '').filter(Boolean));
+          facilityList.push(...extractFacilityNames(val));
         } else if (val === true || val === 'true') {
           facilityList.push(key);
         } else if (typeof val === 'string' && val) {
@@ -137,6 +149,7 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
         }
       }
     }
+    console.log(`[TC Map] Hotel "${name}" facilities (${facilityList.length}):`, facilityList.slice(0, 10).join(', '));
 
     // Extract location: formatted first, then raw TC data
     const location = safeStr(
@@ -309,16 +322,19 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
   console.log('[TC Sort] Items before sort:', items.map(i => `${i.type}:"${i.title}" date=${i.date_start}`).join(' | '));
 
   // Sort by date_start — items with dates first, items without dates at the end
-  items.sort((a, b) => {
-    const dateA = a.date_start ? new Date(a.date_start).getTime() : NaN;
-    const dateB = b.date_start ? new Date(b.date_start).getTime() : NaN;
-    const validA = !isNaN(dateA);
-    const validB = !isNaN(dateB);
+  // Normalize to date-only (YYYY-MM-DD) to handle datetime vs date comparison
+  const toDateOnly = (d: string): string => d ? d.substring(0, 10) : '';
 
-    // Both have dates: sort chronologically
+  items.sort((a, b) => {
+    const dayA = toDateOnly(a.date_start || '');
+    const dayB = toDateOnly(b.date_start || '');
+    const validA = dayA.length === 10;
+    const validB = dayB.length === 10;
+
+    // Both have dates: sort chronologically by DAY only
     if (validA && validB) {
-      if (dateA !== dateB) return dateA - dateB;
-      // Same date: flights first, then hotels/cruises, then car/transfer
+      if (dayA !== dayB) return dayA < dayB ? -1 : 1;
+      // Same day: flights first, then hotels/cruises, then car/transfer
       const typeOrder: Record<string, number> = { flight: 0, transfer: 1, hotel: 2, cruise: 2, car_rental: 3, activity: 4 };
       return (typeOrder[a.type] || 5) - (typeOrder[b.type] || 5);
     }
