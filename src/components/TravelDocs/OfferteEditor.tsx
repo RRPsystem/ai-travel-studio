@@ -267,13 +267,22 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
     return `${window.location.origin}/offerte/${id}`;
   };
 
-  const handlePreview = () => {
-    const id = offerte?.id;
-    if (!id) {
-      alert('Sla de offerte eerst op voordat je een preview kunt bekijken.');
+  const handlePreview = async () => {
+    // Save first to ensure we have an ID and latest data
+    const data = handleSave();
+    if (!data || !data.id) {
+      alert('Kon offerte niet opslaan voor preview.');
       return;
     }
-    window.open(getOfferteUrl(), '_blank');
+    
+    // Call onSave to persist to database if callback is provided
+    if (onSave) {
+      await onSave(data);
+    }
+    
+    // Open preview in new tab
+    const url = `${window.location.origin}/offerte/${data.id}`;
+    window.open(url, '_blank');
   };
 
   const handleSend = async () => {
