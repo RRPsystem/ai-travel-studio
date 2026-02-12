@@ -749,7 +749,8 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
           <div className="bg-gray-50 py-8">
             <div className="max-w-7xl mx-auto px-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Jouw Reis Timeline</h2>
-              <div ref={carouselRef} className="grid gap-5 pb-4 mb-6" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+              <div className="relative">
+              <div ref={carouselRef} className="flex gap-5 overflow-x-auto pb-4 mb-2 scroll-smooth snap-x snap-mandatory" style={{ scrollbarWidth: 'thin' }}>
                 {[...items].sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999)).map((item) => {
                   const config = getItemConfig(item.type);
                   const isFlight = item.type === 'flight';
@@ -759,8 +760,8 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
                   const isCarRental = item.type === 'car_rental';
                   
                   return (
-                    <div key={item.id}>
-                      <div className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-xl transition-all overflow-hidden flex flex-col">
+                    <div key={item.id} className="w-72 flex-shrink-0 snap-start">
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-xl transition-all overflow-hidden flex flex-col h-full">
                         
                         {/* === HEADER SECTION === */}
                         {isFlight ? (
@@ -947,8 +948,24 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
                   );
                 })}
               </div>
-              
-              {/* Grid layout - all cards visible, no scroll needed */}
+
+              {/* Carousel navigation arrows */}
+              <div className="flex items-center justify-center gap-4 mt-2">
+                <button
+                  onClick={() => { if (carouselRef.current) carouselRef.current.scrollBy({ left: -320, behavior: 'smooth' }); }}
+                  className="w-10 h-10 rounded-full bg-white border border-gray-300 shadow-sm flex items-center justify-center hover:bg-gray-50 transition-colors"
+                >
+                  <ArrowLeft size={18} className="text-gray-600" />
+                </button>
+                <span className="text-sm text-gray-400">{items.length} items</span>
+                <button
+                  onClick={() => { if (carouselRef.current) carouselRef.current.scrollBy({ left: 320, behavior: 'smooth' }); }}
+                  className="w-10 h-10 rounded-full bg-white border border-gray-300 shadow-sm flex items-center justify-center hover:bg-gray-50 transition-colors"
+                >
+                  <ArrowLeft size={18} className="text-gray-600 rotate-180" />
+                </button>
+              </div>
+              </div>
             </div>
           </div>
         )}
