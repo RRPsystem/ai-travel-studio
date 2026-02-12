@@ -70,13 +70,6 @@ export function OfferteViewer({ offerteId }: Props) {
   const [responseSubmitted, setResponseSubmitted] = useState(false);
   const [heroSlideIndex, setHeroSlideIndex] = useState(0);
 
-  // Override global overflow:hidden so this page can scroll
-  useEffect(() => {
-    const els = [document.documentElement, document.body, document.getElementById('root')].filter(Boolean) as HTMLElement[];
-    els.forEach(el => { el.style.overflow = 'auto'; el.style.height = 'auto'; });
-    return () => { els.forEach(el => { el.style.overflow = ''; el.style.height = ''; }); };
-  }, []);
-
   const loadOfferte = useCallback(async () => {
     if (!supabase) {
       setError('Configuratiefout');
