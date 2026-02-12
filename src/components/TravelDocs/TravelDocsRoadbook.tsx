@@ -750,7 +750,7 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
             <div className="max-w-7xl mx-auto px-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Jouw Reis Timeline</h2>
               <div className="relative">
-              <div ref={carouselRef} className="flex gap-5 overflow-x-auto pb-4 mb-2 scroll-smooth snap-x snap-mandatory" style={{ scrollbarWidth: 'thin' }}>
+              <div ref={carouselRef} className="flex gap-5 overflow-x-auto pb-4 mb-2 scroll-smooth snap-x snap-mandatory scrollbar-hide">
                 {[...items].sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999)).map((item) => {
                   const config = getItemConfig(item.type);
                   const isFlight = item.type === 'flight';
@@ -765,34 +765,31 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
                         
                         {/* === HEADER SECTION === */}
                         {isFlight ? (
-                          /* FLIGHT CARD */
-                          <div className="p-5 border-b border-gray-100">
-                            <div className="flex items-start gap-3 mb-4">
-                              <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
-                                <Plane size={20} className="text-white" />
+                          /* FLIGHT CARD - compact */
+                          <div className="p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="w-7 h-7 bg-green-500 rounded-md flex items-center justify-center flex-shrink-0">
+                                <Plane size={14} className="text-white" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="text-xs text-gray-500 mb-0.5">{item.date_start ? `✈️ ${new Date(item.date_start).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}</div>
-                                <div className="text-sm font-medium text-blue-600">{item.airline || 'Airline'}</div>
-                                <div className="text-xs text-gray-500">{item.flight_number ? `Vlucht ${item.flight_number}` : ''}</div>
+                                <div className="text-xs font-medium text-blue-600">{item.airline || 'Airline'} {item.flight_number || ''}</div>
+                                <div className="text-[10px] text-gray-400">{item.date_start ? new Date(item.date_start).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</div>
                               </div>
                             </div>
-                            <div className="bg-gray-50 rounded-lg p-4">
+                            <div className="bg-gray-50 rounded-lg p-3">
                               <div className="flex items-center justify-between">
                                 <div className="text-center">
-                                  <div className="text-xs text-gray-500 mb-1">{item.departure_airport || 'DEP'}</div>
-                                  <div className="text-xl font-bold text-gray-900">{item.departure_time || '--:--'}</div>
-                                  <div className="text-xs text-gray-400 mt-1">{item.departure_airport || ''}</div>
+                                  <div className="text-[10px] text-gray-500">{item.departure_airport || 'DEP'}</div>
+                                  <div className="text-base font-bold text-gray-900">{item.departure_time || '--:--'}</div>
                                 </div>
-                                <div className="flex-1 flex items-center justify-center px-3">
+                                <div className="flex-1 flex items-center justify-center px-2">
                                   <div className="h-px bg-gray-300 flex-1"></div>
-                                  <Plane size={16} className="mx-2 text-green-500 -rotate-0" />
+                                  <Plane size={12} className="mx-1 text-green-500" />
                                   <div className="h-px bg-gray-300 flex-1"></div>
                                 </div>
                                 <div className="text-center">
-                                  <div className="text-xs text-gray-500 mb-1">{item.arrival_airport || 'ARR'}</div>
-                                  <div className="text-xl font-bold text-gray-900">{item.arrival_time || '--:--'}</div>
-                                  <div className="text-xs text-gray-400 mt-1">{item.arrival_airport || ''}</div>
+                                  <div className="text-[10px] text-gray-500">{item.arrival_airport || 'ARR'}</div>
+                                  <div className="text-base font-bold text-gray-900">{item.arrival_time || '--:--'}</div>
                                 </div>
                               </div>
                             </div>
@@ -839,9 +836,9 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
                             )}
                           </div>
                         ) : (
-                          /* NO IMAGE - Colored header with large icon */
-                          <div className="h-32 flex flex-col items-center justify-center" style={{ backgroundColor: config.bgColor || '#f3f4f6' }}>
-                            <div className="w-14 h-14 rounded-full bg-white/80 flex items-center justify-center mb-2 shadow-sm">
+                          /* NO IMAGE - Compact colored header */
+                          <div className="h-16 flex items-center justify-center gap-2 px-4" style={{ backgroundColor: config.bgColor || '#f3f4f6' }}>
+                            <div className="w-9 h-9 rounded-full bg-white/80 flex items-center justify-center shadow-sm">
                               {getItemIcon(item.type)}
                             </div>
                             <span className="text-xs font-semibold" style={{ color: config.color }}>{config.label}</span>
