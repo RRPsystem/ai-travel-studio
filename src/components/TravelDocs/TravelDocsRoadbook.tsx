@@ -848,7 +848,43 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
           {/* Add button at top */}
           {renderAddButton(0)}
 
-          {/* Items list */}
+          {/* Carousel Timeline */}
+          {items.length > 0 && (
+            <div className="mb-8">
+              <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'thin' }}>
+                {items.map((item, index) => {
+                  const config = getItemConfig(item.type);
+                  return (
+                    <div key={item.id} className="flex-shrink-0 w-80 snap-start">
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-xl transition-all overflow-hidden h-full">
+                        {item.image_url && (
+                          <div className="relative h-40 bg-gray-100">
+                            <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
+                            <div className="absolute top-2 left-2 px-2 py-1 rounded-full text-xs font-semibold text-white" style={{ backgroundColor: config.color }}>
+                              {config.label}
+                            </div>
+                          </div>
+                        )}
+                        <div className="p-4">
+                          <h4 className="font-bold text-gray-900 mb-1">{item.title}</h4>
+                          <p className="text-sm text-gray-500 mb-2">{formatItemSubtitle(item)}</p>
+                          {item.distance && (
+                            <div className="flex items-center gap-1 text-sm text-orange-600 font-medium">
+                              <Car size={14} />
+                              {item.distance}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Items list (hidden) */}
+          <div className="hidden">
           {items.map((item, index) => {
             const config = getItemConfig(item.type);
             return (
@@ -993,6 +1029,7 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
               </div>
             );
           })}
+          </div>
 
           {/* Empty state */}
           {items.length === 0 && (
