@@ -324,26 +324,35 @@ export function APISettings() {
     setGoogleTestResult(null);
     
     try {
-      const testQuery = 'weather Cape Verde';
-      const url = `https://www.googleapis.com/customsearch/v1?key=${googleSettings.google_search_api_key}&cx=${googleSettings.google_search_engine_id}&q=${encodeURIComponent(testQuery)}&num=3`;
+      const { data: { session } } = await supabase.auth.getSession();
       
-      const response = await fetch(url);
+      if (!session) {
+        throw new Error('Niet geauthenticeerd');
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/test-google-search`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          }
+        }
+      );
+      
       const data = await response.json();
       
-      if (response.ok && data.items && data.items.length > 0) {
+      if (data.success) {
         setGoogleTestResult({
           success: true,
-          message: `✅ Google Custom Search werkt! Gevonden: ${data.items.length} resultaten voor "${testQuery}"`
-        });
-      } else if (data.error) {
-        setGoogleTestResult({
-          success: false,
-          message: `❌ ${data.error.message || 'API test mislukt'}\n\nControleer:\n- Is Custom Search API geactiveerd in Google Cloud?\n- Is de API key correct?\n- Is de Search Engine ID correct?`
+          message: `✅ Google Custom Search werkt! Gevonden: ${data.resultsCount} resultaten voor "${data.query}"`
         });
       } else {
         setGoogleTestResult({
           success: false,
-          message: '❌ Geen resultaten gevonden, maar API werkt. Controleer Search Engine instellingen.'
+          message: `❌ ${data.error || 'API test mislukt'}\n\n${data.details?.message || ''}\n\nControleer:\n- Is Custom Search API geactiveerd in Google Cloud?\n- Is de API key correct?\n- Is de Search Engine ID correct?`
         });
       }
     } catch (err: any) {
