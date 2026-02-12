@@ -168,6 +168,8 @@ export default function RoadmapBoard() {
           title: newItem.title,
           description: newItem.description,
           category: newItem.category,
+          status: 'nieuw_idee',
+          priority: 'medium',
           created_by: user.id,
           brand_id: effectiveBrandId
         });
@@ -178,7 +180,7 @@ export default function RoadmapBoard() {
       }
 
       console.log('Item created successfully!');
-      setNewItem({ title: '', description: '', category: 'feature' });
+      setNewItem({ title: '', description: '', category: 'ai_tools' });
       setShowNewForm(false);
       await loadRoadmapData();
     } catch (error) {
