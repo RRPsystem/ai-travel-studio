@@ -741,6 +741,93 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
           </div>
         )}
 
+        {/* REIS TIMELINE CAROUSEL - Full width, directly under route map */}
+        {items.length > 0 && (
+          <div className="bg-gray-50 py-8">
+            <div className="max-w-7xl mx-auto px-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Jouw Reis Timeline</h2>
+              <div className="flex gap-6 overflow-x-auto pb-4" style={{ scrollbarWidth: 'thin' }}>
+                {items.map((item, index) => {
+                  const config = getItemConfig(item.type);
+                  return (
+                    <div key={item.id} className="flex-shrink-0 w-80">
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-xl transition-all overflow-hidden h-full">
+                        {/* Image */}
+                        {item.image_url && (
+                          <div className="relative h-48 bg-gray-100">
+                            <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
+                            <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-semibold text-white" style={{ backgroundColor: config.color }}>
+                              {config.label}
+                            </div>
+                            {item.date_start && (
+                              <div className="absolute top-3 right-3 px-3 py-1.5 bg-white/90 backdrop-blur-sm rounded-full text-xs font-medium text-gray-700 flex items-center gap-1">
+                                <Calendar size={12} />
+                                {new Date(item.date_start).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Content */}
+                        <div className="p-4">
+                          <h4 className="font-bold text-gray-900 text-lg mb-1">{item.title}</h4>
+                          <p className="text-sm text-gray-500 mb-3">{formatItemSubtitle(item)}</p>
+                          
+                          {/* Details */}
+                          <div className="space-y-2 text-xs text-gray-600">
+                            {item.date_start && item.date_end && (
+                              <div className="flex items-center gap-2">
+                                <Calendar size={12} className="text-gray-400" />
+                                <span>{new Date(item.date_start).toLocaleDateString('nl-NL')} - {new Date(item.date_end).toLocaleDateString('nl-NL')}</span>
+                              </div>
+                            )}
+                            {item.nights && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-400">🌙</span>
+                                <span>{item.nights} nachten</span>
+                              </div>
+                            )}
+                            {item.distance && (
+                              <div className="flex items-center gap-2 text-orange-600 font-medium">
+                                <Car size={12} />
+                                <span>{item.distance}</span>
+                              </div>
+                            )}
+                            {item.board_type && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-400">🍽️</span>
+                                <span>{item.board_type}</span>
+                              </div>
+                            )}
+                          </div>
+                          
+                          {/* Price */}
+                          {(item.price || item.price_per_person) && (
+                            <div className="mt-4 pt-3 border-t border-gray-100">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs text-gray-500">Prijs</span>
+                                <span className="text-sm font-bold text-gray-900">
+                                  € {(item.price || item.price_per_person || 0).toLocaleString('nl-NL')}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Action button */}
+                          <button className="mt-3 w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
+                            <Star size={14} />
+                            Meer informatie
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* DESTINATION INFO CARDS */}
         {destinations.length > 0 && destinations.some(d => d.description || (d.images && d.images.length > 0)) && (
           <div className="max-w-4xl mx-auto px-6 pt-10 pb-4">
@@ -848,42 +935,7 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
           {/* Add button at top */}
           {renderAddButton(0)}
 
-          {/* Carousel Timeline */}
-          {items.length > 0 && (
-            <div className="mb-8">
-              <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory" style={{ scrollbarWidth: 'thin' }}>
-                {items.map((item, index) => {
-                  const config = getItemConfig(item.type);
-                  return (
-                    <div key={item.id} className="flex-shrink-0 w-80 snap-start">
-                      <div className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-xl transition-all overflow-hidden h-full">
-                        {item.image_url && (
-                          <div className="relative h-40 bg-gray-100">
-                            <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
-                            <div className="absolute top-2 left-2 px-2 py-1 rounded-full text-xs font-semibold text-white" style={{ backgroundColor: config.color }}>
-                              {config.label}
-                            </div>
-                          </div>
-                        )}
-                        <div className="p-4">
-                          <h4 className="font-bold text-gray-900 mb-1">{item.title}</h4>
-                          <p className="text-sm text-gray-500 mb-2">{formatItemSubtitle(item)}</p>
-                          {item.distance && (
-                            <div className="flex items-center gap-1 text-sm text-orange-600 font-medium">
-                              <Car size={14} />
-                              {item.distance}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Items list (hidden) */}
+          {/* Items list (hidden for carousel view) */}
           <div className="hidden">
           {items.map((item, index) => {
             const config = getItemConfig(item.type);
