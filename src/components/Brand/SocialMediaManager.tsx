@@ -45,6 +45,7 @@ export function SocialMediaManager() {
   const [posts, setPosts] = useState<SocialMediaPost[]>([]);
   const [accounts, setAccounts] = useState<SocialMediaAccount[]>([]);
   const [availablePosts, setAvailablePosts] = useState<SocialMediaPost[]>([]);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'create' | 'available' | 'planner' | 'suggestions' | 'accounts' | 'brand-voice' | 'saved-posts'>('create');
   const [showMediaSelector, setShowMediaSelector] = useState(false);
@@ -1101,7 +1102,11 @@ export function SocialMediaManager() {
                         }
                       );
                       if (!response.ok) throw new Error('Fout bij genereren voorstellen');
-                      setSuccess('Nieuwe voorstellen gegenereerd!');
+                      
+                      const data = await response.json();
+                      const generatedSuggestions = JSON.parse(data.content);
+                      setSuggestions(generatedSuggestions);
+                      setSuccess(`${generatedSuggestions.length} nieuwe ideeën gegenereerd!`);
                     } catch (err: any) {
                       setError('Fout bij genereren: ' + err.message);
                     } finally {
@@ -1117,13 +1122,13 @@ export function SocialMediaManager() {
               </div>
 
               <div className="space-y-4">
-                {[
-                  { topic: 'Zomervakantie Inspiratie', platforms: ['instagram', 'facebook'], engagement: 'Hoog' },
-                  { topic: 'Reistips voor Gezinnen', platforms: ['facebook', 'linkedin'], engagement: 'Gemiddeld' },
-                  { topic: 'Last Minute Deals', platforms: ['twitter', 'instagram'], engagement: 'Hoog' },
-                  { topic: 'Sustainable Travel Tips', platforms: ['linkedin', 'instagram'], engagement: 'Gemiddeld' },
-                  { topic: 'Verborgen Bestemmingen Europa', platforms: ['instagram', 'facebook'], engagement: 'Hoog' }
-                ].map((suggestion, index) => (
+                {(suggestions.length > 0 ? suggestions : [
+                  { topic: 'Zomervakantie Inspiratie', description: 'Inspireer reizigers met zomerse bestemmingen', platforms: ['instagram', 'facebook'], engagement: 'Hoog' },
+                  { topic: 'Reistips voor Gezinnen', description: 'Praktische tips voor gezinnen met kinderen', platforms: ['facebook', 'linkedin'], engagement: 'Gemiddeld' },
+                  { topic: 'Last Minute Deals', description: 'Aantrekkelijke last minute aanbiedingen', platforms: ['twitter', 'instagram'], engagement: 'Hoog' },
+                  { topic: 'Sustainable Travel Tips', description: 'Duurzaam reizen en eco-vriendelijke tips', platforms: ['linkedin', 'instagram'], engagement: 'Gemiddeld' },
+                  { topic: 'Verborgen Bestemmingen Europa', description: 'Ontdek onbekende Europese parels', platforms: ['instagram', 'facebook'], engagement: 'Hoog' }
+                ]).map((suggestion, index) => (
                   <div key={index} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
