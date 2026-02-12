@@ -194,6 +194,7 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave, brandColor = '#2e7
   const [travelbroShareToken, setTravelbroShareToken] = useState(offerte?.travelbro_share_token || '');
   const [creatingTravelbro, setCreatingTravelbro] = useState(false);
   const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null);
+  const [brandLogo, setBrandLogo] = useState<string | null>(null);
   const [intakeTravelers, setIntakeTravelers] = useState<any[]>([{ name: clientName || '', age: '', relation: 'adult', favoriteFood: '', dietary: '', lookingForward: '', specialNeeds: '' }]);
   const [intakeSaved, setIntakeSaved] = useState(false);
 
@@ -222,24 +223,32 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave, brandColor = '#2e7
   const [destMediaIdx, setDestMediaIdx] = useState<number | null>(null);
   const [generatingAI, setGeneratingAI] = useState<number | null>(null);
 
-  // Load WhatsApp number for TravelBro section
+  // Load WhatsApp number + brand logo for TravelBro section
   useEffect(() => {
-    const loadWhatsApp = async () => {
+    const loadBrandData = async () => {
       if (!supabase || !offerte?.brand_id) return;
       try {
-        const { data } = await supabase
-          .from('api_settings')
-          .select('twilio_whatsapp_number')
-          .or(`brand_id.eq.${offerte.brand_id},provider.eq.system`)
-          .order('brand_id', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (data?.twilio_whatsapp_number) setWhatsappNumber(data.twilio_whatsapp_number);
+        const [waResult, brandResult] = await Promise.all([
+          supabase
+            .from('api_settings')
+            .select('twilio_whatsapp_number')
+            .or(`brand_id.eq.${offerte.brand_id},provider.eq.system`)
+            .order('brand_id', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('brands')
+            .select('logo_url')
+            .eq('id', offerte.brand_id)
+            .maybeSingle(),
+        ]);
+        if (waResult.data?.twilio_whatsapp_number) setWhatsappNumber(waResult.data.twilio_whatsapp_number);
+        if (brandResult.data?.logo_url) setBrandLogo(brandResult.data.logo_url);
       } catch (err) {
-        console.error('Error loading WhatsApp number:', err);
+        console.error('Error loading brand data:', err);
       }
     };
-    loadWhatsApp();
+    loadBrandData();
   }, [offerte?.brand_id]);
 
   const extraCostsTotal = extraCosts.reduce((sum, ec) => sum + (ec.per_person ? ec.amount * numberOfTravelers : ec.amount), 0);
@@ -1870,6 +1879,19 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave, brandColor = '#2e7
               </div>
             </div>
           )}
+        </div>
+
+        {/* BRAND FOOTER BAR — full width colored bar with logo */}
+        <div className="w-full py-10" style={{ backgroundColor: brandColor }}>
+          <div className="flex items-center justify-center">
+            {brandLogo ? (
+              <img src={brandLogo} alt="Brand logo" className="h-12 max-w-[200px] object-contain brightness-0 invert" />
+            ) : (
+              <div className="text-white/80 text-sm font-medium tracking-wide">
+                {offerte?.brand_id ? 'Powered by your travel agent' : 'TravelCStudio'}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
