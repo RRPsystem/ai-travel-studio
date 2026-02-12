@@ -356,6 +356,9 @@ function buildTravelData(info: any, detail: any, travelId: string) {
     highlights: d.highlights || [],
     images: d.imageUrls || [],
     geolocation: d.geolocation || null,
+    fromDay: d.fromDay || 0,
+    toDay: d.toDay || 0,
+    type: d.type || "",
   }));
 
   // Log ALL raw hotel keys for debugging
@@ -376,17 +379,17 @@ function buildTravelData(info: any, detail: any, travelId: string) {
       shortDescription: hd.shortDescription || "",
       highlights: hd.highlights || [],
       address: hd.address || "",
-      city: hd.city || h.destination || h.city || hd.destination || "",
-      destination: h.destination || hd.destination || "",
+      city: hd.city || (typeof h.destination === 'object' ? h.destination?.name : h.destination) || h.city || (typeof hd.destination === 'object' ? hd.destination?.name : hd.destination) || "",
+      destination: (typeof h.destination === 'object' ? h.destination?.name : h.destination) || (typeof hd.destination === 'object' ? hd.destination?.name : hd.destination) || "",
       nights: h.nights || 0,
       day: h.day || 0, // Which day of the trip this hotel starts
       roomAmenities: [],
       mealPlan: h.mealPlan || h.mealPlanDescription || "",
       mealPlanDescription: h.mealPlan || h.mealPlanDescription || "",
       mealsIncluded: [],
-      roomType: h.roomDescription || h.roomType || h.room || "",
-      checkIn: h.checkIn || h.startDate || h.dateFrom || "",
-      checkOut: h.checkOut || h.endDate || h.dateTo || "",
+      roomType: h.roomTypes || h.roomDescription || h.roomType || h.room || "",
+      checkIn: h.checkInDate || h.checkIn || h.startDate || h.dateFrom || "",
+      checkOut: h.checkOutDate || h.checkOut || h.endDate || h.dateTo || "",
       facilities: hd.facilities || {},
       services: [],
       images: (hd.images || []).map((img: any) => typeof img === "string" ? img : img.url),
@@ -407,6 +410,7 @@ function buildTravelData(info: any, detail: any, travelId: string) {
 
   const transports = (detail.transports || []).map((t: any) => ({
     type: t.transportType === "FLIGHT" ? "flight" : "transport",
+    day: t.day || 0,
     departureDate: t.departureDate || "",
     departureTime: t.departureTime || "",
     arrivalDate: t.arrivalDate || "",
@@ -416,6 +420,10 @@ function buildTravelData(info: any, detail: any, travelId: string) {
     company: t.company || "",
     transportNumber: t.transportNumber || "",
     fare: t.fare || "",
+    originCode: t.originCode || "",
+    targetCode: t.targetCode || "",
+    originDestinationCode: t.originDestinationCode || "",
+    targetDestinationCode: t.targetDestinationCode || "",
   }));
 
   const totalPrice = info.totalPrice?.amount || 0;
@@ -586,8 +594,8 @@ async function processAndReturnTravel(data: any, rawTcData: any, travelId: strin
       t.transportType !== 'FLIGHT'
     ) || [],
     
-    // Cruises - separate array in TC raw data
-    cruises: rawTcData.cruises || [],
+    // Cruises - may be in closedTours or cruises array
+    cruises: rawTcData.cruises || rawTcData.closedTours || [],
     
     // Car rentals - separate array in TC raw data
     carRentals: rawTcData.cars || data.car_rentals || [],

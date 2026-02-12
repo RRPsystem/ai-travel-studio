@@ -144,15 +144,16 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
       rawHd.city || raw.destination || rawHd.destination || rawHd.address || raw.city
     );
 
-    // Extract dates: formatted first, then raw TC hotel data (try ALL possible field names)
+    // Extract dates: TC API uses checkInDate/checkOutDate (from Swagger IdeaHotelVO)
     const dateStart = safeStr(
-      h.checkIn || hotelData.checkIn || h.startDate || h.dateFrom ||
-      raw.checkIn || raw.startDate || raw.dateFrom || raw.checkinDate || raw.check_in
+      h.checkIn || h.checkInDate || hotelData.checkIn || hotelData.checkInDate ||
+      raw.checkInDate || raw.checkIn || raw.startDate || raw.dateFrom
     );
     const dateEnd = safeStr(
-      h.checkOut || hotelData.checkOut || h.endDate || h.dateTo ||
-      raw.checkOut || raw.endDate || raw.dateTo || raw.checkoutDate || raw.check_out
+      h.checkOut || h.checkOutDate || hotelData.checkOut || hotelData.checkOutDate ||
+      raw.checkOutDate || raw.checkOut || raw.endDate || raw.dateTo
     );
+    console.log(`[TC Map] Hotel "${name}" dates: checkIn="${dateStart}", checkOut="${dateEnd}", nights=${nights}, rawKeys=${Object.keys(raw).join(',')}`);
 
     // Extract room type: formatted first, then raw
     const roomType = safeStr(
@@ -225,22 +226,27 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
     });
   }
 
-  // --- Cruises ---
+  // --- Cruises (may come from closedTours in TC API) ---
   const cruises = tc.cruises || [];
   for (const cr of cruises) {
-    // Log all cruise fields for debugging
-    console.log('[TC Map] Cruise raw data:', JSON.stringify(cr).substring(0, 500));
+    console.log('[TC Map] Cruise raw keys:', Object.keys(cr).join(', '));
+    console.log('[TC Map] Cruise raw data:', JSON.stringify(cr).substring(0, 800));
+    // closedTours have: dayFrom, dayTo, startDate, endDate, name, supplierName, description, imageUrls
+    // classic cruises have: cruiseLine, shipId, nights, departure, arrival
+    const nights = cr.nights || (cr.dayTo && cr.dayFrom ? cr.dayTo - cr.dayFrom : 0) || cr.duration || 0;
     items.push({
       id: crypto.randomUUID(),
       type: 'cruise',
       title: safeStr(cr.name || cr.shipName || 'Cruise'),
-      subtitle: safeStr(cr.cruiseLine || cr.company),
-      supplier: safeStr(cr.cruiseLine || cr.company),
-      nights: cr.nights || cr.duration || 0,
-      date_start: safeStr(cr.departureDate || cr.startDate || cr.dateFrom || cr.checkIn),
-      date_end: safeStr(cr.arrivalDate || cr.endDate || cr.dateTo || cr.checkOut),
-      location: safeStr(cr.departurePort || cr.embarkation || cr.departure),
+      subtitle: safeStr(cr.cruiseLine || cr.supplierName || cr.company),
+      supplier: safeStr(cr.cruiseLine || cr.supplierName || cr.company),
+      nights,
+      date_start: safeStr(cr.startDate || cr.departureDate || cr.dateFrom || cr.checkIn || ''),
+      date_end: safeStr(cr.endDate || cr.arrivalDate || cr.dateTo || cr.checkOut || ''),
+      location: safeStr(cr.departurePort || cr.embarkation || cr.departure || cr.address || ''),
       description: stripHtml(cr.description || cr.itinerary || ''),
+      image_url: (cr.imageUrls || [])[0] || '',
+      images: cr.imageUrls || [],
       price: extractPrice(cr),
       sort_order: 0,
     });
@@ -263,148 +269,39 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
   }
 
   // =============================================================
-  // ORDERING + DATE CALCULATION
+  // ORDERING: Simple date-based sort
   // =============================================================
-  // Strategy: Use DESTINATIONS array as chronological backbone.
-  // Match each hotel/cruise to a destination by name.
-  // Build timeline: outbound flights → accommodations in dest order → car → return flights.
-  // Calculate dates by walking through: each check-in = previous check-out.
+  // TC API provides real dates: checkInDate/checkOutDate for hotels,
+  // startDate/endDate for closedTours (cruises), departureDate for flights.
+  // Just sort everything by date_start.
   // =============================================================
 
-  const destNames = (tc.destinations || []).map((d: any) => (d.name || '').toLowerCase().trim());
-  console.log(`[TC Sort] Destinations: ${destNames.join(' → ')}`);
+  console.log('[TC Sort] Items before sort:', items.map(i => `${i.type}:"${i.title}" date=${i.date_start}`).join(' | '));
 
-  // Helper: fuzzy match a location string to a destination index
-  const matchDest = (loc: string): number => {
-    if (!loc) return -1;
-    const l = loc.toLowerCase().trim();
-    // Exact includes match
-    let idx = destNames.findIndex((d: string) => d && l && (d.includes(l) || l.includes(d)));
-    if (idx >= 0) return idx;
-    // Try first word match (e.g. "Key West FL" matches "Key West")
-    const firstWord = l.split(/[\s,]+/)[0];
-    if (firstWord.length >= 3) {
-      idx = destNames.findIndex((d: string) => d && d.includes(firstWord));
+  // Sort by date_start — items with dates first, items without dates at the end
+  items.sort((a, b) => {
+    const dateA = a.date_start ? new Date(a.date_start).getTime() : NaN;
+    const dateB = b.date_start ? new Date(b.date_start).getTime() : NaN;
+    const validA = !isNaN(dateA);
+    const validB = !isNaN(dateB);
+
+    // Both have dates: sort chronologically
+    if (validA && validB) {
+      if (dateA !== dateB) return dateA - dateB;
+      // Same date: flights first, then hotels/cruises, then car/transfer
+      const typeOrder: Record<string, number> = { flight: 0, transfer: 1, hotel: 2, cruise: 2, car_rental: 3, activity: 4 };
+      return (typeOrder[a.type] || 5) - (typeOrder[b.type] || 5);
     }
-    return idx;
-  };
-
-  // Separate items by type
-  const flightItems = items.filter(i => i.type === 'flight');
-  const hotelItems = items.filter(i => i.type === 'hotel');
-  const cruiseItems = items.filter(i => i.type === 'cruise');
-  const carItems = items.filter(i => i.type === 'car_rental');
-  const transferItems = items.filter(i => i.type === 'transfer');
-  const activityItems = items.filter(i => i.type === 'activity');
-
-  // Match hotels to destinations
-  const hotelWithDest = hotelItems.map(h => {
-    const loc = typeof h.location === 'string' ? h.location : '';
-    const di = matchDest(loc);
-    console.log(`[TC Sort] Hotel "${h.title}" loc="${loc}" → dest[${di}]${di >= 0 ? ` (${destNames[di]})` : ''}`);
-    return { item: h, destIdx: di };
+    // Only one has a date: put the one with a date first
+    if (validA && !validB) return -1;
+    if (!validA && validB) return 1;
+    // Neither has a date: keep original order
+    return 0;
   });
-
-  // Match cruises to destinations (by departure port)
-  const cruiseWithDest = cruiseItems.map(c => {
-    const loc = typeof c.location === 'string' ? c.location : '';
-    const di = matchDest(loc);
-    console.log(`[TC Sort] Cruise "${c.title}" departure="${loc}" → dest[${di}]${di >= 0 ? ` (${destNames[di]})` : ''}`);
-    return { item: c, destIdx: di };
-  });
-
-  // Build ordered accommodations by walking through destinations
-  const orderedAccom: OfferteItem[] = [];
-  const usedHotels = new Set<string>();
-  const usedCruises = new Set<string>();
-
-  for (let di = 0; di < destNames.length; di++) {
-    // Check hotels for this destination
-    for (const hd of hotelWithDest) {
-      if (hd.destIdx === di && !usedHotels.has(hd.item.id)) {
-        orderedAccom.push(hd.item);
-        usedHotels.add(hd.item.id);
-      }
-    }
-    // Check cruises for this destination
-    for (const cd of cruiseWithDest) {
-      if (cd.destIdx === di && !usedCruises.has(cd.item.id)) {
-        orderedAccom.push(cd.item);
-        usedCruises.add(cd.item.id);
-      }
-    }
-  }
-  // Append any unmatched accommodations at end (shouldn't happen)
-  for (const hd of hotelWithDest) {
-    if (!usedHotels.has(hd.item.id)) orderedAccom.push(hd.item);
-  }
-  for (const cd of cruiseWithDest) {
-    if (!usedCruises.has(cd.item.id)) orderedAccom.push(cd.item);
-  }
-
-  console.log(`[TC Sort] Accommodation order: ${orderedAccom.map(a => `${a.type}:${a.title}`).join(' → ')}`);
-
-  // Split flights into outbound (first half) and return (second half)
-  const midpoint = Math.ceil(flightItems.length / 2);
-  const outboundFlights = flightItems.slice(0, midpoint);
-  const returnFlights = flightItems.slice(midpoint);
-
-  // Build final timeline
-  const timeline: OfferteItem[] = [
-    ...outboundFlights,
-    ...orderedAccom,
-    ...carItems,
-    ...transferItems,
-    ...activityItems,
-    ...returnFlights,
-  ];
-
-  // Move car rental to AFTER the last accommodation before it needs to start
-  // (car rental typically starts after cruise ends, when land travel begins)
 
   // Assign sort_order
-  timeline.forEach((item, idx) => { item.sort_order = idx; });
-
-  // --- CALCULATE DATES by walking through timeline ---
-  // Each accommodation's check-in = previous accommodation's check-out
-  const tripStartDate = findTripStartDate(timeline, tc);
-  if (tripStartDate) {
-    console.log('[TC Sort] Trip start date:', tripStartDate.toISOString().split('T')[0]);
-
-    // Walk through accommodations and calculate dates sequentially
-    let currentDate = new Date(tripStartDate);
-    for (const item of orderedAccom) {
-      const nights = item.nights || 1;
-      const checkIn = new Date(currentDate);
-      const checkOut = new Date(currentDate);
-      checkOut.setDate(checkOut.getDate() + nights);
-
-      item.date_start = checkIn.toISOString().split('T')[0];
-      item.date_end = checkOut.toISOString().split('T')[0];
-      console.log(`[TC Sort] ${item.type} "${item.title}" → ${item.date_start} to ${item.date_end} (${nights}n)`);
-
-      currentDate = new Date(checkOut); // next item starts when this one ends
-    }
-
-    // Car rental: spans from after cruise to return flight
-    for (const car of carItems) {
-      // Find last cruise end or first post-cruise hotel start
-      const lastCruise = orderedAccom.filter(a => a.type === 'cruise').pop();
-      const lastAccom = orderedAccom[orderedAccom.length - 1];
-      const carStart = lastCruise?.date_end || orderedAccom.find(a => orderedAccom.indexOf(a) > orderedAccom.indexOf(lastCruise!))?.date_start || tripStartDate.toISOString().split('T')[0];
-      const carEnd = lastAccom?.date_end || currentDate.toISOString().split('T')[0];
-
-      if (!car.date_start || car.date_start === '') {
-        car.date_start = carStart;
-        car.date_end = carEnd;
-        console.log(`[TC Sort] Car "${car.title}" → ${car.date_start} to ${car.date_end}`);
-      }
-    }
-  }
-
-  // Replace items array with correctly ordered timeline
-  items.length = 0;
-  items.push(...timeline);
+  items.forEach((item, idx) => { item.sort_order = idx; });
+  console.log('[TC Sort] Items after sort:', items.map(i => `${i.sort_order}:${i.type}:"${i.title}" ${i.date_start||'no-date'}`).join(' | '));
 
   // --- Destinations ---
   const destinations: OfferteDestination[] = (tc.destinations || []).map((d: any, i: number) => ({
