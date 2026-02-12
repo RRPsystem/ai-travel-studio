@@ -85,9 +85,28 @@ Deno.serve(async (req: Request) => {
     let searchResults = "";
     if (googleSearchApiKey && googleCseId) {
       try {
-        const searchQuery = `${message} ${trip.name}`;
+        // Detect weather-related questions and use current date + location
+        const isWeatherQuery = /\b(weer|weather|temperature|temperatuur|rain|regen|zon|sun|cloud|bewolkt)\b/i.test(message);
+        
+        let searchQuery;
+        if (isWeatherQuery) {
+          // Extract location from trip data or use trip name
+          const location = trip.parsed_data?.destination || trip.name || 'Disneyland Paris';
+          const today = new Date();
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          
+          // Format: "weather [location] [date]"
+          const dateStr = tomorrow.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+          searchQuery = `weer ${location} ${dateStr}`;
+          console.log('🌤️ Weather query detected, using current date');
+        } else {
+          searchQuery = `${message} ${trip.name}`;
+        }
+        
         console.log('🔍 Google Search - Config:', {
           query: searchQuery,
+          isWeatherQuery,
           apiKeyPrefix: googleSearchApiKey.substring(0, 10) + '...',
           cseId: googleCseId,
           cseIdLength: googleCseId.length
