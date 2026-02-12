@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { generateVideoDeeplink } from '../../lib/videoDeeplinkHelper';
-import { Film, Plus, Edit, Trash2, Download, Play, RefreshCw } from 'lucide-react';
+import { Film, Plus, Edit, Trash2, Download, Play, RefreshCw, Building2 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface Video {
   id: string;
@@ -25,37 +26,73 @@ interface Video {
   published_at?: string;
 }
 
+interface Brand {
+  id: string;
+  name: string;
+}
+
 export default function VideoLibrary() {
+  const { isAdmin } = useAuth();
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [showPlayer, setShowPlayer] = useState(false);
+  const [brands, setBrands] = useState<Brand[]>([]);
+  const [selectedBrandId, setSelectedBrandId] = useState<string>('');
+  const [activeBrandId, setActiveBrandId] = useState<string>('');
 
   useEffect(() => {
-    loadVideos();
+    initBrand();
   }, []);
 
+  useEffect(() => {
+    if (activeBrandId) {
+      loadVideos();
+    }
+  }, [activeBrandId]);
+
+  const initBrand = async () => {
+    try {
+      if (isAdmin) {
+        // Admin: use Admin Workspace brand
+        const ADMIN_WORKSPACE_ID = '00000000-0000-0000-0000-000000000999';
+        const { data: brandsData } = await supabase
+          .from('brands')
+          .select('id, name')
+          .order('name');
+        setBrands(brandsData || []);
+        setSelectedBrandId(ADMIN_WORKSPACE_ID);
+        setActiveBrandId(ADMIN_WORKSPACE_ID);
+      } else {
+        // Non-admin: use own brand_id
+        const { data: userData } = await supabase.auth.getUser();
+        if (!userData.user) throw new Error('Niet ingelogd');
+        const { data: userProfile } = await supabase
+          .from('users')
+          .select('brand_id')
+          .eq('id', userData.user.id)
+          .single();
+        if (!userProfile?.brand_id) throw new Error('Geen brand gevonden');
+        setActiveBrandId(userProfile.brand_id);
+      }
+    } catch (err) {
+      console.error('Error init brand:', err);
+      setError(err instanceof Error ? err.message : 'Fout bij laden brand');
+      setLoading(false);
+    }
+  };
+
   const loadVideos = async () => {
+    if (!activeBrandId) return;
     try {
       setLoading(true);
       setError(null);
 
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) throw new Error('Niet ingelogd');
-
-      const { data: userProfile } = await supabase
-        .from('users')
-        .select('brand_id')
-        .eq('id', userData.user.id)
-        .single();
-
-      if (!userProfile?.brand_id) throw new Error('Geen brand gevonden');
-
       const { data, error: fetchError } = await supabase
         .from('brand_videos')
         .select('*')
-        .eq('brand_id', userProfile.brand_id)
+        .eq('brand_id', activeBrandId)
         .order('created_at', { ascending: false });
 
       if (fetchError) throw fetchError;
@@ -71,19 +108,10 @@ export default function VideoLibrary() {
 
   const handleCreateNew = async () => {
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user) throw new Error('Niet ingelogd');
+      if (!activeBrandId) throw new Error('Selecteer eerst een brand');
 
-      const { data: userProfile } = await supabase
-        .from('users')
-        .select('brand_id')
-        .eq('id', userData.user.id)
-        .single();
-
-      if (!userProfile?.brand_id) throw new Error('Geen brand gevonden');
-
-      const deeplink = await generateVideoDeeplink(
-        userProfile.brand_id,
+      const deeplink = generateVideoDeeplink(
+        activeBrandId,
         'create'
       );
 
@@ -96,10 +124,10 @@ export default function VideoLibrary() {
 
   const handleEdit = async (video: Video) => {
     try {
-      const deeplink = await generateVideoDeeplink(
+      const deeplink = generateVideoDeeplink(
         video.brand_id,
         'edit',
-        video.id
+        { videoId: video.id, videoSlug: video.slug }
       );
 
       window.open(deeplink, '_blank');
@@ -196,6 +224,33 @@ export default function VideoLibrary() {
 
   return (
     <div className="p-6">
+      {/* Brand selector for Admin */}
+      {isAdmin && brands.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 text-gray-600">
+              <Building2 size={18} />
+              <span className="text-sm font-medium">Brand:</span>
+            </div>
+            <select
+              value={selectedBrandId}
+              onChange={(e) => setSelectedBrandId(e.target.value)}
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {brands.map(brand => (
+                <option key={brand.id} value={brand.id}>{brand.name}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => setActiveBrandId(selectedBrandId)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              Laden
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-end items-center mb-6">
         <div className="flex gap-3">
           <button
