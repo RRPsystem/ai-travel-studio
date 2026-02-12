@@ -642,7 +642,7 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
                 type="text"
                 value={title}
                 onChange={e => setTitle(e.target.value)}
-                placeholder="Reistitel..."
+                placeholder={templateType === 'auto-rondreis' ? "Naam van het Roadbook..." : "Reistitel..."}
                 className="text-4xl font-bold text-white bg-transparent border-none outline-none placeholder:text-white/20 mb-4 leading-tight"
               />
               {/* Intro text */}
