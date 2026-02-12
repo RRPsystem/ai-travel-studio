@@ -204,6 +204,7 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
     dropoff_location: item?.dropoff_location || '',
     activity_duration: item?.activity_duration || '',
     included_items: item?.included_items || [],
+    distance: item?.distance || '',
   });
 
   // Search state
@@ -536,6 +537,7 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
       dropoff_location: formData.dropoff_location,
       activity_duration: formData.activity_duration,
       included_items: formData.included_items,
+      distance: formData.distance,
       sort_order: item?.sort_order ?? 0,
     };
     onSave(saved);
@@ -1080,9 +1082,15 @@ export function OfferteItemPanel({ item, itemType, onSave, onClose }: Props) {
         </div>
       </div>
 
-      <div>
-        <label className="block text-xs font-medium text-gray-500 mb-1">Locatie</label>
-        <input type="text" value={formData.location} onChange={e => update('location', e.target.value)} placeholder="Stad, land" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Locatie</label>
+          <input type="text" value={formData.location} onChange={e => update('location', e.target.value)} placeholder="Stad, land" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">Afstand</label>
+          <input type="text" value={formData.distance} onChange={e => update('distance', e.target.value)} placeholder="bijv. 250 km" className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none" />
+        </div>
       </div>
 
       <div>
