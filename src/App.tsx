@@ -397,7 +397,7 @@ function App() {
   const offerteViewMatch = path.match(/^\/offerte\/([a-f0-9-]+)$/);
   if (offerteViewMatch) {
     console.log('[App] Rendering public offerte viewer (outside AuthProvider)');
-    return <OfferteViewerSimple offerteId={offerteViewMatch[1]} />;
+    return <OfferteViewer offerteId={offerteViewMatch[1]} />;
   }
 
   return (

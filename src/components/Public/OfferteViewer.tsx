@@ -231,8 +231,9 @@ export function OfferteViewer({ offerteId }: Props) {
   }
 
   const heroImages = useMemo(() => {
+    if (!offerte) return [];
     return offerte.hero_images?.length ? offerte.hero_images : offerte.hero_image_url ? [offerte.hero_image_url] : [];
-  }, [offerte.hero_images, offerte.hero_image_url]);
+  }, [JSON.stringify(offerte?.hero_images), offerte?.hero_image_url]);
 
   // Auto-cycle hero slideshow every 6 seconds
   useEffect(() => {
