@@ -262,46 +262,36 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
     });
   }
 
-  // --- SORT BY 'day' FIELD ---
-  // The TC API provides a 'day' field on each item: which day of the trip (1-based).
-  // This is the single source of truth for chronological ordering.
+  // --- SORT BY 'day' FIELD + DESTINATION FALLBACK ---
+  // TC API provides 'day' (1-based trip day) on most items, but NOT on cruises.
+  // For items missing 'day', we calculate it from destination order + cumulative hotel nights.
   const dayMap = new Map<string, number>();
 
   // Flights: raw TC transports have 'day'
   const rawFlights = tc.flights || [];
   items.filter(i => i.type === 'flight').forEach((item, idx) => {
     const raw = rawFlights[idx];
-    const day = raw?.day || 0;
-    dayMap.set(item.id, day);
-    console.log(`[TC Map] Flight "${item.title}" → day ${day}`);
+    dayMap.set(item.id, raw?.day || 0);
+    console.log(`[TC Map] Flight "${item.title}" → day ${raw?.day || 0}`);
   });
 
   // Hotels: formatted hotels have 'day' from buildTravelData
   const fmtHotels = tc.hotels || [];
-  items.filter(i => i.type === 'hotel').forEach((item, idx) => {
+  const hotelItems = items.filter(i => i.type === 'hotel');
+  hotelItems.forEach((item, idx) => {
     const h = fmtHotels[idx];
     const raw = rawHotels[idx];
     const day = h?.day || raw?.day || 0;
     dayMap.set(item.id, day);
-    console.log(`[TC Map] Hotel "${item.title}" → day ${day}, ${item.nights}n`);
-  });
-
-  // Cruises: raw TC data, check for 'day' field
-  const rawCruiseList = tc.cruises || [];
-  items.filter(i => i.type === 'cruise').forEach((item, idx) => {
-    const cr = rawCruiseList[idx];
-    const day = cr?.day || cr?.startDay || 0;
-    dayMap.set(item.id, day);
-    console.log(`[TC Map] Cruise "${item.title}" → day ${day}, ${item.nights}n, raw keys: ${cr ? Object.keys(cr).join(', ') : 'none'}`);
+    console.log(`[TC Map] Hotel "${item.title}" → day ${day}, ${item.nights}n, loc="${item.location}"`);
   });
 
   // Transfers: raw TC transports have 'day'
   const rawTransferList = tc.transfers || [];
   items.filter(i => i.type === 'transfer').forEach((item, idx) => {
     const t = rawTransferList[idx];
-    const day = t?.day || 0;
-    dayMap.set(item.id, day);
-    console.log(`[TC Map] Transfer "${item.title}" → day ${day}`);
+    dayMap.set(item.id, t?.day || 0);
+    console.log(`[TC Map] Transfer "${item.title}" → day ${t?.day || 0}`);
   });
 
   // Car rentals: have 'pickupDay'
@@ -316,17 +306,67 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
   // Activities
   items.filter(i => i.type === 'activity').forEach((item, idx) => {
     const a = (tc.activities || [])[idx];
-    const day = a?.day || 0;
+    dayMap.set(item.id, a?.day || 0);
+  });
+
+  // --- CRUISES: Calculate day from destination order + preceding hotel nights ---
+  // Cruises DON'T have a 'day' field. We find where they fit by matching
+  // their departure port to destinations, then computing the day from
+  // the preceding hotel's day + nights.
+  const rawCruiseList = tc.cruises || [];
+  const destNames = (tc.destinations || []).map((d: any) => (d.name || '').toLowerCase().trim());
+  console.log(`[TC Map] Destinations: ${destNames.join(' → ')}`);
+
+  // Build hotel-to-destination mapping (hotel location → destination index)
+  const hotelDestIdx: { day: number; nights: number; destIdx: number }[] = [];
+  hotelItems.forEach((h) => {
+    const loc = (typeof h.location === 'string' ? h.location : '').toLowerCase().trim();
+    const di = destNames.findIndex((d: string) => d && loc && (d.includes(loc) || loc.includes(d)));
+    hotelDestIdx.push({ day: dayMap.get(h.id) || 0, nights: h.nights || 1, destIdx: di });
+  });
+
+  items.filter(i => i.type === 'cruise').forEach((item, idx) => {
+    const cr = rawCruiseList[idx];
+    let day = cr?.day || cr?.startDay || 0;
+    console.log(`[TC Map] Cruise "${item.title}" raw keys: ${cr ? Object.keys(cr).join(', ') : 'none'}`);
+
+    if (day === 0) {
+      // Match cruise departure port to a destination
+      const cruiseLoc = (typeof item.location === 'string' ? item.location : '').toLowerCase().trim();
+      const cruiseDestIdx = destNames.findIndex((d: string) => d && cruiseLoc && (d.includes(cruiseLoc) || cruiseLoc.includes(d)));
+      console.log(`[TC Map] Cruise departure="${cruiseLoc}" matches dest[${cruiseDestIdx}]`);
+
+      // Find the last hotel BEFORE this cruise's destination
+      const precedingHotels = hotelDestIdx
+        .filter(h => h.destIdx >= 0 && h.destIdx < cruiseDestIdx)
+        .sort((a, b) => a.day - b.day);
+
+      if (precedingHotels.length > 0) {
+        const lastHotel = precedingHotels[precedingHotels.length - 1];
+        day = lastHotel.day + lastHotel.nights;
+        console.log(`[TC Map] Cruise day calculated: preceding hotel day ${lastHotel.day} + ${lastHotel.nights}n = day ${day}`);
+      } else {
+        // No preceding hotel found — put cruise after first flight
+        const flightDays = items.filter(i => i.type === 'flight').map(i => dayMap.get(i.id) || 0).filter(d => d > 0);
+        day = flightDays.length > 0 ? Math.min(...flightDays) + 1 : 1;
+        console.log(`[TC Map] Cruise day fallback (no preceding hotel): day ${day}`);
+      }
+    }
+
     dayMap.set(item.id, day);
+    console.log(`[TC Map] Cruise "${item.title}" → FINAL day ${day}, ${item.nights}n`);
   });
 
   // Sort all items by day number
   items.sort((a, b) => {
     const dayA = dayMap.get(a.id) || 0;
     const dayB = dayMap.get(b.id) || 0;
+    // Items with day=0 (unknown) go to the end
+    if (dayA === 0 && dayB > 0) return 1;
+    if (dayA > 0 && dayB === 0) return -1;
     if (dayA !== dayB) return dayA - dayB;
     // Same day: flights before accommodations, accommodations before car
-    const typeOrder: Record<string, number> = { flight: 0, transfer: 1, cruise: 2, hotel: 2, car_rental: 3, activity: 4 };
+    const typeOrder: Record<string, number> = { flight: 0, transfer: 1, hotel: 2, cruise: 2, car_rental: 3, activity: 4 };
     return (typeOrder[a.type] || 5) - (typeOrder[b.type] || 5);
   });
 
