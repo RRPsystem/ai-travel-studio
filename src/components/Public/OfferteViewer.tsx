@@ -686,12 +686,12 @@ export function OfferteViewer({ offerteId }: Props) {
             <p className="text-sm text-gray-600 mb-6">Scan de QR code of klik op de knop om TravelBro te openen — je AI reisassistent die al je vragen beantwoordt.</p>
             <div className="flex flex-col items-center gap-4">
               <img
-                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}/trip/${offerte.travelbro_share_token}`)}`}
+                src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(`${window.location.origin}/travelbro/${offerte.travelbro_share_token}`)}`}
                 alt="TravelBro QR"
                 className="w-40 h-40 rounded-xl shadow-lg bg-white p-2"
               />
               <a
-                href={`${window.location.origin}/trip/${offerte.travelbro_share_token}`}
+                href={`${window.location.origin}/travelbro/${offerte.travelbro_share_token}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-6 py-3 text-white font-semibold rounded-xl transition-colors hover:opacity-90"

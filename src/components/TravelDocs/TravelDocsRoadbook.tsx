@@ -1299,7 +1299,7 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave, brandColor = '#2e7
                 {/* QR Code + Info */}
                 <div className="flex items-start gap-6">
                   <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}/trip/${travelbroShareToken}`)}`}
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}/travelbro/${travelbroShareToken}`)}`}
                     alt="TravelBro QR"
                     className="w-28 h-28 rounded-lg shadow bg-white p-1.5"
                   />
@@ -1310,11 +1310,11 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave, brandColor = '#2e7
                         <input
                           type="text"
                           readOnly
-                          value={`${window.location.origin}/trip/${travelbroShareToken}`}
+                          value={`${window.location.origin}/travelbro/${travelbroShareToken}`}
                           className="flex-1 px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-mono text-gray-700"
                         />
                         <button
-                          onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/trip/${travelbroShareToken}`); alert('Link gekopieerd!'); }}
+                          onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/travelbro/${travelbroShareToken}`); alert('Link gekopieerd!'); }}
                           className="px-3 py-1.5 bg-orange-600 text-white text-xs font-medium rounded-lg hover:bg-orange-700 transition-colors"
                         >
                           Kopieer
@@ -1326,7 +1326,7 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave, brandColor = '#2e7
                     </p>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => window.open(`${window.location.origin}/trip/${travelbroShareToken}`, '_blank')}
+                        onClick={() => window.open(`${window.location.origin}/travelbro/${travelbroShareToken}`, '_blank')}
                         className="px-3 py-1.5 bg-white border border-gray-300 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors"
                       >
                         <ExternalLink size={12} className="inline mr-1" /> Preview openen
