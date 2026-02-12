@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BookOpen, Plus, Search, Filter, Eye, Copy, Trash2, MapPin, Calendar, Loader2 } from 'lucide-react';
 import { TravelDocsRoadbook } from './TravelDocsRoadbook';
+import { AutoRondreisEditor } from './AutoRondreisEditor';
 import { useAuth } from '../../contexts/AuthContext';
 import { db } from '../../lib/supabase';
 
@@ -19,6 +20,7 @@ export function RoadbookList() {
   const [view, setView] = useState<'list' | 'template-select' | 'editor'>('list');
   const [roadbooks, setRoadbooks] = useState<Roadbook[]>([]);
   const [editingRoadbook, setEditingRoadbook] = useState<Roadbook | undefined>(undefined);
+  const [selectedTemplate, setSelectedTemplate] = useState<'standard' | 'auto-rondreis'>('standard');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,9 +54,9 @@ export function RoadbookList() {
     setView('template-select');
   };
 
-  const handleTemplateSelect = (template: string) => {
+  const handleTemplateSelect = (template: 'standard' | 'auto-rondreis') => {
     setEditingRoadbook(undefined);
-    // TODO: Set template type on roadbook
+    setSelectedTemplate(template);
     setView('editor');
   };
 
@@ -235,6 +237,16 @@ export function RoadbookList() {
 
   // Editor view
   if (view === 'editor') {
+    if (selectedTemplate === 'auto-rondreis') {
+      return (
+        <AutoRondreisEditor
+          roadbook={editingRoadbook as any}
+          onBack={() => setView('list')}
+          onSave={handleSaveRoadbook}
+        />
+      );
+    }
+    
     return (
       <TravelDocsRoadbook
         offerte={editingRoadbook as any}
