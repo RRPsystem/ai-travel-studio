@@ -17,6 +17,7 @@ import TravelJournal from './components/TravelJournal/TravelJournal';
 import QuestionSubmission from './components/Podcast/QuestionSubmission';
 import { TripViewer } from './components/Public/TripViewer';
 import { OfferteViewer } from './components/Public/OfferteViewer';
+import { OfferteViewerSimple } from './components/Public/OfferteViewerSimple';
 
 function AppContent() {
   console.log('🚀 AppContent component rendering');
@@ -396,7 +397,7 @@ function App() {
   const offerteViewMatch = path.match(/^\/offerte\/([a-f0-9-]+)$/);
   if (offerteViewMatch) {
     console.log('[App] Rendering public offerte viewer (outside AuthProvider)');
-    return <OfferteViewer offerteId={offerteViewMatch[1]} />;
+    return <OfferteViewerSimple offerteId={offerteViewMatch[1]} />;
   }
 
   return (
