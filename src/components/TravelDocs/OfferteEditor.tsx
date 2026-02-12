@@ -276,8 +276,15 @@ export function OfferteEditor({ offerte, onBack, onSave }: Props) {
     }
     
     // Call onSave to persist to database if callback is provided
+    // Pass stayInEditor=true to keep editor open after saving
     if (onSave) {
-      await onSave(data);
+      try {
+        await (onSave as any)(data, true); // true = stayInEditor
+      } catch (err) {
+        console.error('Error saving for preview:', err);
+        alert('Fout bij opslaan voor preview');
+        return;
+      }
     }
     
     // Open preview in new tab

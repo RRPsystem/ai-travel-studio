@@ -83,6 +83,12 @@ Deno.serve(async (req: Request) => {
       .limit(10);
 
     let searchResults = "";
+    console.log('🔍 Google Search - Initial check:', {
+      hasGoogleSearchApiKey: !!googleSearchApiKey,
+      hasCseId: !!googleCseId,
+      message: message.substring(0, 50)
+    });
+
     if (googleSearchApiKey && googleCseId) {
       try {
         // Detect weather-related questions and use current date + location
@@ -108,35 +114,47 @@ Deno.serve(async (req: Request) => {
           query: searchQuery,
           isWeatherQuery,
           apiKeyPrefix: googleSearchApiKey.substring(0, 10) + '...',
+          apiKeyLength: googleSearchApiKey.length,
           cseId: googleCseId,
           cseIdLength: googleCseId.length
         });
 
         const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${googleSearchApiKey}&cx=${googleCseId}&q=${encodeURIComponent(searchQuery)}&num=3`;
-        console.log('🔍 Google Search - URL:', searchUrl.replace(googleSearchApiKey, 'API_KEY_HIDDEN'));
+        console.log('🔍 Google Search - Calling URL (key hidden)');
 
         const searchResponse = await fetch(searchUrl);
         console.log('🔍 Google Search - Response status:', searchResponse.status);
 
         if (searchResponse.ok) {
           const searchData = await searchResponse.json();
-          console.log('🔍 Google Search - Found items:', searchData.items?.length || 0);
+          console.log('🔍 Google Search - Response data:', {
+            hasItems: !!searchData.items,
+            itemCount: searchData.items?.length || 0,
+            searchInfo: searchData.searchInformation
+          });
 
           if (searchData.items && searchData.items.length > 0) {
             searchResults = "\n\nRelevante zoekresultaten:\n" + searchData.items
               .map((item: any) => `- ${item.title}: ${item.snippet}`)
               .join("\n");
-            console.log('🔍 Google Search - Added to context');
+            console.log('🔍 Google Search - Search results created, length:', searchResults.length);
+            console.log('🔍 Google Search - First result:', searchData.items[0].title);
+          } else {
+            console.log('🔍 Google Search - No items in response');
           }
         } else {
           const errorText = await searchResponse.text();
           console.error('🔍 Google Search - Error response:', errorText);
-          const errorData = JSON.parse(errorText);
-          console.error('🔍 Google Search - Error details:', {
-            code: errorData.error?.code,
-            message: errorData.error?.message,
-            status: errorData.error?.status
-          });
+          try {
+            const errorData = JSON.parse(errorText);
+            console.error('🔍 Google Search - Error details:', {
+              code: errorData.error?.code,
+              message: errorData.error?.message,
+              status: errorData.error?.status
+            });
+          } catch (e) {
+            console.error('🔍 Google Search - Could not parse error');
+          }
         }
       } catch (error) {
         console.error("🔍 Google Search - Exception:", error);
@@ -147,6 +165,8 @@ Deno.serve(async (req: Request) => {
         hasCseId: !!googleCseId
       });
     }
+    
+    console.log('🔍 Google Search - Final searchResults length:', searchResults.length);
 
     let tripContext = `REISINFORMATIE:\n- Reis: ${trip.name}`;
 
@@ -180,7 +200,22 @@ Deno.serve(async (req: Request) => {
       totalContextLength: (tripContext + intakeContext + searchResults).length
     });
 
-    const systemPrompt = `Je bent TravelBRO, een vriendelijke en behulpzame Nederlandse reisassistent met toegang tot actuele informatie via Google Search.\n\n${tripContext}${intakeContext}\n\n${searchResults ? `\nACTUELE INFORMATIE VIA GOOGLE SEARCH (gebruik deze om actuele vragen te beantwoorden):${searchResults}` : ''}\n\nBELANGRIJK:\n- Je hebt toegang tot Google Search voor actuele informatie zoals weer, openingstijden, prijzen, etc.\n- Gebruik ALTIJD de reisinformatie hierboven om vragen te beantwoorden\n- Als je actuele informatie hebt via Google Search, gebruik die ALTIJD voor up-to-date details\n- Voor weervragen: gebruik de Google Search resultaten om het actuele weer te geven\n- Geef concrete, specifieke antwoorden op basis van de beschikbare informatie\n- Als informatie ontbreekt in de zoekresultaten, zeg dat eerlijk`;
+    const systemPrompt = `Je bent TravelBRO, een vriendelijke en behulpzame Nederlandse reisassistent met toegang tot actuele informatie via Google Search.
+
+${tripContext}${intakeContext}
+
+${searchResults ? `=== ACTUELE INFORMATIE VIA GOOGLE SEARCH ===
+Hieronder staan VERSE, ACTUELE zoekresultaten die je VERPLICHT moet gebruiken om de vraag te beantwoorden:
+${searchResults}
+
+KRITISCH: Deze Google Search resultaten bevatten de meest actuele informatie. Gebruik deze ALTIJD als basis voor je antwoord. Negeer NIET deze informatie!
+===` : ''}
+
+INSTRUCTIES:
+${searchResults ? '- GEBRUIK DE GOOGLE SEARCH RESULTATEN HIERBOVEN om de vraag te beantwoorden\n- Geef het weer, prijzen, openingstijden etc. zoals vermeld in de zoekresultaten\n- Wees specifiek en concreet op basis van de zoekresultaten\n- Als de zoekresultaten temperaturen, weersomstandigheden of andere details bevatten, NOEM deze expliciet' : '- Voor actuele informatie (weer, prijzen, openingstijden) heb ik helaas geen live data beschikbaar'}
+- Gebruik de reisinformatie voor algemene vragen over de reis
+- Wees vriendelijk en behulpzaam
+- Als informatie ontbreekt, zeg dat eerlijk`;
 
     const messages = [
       { role: "system", content: systemPrompt },

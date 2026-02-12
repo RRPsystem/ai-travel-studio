@@ -43,7 +43,7 @@ export function TravelDocsOffertes() {
     setView('editor');
   };
 
-  const handleSaveOfferte = async (offerte: Offerte) => {
+  const handleSaveOfferte = async (offerte: Offerte, stayInEditor = false) => {
     try {
       setSaving(true);
       // Attach brand_id and agent_id if not set
@@ -63,10 +63,16 @@ export function TravelDocsOffertes() {
         }
         return [saved, ...prev];
       });
-      setView('list');
+      // Update the editing offerte with the saved data (including new ID for new offertes)
+      setEditingOfferte(saved);
+      // Only close editor if not staying in editor (e.g., for preview)
+      if (!stayInEditor) {
+        setView('list');
+      }
     } catch (err: any) {
       console.error('Error saving offerte:', err);
       alert('Fout bij opslaan: ' + (err.message || 'Onbekende fout'));
+      throw err; // Re-throw so preview can handle the error
     } finally {
       setSaving(false);
     }

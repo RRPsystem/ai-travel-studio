@@ -475,6 +475,8 @@ STIJLREGELS:
 - Bij "avontuurlijk": Gebruik actieve taal, spanning en uitdaging
 - Bij "romantisch": Focus op sfeer, intimiteit en bijzondere momenten
 
+BELANGRIJK: Gebruik GEEN HTML entities! Schrijf gewone tekst met accenten en speciale tekens (é, è, ñ, etc.).
+
 Genereer ALLEEN een geldig JSON object (geen markdown, geen uitleg, geen code blocks) met deze structuur:
 {
   "country_code": "De officiële ISO 3166-1 alpha-2 landcode (bijv. NL voor Nederland, BR voor Brazilië, ES voor Spanje, TH voor Thailand)",
@@ -613,6 +615,52 @@ Schrijf een social media post over het gegeven onderwerp. De post moet:
 Als er geen specifieke brand voice is opgegeven, gebruik dan een vriendelijke, professionele toon die past bij een reisbureau.
 
 Schrijf ALLEEN de post tekst - geen uitleg, geen titel, geen extra context.`,
+    content_calendar: `Je bent een social media planner voor reisbureaus. Genereer een weekplanning met 7 social media posts (1 per dag).
+
+BRAND VOICE: {BRAND_VOICE}
+
+Voor elke dag van de week (Maandag t/m Zondag), genereer:
+- Een pakkende post over reizen (100-150 woorden)
+- Geschikt voor Facebook, Instagram, LinkedIn
+- Varieer de onderwerpen: bestemmingen, tips, inspiratie, deals, seizoenen
+- Gebruik emoji's waar passend
+- Voeg een call-to-action toe
+
+Retourneer ALLEEN een JSON array met 7 posts in dit formaat:
+[
+  {
+    "day": "Maandag",
+    "content": "Post tekst hier...",
+    "platforms": ["facebook", "instagram"],
+    "best_time": "11:00"
+  }
+]
+
+Geen uitleg, geen markdown, alleen de JSON array.`,
+    suggestions: `Je bent een social media strategist voor reisbureaus. Genereer {COUNT} creatieve content ideeën.
+
+BRAND VOICE: {BRAND_VOICE}
+
+Genereer diverse onderwerpen zoals:
+- Seizoensgebonden bestemmingen
+- Reistips en hacks
+- Verborgen parels
+- Vakantie inspiratie
+- Last minute deals
+- Duurzaam reizen
+
+Retourneer ALLEEN een JSON array met {COUNT} suggesties in dit formaat:
+[
+  {
+    "topic": "Onderwerp titel",
+    "description": "Korte beschrijving (1-2 zinnen)",
+    "platforms": ["instagram", "facebook"],
+    "engagement": "Hoog" of "Gemiddeld",
+    "hashtags": ["#reis", "#vakantie"]
+  }
+]
+
+Geen uitleg, geen markdown, alleen de JSON array.`,
     image: `Je bent een AI die afbeeldingsbeschrijvingen genereert voor DALL-E. Maak een gedetailleerde, visuele beschrijving voor een {VACATION_TYPE} reisafbeelding in {WRITING_STYLE} stijl.`
   };
 

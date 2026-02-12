@@ -1103,7 +1103,110 @@ export class WordPressService {
   }
 }
 
+// Travel Compositor Service
+export class TravelCompositorService {
+  private baseUrl: string;
+
+  constructor() {
+    this.baseUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1`;
+  }
+
+  async searchHotels(params: {
+    micrositeId?: string;
+    checkIn: string;
+    checkOut: string;
+    adults?: number;
+    children?: number;
+    childAges?: number[];
+    destination?: string;
+    accommodationCodes?: string[];
+    bestCombinations?: boolean;
+    maxCombinations?: number;
+    includeOnRequestOptions?: boolean;
+  }): Promise<{
+    success: boolean;
+    microsite: string;
+    checkIn: string;
+    checkOut: string;
+    count: number;
+    accommodations: any[];
+    error?: string;
+  }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/tc-hotel-quote`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error('[TC Hotel Search] Error:', data);
+        return {
+          success: false,
+          microsite: '',
+          checkIn: params.checkIn,
+          checkOut: params.checkOut,
+          count: 0,
+          accommodations: [],
+          error: data.error || `Hotel zoeken mislukt (${response.status})`
+        };
+      }
+
+      return {
+        success: true,
+        ...data
+      };
+    } catch (error) {
+      console.error('[TC Hotel Search] Exception:', error);
+      return {
+        success: false,
+        microsite: '',
+        checkIn: params.checkIn,
+        checkOut: params.checkOut,
+        count: 0,
+        accommodations: [],
+        error: error instanceof Error ? error.message : 'Onbekende fout bij hotel zoeken'
+      };
+    }
+  }
+
+  async getHotelDetails(accommodationCode: string, micrositeId?: string): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/search-travel-compositor`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'list-accommodations',
+          micrositeId,
+          first: 0,
+          limit: 1,
+          accommodationId: accommodationCode
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch hotel details: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.results?.[0] || null;
+    } catch (error) {
+      console.error('[TC Hotel Details] Error:', error);
+      return null;
+    }
+  }
+}
+
 // Export singleton instances
 export const aiTravelService = new AITravelService();
 export const edgeAIService = new EdgeFunctionAIService();
+export const tcService = new TravelCompositorService();
 export const wordpressService = new WordPressService();
