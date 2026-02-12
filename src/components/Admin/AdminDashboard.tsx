@@ -570,17 +570,6 @@ export function AdminDashboard() {
             <span>Test Dashboard</span>
           </button>
           <button
-            onClick={() => setActiveSection('travel-journal')}
-            className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
-              activeSection === 'travel-journal'
-                ? 'bg-slate-700 text-white'
-                : 'text-slate-300 hover:text-white hover:bg-slate-700'
-            }`}
-          >
-            <BookOpen size={20} />
-            <span>TravelC Talk</span>
-          </button>
-          <button
             onClick={signOut}
             className="w-full flex items-center space-x-3 px-3 py-2 text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
           >
