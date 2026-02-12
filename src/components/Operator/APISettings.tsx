@@ -223,9 +223,9 @@ export function APISettings() {
             'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
           },
           body: JSON.stringify({
-            account_sid: twilioSettings.twilio_account_sid,
-            auth_token: twilioSettings.twilio_auth_token,
-            whatsapp_number: twilioSettings.twilio_whatsapp_number
+            accountSid: twilioSettings.twilio_account_sid,
+            authToken: twilioSettings.twilio_auth_token,
+            whatsappNumber: twilioSettings.twilio_whatsapp_number
           })
         }
       );
