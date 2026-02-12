@@ -16,7 +16,7 @@ interface Roadbook {
 
 export function RoadbookList() {
   const { user } = useAuth();
-  const [view, setView] = useState<'list' | 'editor'>('list');
+  const [view, setView] = useState<'list' | 'template-select' | 'editor'>('list');
   const [roadbooks, setRoadbooks] = useState<Roadbook[]>([]);
   const [editingRoadbook, setEditingRoadbook] = useState<Roadbook | undefined>(undefined);
   const [searchQuery, setSearchQuery] = useState('');
@@ -49,7 +49,12 @@ export function RoadbookList() {
   }, [user?.brand_id]);
 
   const handleNewRoadbook = () => {
+    setView('template-select');
+  };
+
+  const handleTemplateSelect = (template: string) => {
     setEditingRoadbook(undefined);
+    // TODO: Set template type on roadbook
     setView('editor');
   };
 
@@ -147,6 +152,86 @@ export function RoadbookList() {
     r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     r.client_name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Template selection view
+  if (view === 'template-select') {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="mb-8">
+            <button
+              onClick={() => setView('list')}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Terug
+            </button>
+            <h1 className="text-3xl font-bold text-gray-900">Kies een Roadbook Template</h1>
+            <p className="text-gray-600 mt-2">Selecteer het type roadbook dat je wilt maken</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Standard Roadbook Template */}
+            <button
+              onClick={() => handleTemplateSelect('standard')}
+              className="bg-white rounded-2xl border-2 border-gray-200 hover:border-emerald-500 p-6 text-left transition-all hover:shadow-lg group"
+            >
+              <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-emerald-500 transition-colors">
+                <BookOpen className="w-6 h-6 text-emerald-600 group-hover:text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Standaard Roadbook</h3>
+              <p className="text-gray-600 text-sm mb-4">
+                Volledig aanpasbare roadbook met hero images, bestemmingen, dag-tot-dag programma en reisitems.
+              </p>
+              <div className="flex items-center text-emerald-600 text-sm font-medium">
+                Start met template
+                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </button>
+
+            {/* Auto Rondreis Template */}
+            <button
+              onClick={() => handleTemplateSelect('auto-rondreis')}
+              className="bg-white rounded-2xl border-2 border-gray-200 hover:border-blue-500 p-6 text-left transition-all hover:shadow-lg group"
+            >
+              <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mb-4 group-hover:bg-blue-500 transition-colors">
+                <svg className="w-6 h-6 text-blue-600 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Auto Rondreis</h3>
+              <p className="text-gray-600 text-sm mb-4">
+                Speciaal voor autorondreis met timeline, route kaart, accommodaties en dag-tot-dag highlights.
+              </p>
+              <div className="flex items-center text-blue-600 text-sm font-medium">
+                Start met template
+                <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </button>
+
+            {/* Coming Soon Templates */}
+            <div className="bg-gray-50 rounded-2xl border-2 border-dashed border-gray-300 p-6 text-left opacity-60">
+              <div className="w-12 h-12 bg-gray-200 rounded-xl flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-700 mb-2">Meer templates</h3>
+              <p className="text-gray-500 text-sm">
+                Binnenkort beschikbaar: Vliegvakantie, Cruise, Groepsreis en meer...
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Editor view
   if (view === 'editor') {
