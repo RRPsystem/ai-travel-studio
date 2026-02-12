@@ -749,49 +749,54 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
             <div className="max-w-7xl mx-auto px-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Jouw Reis Timeline</h2>
               <div ref={carouselRef} className="flex gap-6 overflow-x-auto pb-4 mb-6" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {[...items].sort((a, b) => {
-                  const dateA = a.date_start ? new Date(a.date_start).getTime() : 0;
-                  const dateB = b.date_start ? new Date(b.date_start).getTime() : 0;
-                  return dateA - dateB;
-                }).map((item, index) => {
+                {[...items].sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999)).map((item) => {
                   const config = getItemConfig(item.type);
                   const isFlight = item.type === 'flight';
+                  const isHotel = item.type === 'hotel';
+                  const isCruise = item.type === 'cruise';
+                  const isTransfer = item.type === 'transfer';
+                  const isCarRental = item.type === 'car_rental';
                   
                   return (
                     <div key={item.id} className="flex-shrink-0 w-80">
-                      <div className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-xl transition-all overflow-hidden h-full">
-                        {/* Image or Flight/Cruise Header */}
+                      <div className="bg-white rounded-xl border border-gray-200 shadow-md hover:shadow-xl transition-all overflow-hidden flex flex-col">
+                        
+                        {/* === HEADER SECTION === */}
                         {isFlight ? (
-                          <div className="relative bg-white border-b border-gray-200 p-4">
+                          /* FLIGHT CARD */
+                          <div className="p-5 border-b border-gray-100">
                             <div className="flex items-start gap-3 mb-4">
                               <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center flex-shrink-0">
                                 <Plane size={20} className="text-white" />
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="text-xs text-gray-500 mb-1">{item.date_start ? new Date(item.date_start).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}</div>
+                                <div className="text-xs text-gray-500 mb-0.5">{item.date_start ? `✈️ ${new Date(item.date_start).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}` : ''}</div>
                                 <div className="text-sm font-medium text-blue-600">{item.airline || 'Airline'}</div>
                                 <div className="text-xs text-gray-500">{item.flight_number ? `Vlucht ${item.flight_number}` : ''}</div>
                               </div>
                             </div>
-                            <div className="flex items-center justify-between">
-                              <div className="text-center">
-                                <div className="text-xs text-gray-500 mb-1">MST</div>
-                                <div className="text-xl font-bold text-gray-900">{item.departure_time || '--:--'}</div>
-                                <div className="text-xs text-gray-500 mt-1">{item.departure_airport || 'N/A'}</div>
-                              </div>
-                              <div className="flex-1 flex items-center justify-center px-4">
-                                <div className="h-px bg-gray-300 flex-1"></div>
-                                <Plane size={16} className="mx-2 text-green-500" />
-                                <div className="h-px bg-gray-300 flex-1"></div>
-                              </div>
-                              <div className="text-center">
-                                <div className="text-xs text-gray-500 mb-1">JNB</div>
-                                <div className="text-xl font-bold text-gray-900">{item.arrival_time || '--:--'}</div>
-                                <div className="text-xs text-gray-500 mt-1">{item.arrival_airport || 'N/A'}</div>
+                            <div className="bg-gray-50 rounded-lg p-4">
+                              <div className="flex items-center justify-between">
+                                <div className="text-center">
+                                  <div className="text-xs text-gray-500 mb-1">{item.departure_airport || 'DEP'}</div>
+                                  <div className="text-xl font-bold text-gray-900">{item.departure_time || '--:--'}</div>
+                                  <div className="text-xs text-gray-400 mt-1">{item.departure_airport || ''}</div>
+                                </div>
+                                <div className="flex-1 flex items-center justify-center px-3">
+                                  <div className="h-px bg-gray-300 flex-1"></div>
+                                  <Plane size={16} className="mx-2 text-green-500 -rotate-0" />
+                                  <div className="h-px bg-gray-300 flex-1"></div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="text-xs text-gray-500 mb-1">{item.arrival_airport || 'ARR'}</div>
+                                  <div className="text-xl font-bold text-gray-900">{item.arrival_time || '--:--'}</div>
+                                  <div className="text-xs text-gray-400 mt-1">{item.arrival_airport || ''}</div>
+                                </div>
                               </div>
                             </div>
                           </div>
                         ) : item.image_url ? (
+                          /* HOTEL / ITEM WITH IMAGE */
                           <div className="relative h-48 bg-gray-100">
                             <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
                             <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-semibold text-white" style={{ backgroundColor: config.color }}>
@@ -799,88 +804,107 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
                             </div>
                           </div>
                         ) : (
-                          <div className="relative bg-white border-b border-gray-200 p-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: config.bgColor }}>
-                                {getItemIcon(item.type)}
-                              </div>
-                              <div className="text-sm font-medium text-gray-500">{config.label}</div>
+                          /* NO IMAGE - Colored header with large icon */
+                          <div className="h-32 flex flex-col items-center justify-center" style={{ backgroundColor: config.bgColor || '#f3f4f6' }}>
+                            <div className="w-14 h-14 rounded-full bg-white/80 flex items-center justify-center mb-2 shadow-sm">
+                              {getItemIcon(item.type)}
                             </div>
+                            <span className="text-xs font-semibold" style={{ color: config.color }}>{config.label}</span>
                           </div>
                         )}
-                        
-                        {/* Content */}
-                        <div className="p-4">
-                          <h4 className="font-bold text-gray-900 text-lg mb-1">{item.title}</h4>
-                          <p className="text-sm text-gray-500 mb-3">{item.location || formatItemSubtitle(item)}</p>
+
+                        {/* === CONTENT SECTION === */}
+                        <div className="p-4 flex flex-col flex-1">
+                          <h4 className="font-bold text-gray-900 text-base mb-0.5">{item.title}</h4>
                           
-                          {/* Details with professional icons */}
-                          <div className="space-y-2 text-xs text-gray-600">
-                            {/* Date for hotels */}
+                          {/* Subtitle - location for hotels, route for transfers */}
+                          {isHotel && item.location && (
+                            <p className="text-sm text-gray-500 mb-2">📍 {item.location}</p>
+                          )}
+                          {(isTransfer || isCarRental) && (item.pickup_location || item.dropoff_location) && (
+                            <p className="text-sm text-gray-500 mb-2">{[item.pickup_location, item.dropoff_location].filter(Boolean).join(' → ')}</p>
+                          )}
+                          {isCruise && item.subtitle && (
+                            <p className="text-sm text-gray-500 mb-2">{item.subtitle}</p>
+                          )}
+                          
+                          {/* Detail rows with icons */}
+                          <div className="space-y-1.5 text-xs text-gray-600 mb-3">
+                            {/* Date */}
                             {!isFlight && item.date_start && (
                               <div className="flex items-center gap-2">
-                                <span className="text-gray-400">📅</span>
+                                <span>📅</span>
                                 <span>{new Date(item.date_start).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}{item.date_end ? ` - ${new Date(item.date_end).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}` : ''}</span>
                               </div>
                             )}
                             {/* Nights */}
-                            {item.nights && (
+                            {item.nights ? (
                               <div className="flex items-center gap-2">
-                                <span className="text-gray-400">🌙</span>
+                                <span>🌙</span>
                                 <span>{item.nights} nachten</span>
                               </div>
-                            )}
-                            {/* Room type for hotels */}
+                            ) : null}
+                            {/* Room type */}
                             {item.room_type && (
                               <div className="flex items-center gap-2">
-                                <span className="text-gray-400">🛏️</span>
+                                <span>🛏️</span>
                                 <span>{item.room_type}</span>
                               </div>
                             )}
                             {/* Board type */}
                             {item.board_type && (
                               <div className="flex items-center gap-2">
-                                <span className="text-gray-400">🍽️</span>
+                                <span>🍽️</span>
                                 <span>{item.board_type}</span>
                               </div>
                             )}
-                            {/* Distance for transfers/cars */}
+                            {/* Distance */}
                             {item.distance && (
                               <div className="flex items-center gap-2 text-orange-600 font-medium">
                                 <span>🚗</span>
                                 <span>{item.distance}</span>
                               </div>
                             )}
-                            {/* Transfer/Car details */}
-                            {(item.type === 'transfer' || item.type === 'car_rental') && item.transfer_type && (
+                            {/* Transfer type */}
+                            {(isTransfer || isCarRental) && item.transfer_type && (
                               <div className="flex items-center gap-2">
-                                <span className="text-gray-400">🚐</span>
+                                <span>🚐</span>
                                 <span>{item.transfer_type}</span>
                               </div>
                             )}
-                            {item.pickup_location && (
+                            {/* Car rental dates */}
+                            {isCarRental && item.date_start && item.date_end && (
                               <div className="flex items-center gap-2">
-                                <span className="text-gray-400">📍</span>
-                                <span>{item.pickup_location}</span>
+                                <span>📅</span>
+                                <span>{new Date(item.date_start).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })} - {new Date(item.date_end).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}</span>
+                              </div>
+                            )}
+                            {/* Cruise supplier */}
+                            {isCruise && item.supplier && (
+                              <div className="flex items-center gap-2">
+                                <span>�</span>
+                                <span>{item.supplier}</span>
                               </div>
                             )}
                             {/* Baggage for flights */}
                             {isFlight && (
                               <div className="flex items-center gap-2">
-                                <span className="text-gray-400">🧳</span>
-                                <span>Bagage 1PC</span>
+                                <span>🧳</span>
+                                <span>Bagage: 1PC</span>
                               </div>
                             )}
                           </div>
                           
-                          {/* Action button */}
-                          <button 
-                            onClick={() => setDetailItem(item)}
-                            className="mt-4 w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
-                          >
-                            <Star size={14} />
-                            Meer informatie
-                          </button>
+                          {/* Action button - pushed to bottom */}
+                          <div className="mt-auto">
+                            <button 
+                              onClick={() => setDetailItem(item)}
+                              className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
+                            >
+                              <Star size={14} />
+                              Meer informatie
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -893,7 +917,7 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
                 <button
                   onClick={() => {
                     if (carouselRef.current) {
-                      carouselRef.current.scrollBy({ left: -400, behavior: 'smooth' });
+                      carouselRef.current.scrollBy({ left: -340, behavior: 'smooth' });
                     }
                   }}
                   className="p-3 rounded-full bg-white border border-gray-300 hover:bg-gray-50 transition-colors shadow-sm"
@@ -903,7 +927,7 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
                 <button
                   onClick={() => {
                     if (carouselRef.current) {
-                      carouselRef.current.scrollBy({ left: 400, behavior: 'smooth' });
+                      carouselRef.current.scrollBy({ left: 340, behavior: 'smooth' });
                     }
                   }}
                   className="p-3 rounded-full bg-white border border-gray-300 hover:bg-gray-50 transition-colors shadow-sm"
