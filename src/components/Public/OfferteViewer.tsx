@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   MapPin, Plane, Car, Building2, Compass, CarFront, Ship, Train, Shield, StickyNote,
   ChevronDown, Star, Calendar, Clock, ArrowLeft, ArrowRight, X,
@@ -70,94 +70,104 @@ export function OfferteViewer({ offerteId }: Props) {
   const [responseSubmitted, setResponseSubmitted] = useState(false);
   const [heroSlideIndex, setHeroSlideIndex] = useState(0);
 
-  const loadOfferte = useCallback(async () => {
-    if (!supabase) {
-      setError('Configuratiefout');
-      setLoading(false);
-      return;
-    }
-    try {
-      const { data, error: dbError } = await supabase
-        .from('travel_offertes')
-        .select('*')
-        .eq('id', offerteId)
-        .single();
-
-      if (dbError) throw dbError;
-      if (!data) throw new Error('Offerte niet gevonden');
-
-      // Convert DB row to Offerte
-      const o: Offerte = {
-        id: data.id,
-        brand_id: data.brand_id,
-        agent_id: data.agent_id,
-        travel_compositor_id: data.travel_compositor_id,
-        client_name: data.client_name || '',
-        client_email: data.client_email,
-        client_phone: data.client_phone,
-        title: data.title || '',
-        subtitle: data.subtitle,
-        intro_text: data.intro_text,
-        hero_image_url: data.hero_image_url,
-        hero_images: data.hero_images || [],
-        hero_video_url: data.hero_video_url,
-        destinations: data.destinations || [],
-        items: data.items || [],
-        extra_costs: data.extra_costs || [],
-        total_price: parseFloat(data.total_price) || 0,
-        price_per_person: parseFloat(data.price_per_person) || 0,
-        number_of_travelers: data.number_of_travelers || 2,
-        currency: data.currency || 'EUR',
-        price_display: data.price_display || 'both',
-        status: data.status || 'draft',
-        sent_at: data.sent_at,
-        viewed_at: data.viewed_at,
-        accepted_at: data.accepted_at,
-        rejected_at: data.rejected_at,
-        valid_until: data.valid_until,
-        client_response: data.client_response,
-        client_response_note: data.client_response_note,
-        internal_notes: data.internal_notes,
-        terms_conditions: data.terms_conditions,
-        created_at: data.created_at,
-        updated_at: data.updated_at,
-      };
-
-      setOfferte(o);
-
-      // Track if already responded
-      if (data.client_response) {
-        setResponseSubmitted(true);
-      }
-
-      // Load brand info
-      if (data.brand_id) {
-        const { data: brandData } = await supabase
-          .from('brands')
-          .select('name, logo_url, contact_email, contact_phone, website_url, street_address, city, postal_code, country')
-          .eq('id', data.brand_id)
-          .single();
-        if (brandData) setBrand(brandData);
-      }
-
-      // Track view
-      if (!data.viewed_at) {
-        await supabase
-          .from('travel_offertes')
-          .update({ viewed_at: new Date().toISOString(), status: 'viewed' })
-          .eq('id', offerteId);
-      }
-    } catch (err: any) {
-      console.error('Error loading offerte:', err);
-      setError(err.message || 'Kon offerte niet laden');
-    } finally {
-      setLoading(false);
-    }
-  }, [offerteId]);
-
   useEffect(() => {
+    let mounted = true;
+    
+    async function loadOfferte() {
+      if (!supabase) {
+        if (mounted) {
+          setError('Configuratiefout');
+          setLoading(false);
+        }
+        return;
+      }
+      try {
+        const { data, error: dbError } = await supabase
+          .from('travel_offertes')
+          .select('*')
+          .eq('id', offerteId)
+          .single();
+
+        if (dbError) throw dbError;
+        if (!data) throw new Error('Offerte niet gevonden');
+
+        if (!mounted) return;
+
+        // Convert DB row to Offerte
+        const o: Offerte = {
+          id: data.id,
+          brand_id: data.brand_id,
+          agent_id: data.agent_id,
+          travel_compositor_id: data.travel_compositor_id,
+          client_name: data.client_name || '',
+          client_email: data.client_email,
+          client_phone: data.client_phone,
+          title: data.title || '',
+          subtitle: data.subtitle,
+          intro_text: data.intro_text,
+          hero_image_url: data.hero_image_url,
+          hero_images: data.hero_images || [],
+          hero_video_url: data.hero_video_url,
+          destinations: data.destinations || [],
+          items: data.items || [],
+          extra_costs: data.extra_costs || [],
+          total_price: parseFloat(data.total_price) || 0,
+          price_per_person: parseFloat(data.price_per_person) || 0,
+          number_of_travelers: data.number_of_travelers || 2,
+          currency: data.currency || 'EUR',
+          price_display: data.price_display || 'both',
+          status: data.status || 'draft',
+          sent_at: data.sent_at,
+          viewed_at: data.viewed_at,
+          accepted_at: data.accepted_at,
+          rejected_at: data.rejected_at,
+          valid_until: data.valid_until,
+          client_response: data.client_response,
+          client_response_note: data.client_response_note,
+          internal_notes: data.internal_notes,
+          terms_conditions: data.terms_conditions,
+          created_at: data.created_at,
+          updated_at: data.updated_at,
+        };
+
+        setOfferte(o);
+
+        // Track if already responded
+        if (data.client_response) {
+          setResponseSubmitted(true);
+        }
+
+        // Load brand info
+        if (data.brand_id) {
+          const { data: brandData } = await supabase
+            .from('brands')
+            .select('name, logo_url, contact_email, contact_phone, website_url, street_address, city, postal_code, country')
+            .eq('id', data.brand_id)
+            .single();
+          if (mounted && brandData) setBrand(brandData);
+        }
+
+        // Track view
+        if (!data.viewed_at) {
+          await supabase
+            .from('travel_offertes')
+            .update({ viewed_at: new Date().toISOString(), status: 'viewed' })
+            .eq('id', offerteId);
+        }
+      } catch (err: any) {
+        console.error('Error loading offerte:', err);
+        if (mounted) setError(err.message || 'Kon offerte niet laden');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    }
+
     loadOfferte();
-  }, [loadOfferte]);
+    
+    return () => {
+      mounted = false;
+    };
+  }, [offerteId]);
 
   const toggleExpand = (id: string) => {
     setExpandedItems(prev => {
