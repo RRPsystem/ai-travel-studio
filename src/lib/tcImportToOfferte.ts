@@ -80,15 +80,15 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
       id: crypto.randomUUID(),
       type: 'flight',
       title: buildFlightTitle(f),
-      subtitle: [f.company, f.transportNumber].filter(Boolean).join(' '),
-      departure_airport: f.departureCity || f.departure || f.originCode || '',
-      arrival_airport: f.arrivalCity || f.arrival || f.targetCode || '',
-      departure_time: f.departureTime || '',
-      arrival_time: f.arrivalTime || '',
-      airline: f.company || '',
-      flight_number: f.transportNumber || '',
-      date_start: f.departureDate || '',
-      date_end: f.arrivalDate || '',
+      subtitle: [safeStr(f.company), safeStr(f.transportNumber)].filter(Boolean).join(' '),
+      departure_airport: safeStr(f.departureCity || f.departure || f.originCode),
+      arrival_airport: safeStr(f.arrivalCity || f.arrival || f.targetCode),
+      departure_time: safeStr(f.departureTime),
+      arrival_time: safeStr(f.arrivalTime),
+      airline: safeStr(f.company),
+      flight_number: safeStr(f.transportNumber),
+      date_start: safeStr(f.departureDate),
+      date_end: safeStr(f.arrivalDate),
       price: extractPrice(f),
       sort_order: 0, // will be reassigned after chronological sort
     });
@@ -125,14 +125,14 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
     }
 
     // Extract location: try city, destination, address in that order
-    const location = h.city || hotelData.city || h.destination || hotelData.destination || hotelData.address || h.address || '';
+    const location = safeStr(h.city || hotelData.city || h.destination || hotelData.destination || hotelData.address || h.address);
 
     // Extract dates: try multiple field names from TC API
-    const dateStart = h.checkIn || hotelData.checkIn || h.startDate || h.dateFrom || '';
-    const dateEnd = h.checkOut || hotelData.checkOut || h.endDate || h.dateTo || '';
+    const dateStart = safeStr(h.checkIn || hotelData.checkIn || h.startDate || h.dateFrom);
+    const dateEnd = safeStr(h.checkOut || hotelData.checkOut || h.endDate || h.dateTo);
 
     // Extract room type
-    const roomType = h.roomType || hotelData.roomType || h.roomDescription || h.room || '';
+    const roomType = safeStr(h.roomType || hotelData.roomType || h.roomDescription || h.room);
 
     items.push({
       id: crypto.randomUUID(),
@@ -146,7 +146,7 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
       location,
       nights,
       star_rating: stars,
-      board_type: h.mealPlan || hotelData.mealPlan || h.mealPlanDescription || '',
+      board_type: safeStr(h.mealPlan || hotelData.mealPlan || h.mealPlanDescription),
       room_type: roomType,
       price: extractPrice(h),
       date_start: dateStart,
@@ -162,12 +162,12 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
       id: crypto.randomUUID(),
       type: 'transfer',
       title: buildTransferTitle(t),
-      transfer_type: t.transportType || t.type || 'transfer',
-      pickup_location: t.departureCity || t.departure || t.origin || '',
-      dropoff_location: t.arrivalCity || t.arrival || t.target || '',
-      date_start: t.departureDate || t.startDate || '',
-      departure_time: t.departureTime || '',
-      arrival_time: t.arrivalTime || '',
+      transfer_type: safeStr(t.transportType || t.type || 'transfer'),
+      pickup_location: safeStr(t.departureCity || t.departure || t.origin),
+      dropoff_location: safeStr(t.arrivalCity || t.arrival || t.target),
+      date_start: safeStr(t.departureDate || t.startDate),
+      departure_time: safeStr(t.departureTime),
+      arrival_time: safeStr(t.arrivalTime),
       price: extractPrice(t),
       sort_order: 0,
     });
@@ -181,13 +181,13 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
     items.push({
       id: crypto.randomUUID(),
       type: 'car_rental',
-      title: c.name || c.carType || c.vehicleType || c.category || 'Huurauto',
-      subtitle: c.company || c.supplier || c.rentalCompany || '',
-      supplier: c.company || c.supplier || c.rentalCompany || '',
-      date_start: c.pickupDate || c.startDate || c.dateFrom || c.checkIn || '',
-      date_end: c.dropoffDate || c.endDate || c.dateTo || c.checkOut || '',
-      pickup_location: c.pickupLocation || c.pickupOffice || c.pickup || c.departureCity || '',
-      dropoff_location: c.dropoffLocation || c.dropoffOffice || c.dropoff || c.arrivalCity || '',
+      title: safeStr(c.name || c.carType || c.vehicleType || c.category || 'Huurauto'),
+      subtitle: safeStr(c.company || c.supplier || c.rentalCompany),
+      supplier: safeStr(c.company || c.supplier || c.rentalCompany),
+      date_start: safeStr(c.pickupDate || c.startDate || c.dateFrom || c.checkIn),
+      date_end: safeStr(c.dropoffDate || c.endDate || c.dateTo || c.checkOut),
+      pickup_location: safeStr(c.pickupLocation || c.pickupOffice || c.pickup || c.departureCity),
+      dropoff_location: safeStr(c.dropoffLocation || c.dropoffOffice || c.dropoff || c.arrivalCity),
       price: extractPrice(c),
       sort_order: 0,
     });
@@ -201,13 +201,13 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
     items.push({
       id: crypto.randomUUID(),
       type: 'cruise',
-      title: cr.name || cr.shipName || 'Cruise',
-      subtitle: cr.cruiseLine || cr.company || '',
-      supplier: cr.cruiseLine || cr.company || '',
+      title: safeStr(cr.name || cr.shipName || 'Cruise'),
+      subtitle: safeStr(cr.cruiseLine || cr.company),
+      supplier: safeStr(cr.cruiseLine || cr.company),
       nights: cr.nights || cr.duration || 0,
-      date_start: cr.departureDate || cr.startDate || cr.dateFrom || cr.checkIn || '',
-      date_end: cr.arrivalDate || cr.endDate || cr.dateTo || cr.checkOut || '',
-      location: cr.departurePort || cr.embarkation || cr.departure || '',
+      date_start: safeStr(cr.departureDate || cr.startDate || cr.dateFrom || cr.checkIn),
+      date_end: safeStr(cr.arrivalDate || cr.endDate || cr.dateTo || cr.checkOut),
+      location: safeStr(cr.departurePort || cr.embarkation || cr.departure),
       description: stripHtml(cr.description || cr.itinerary || ''),
       price: extractPrice(cr),
       sort_order: 0,
@@ -288,6 +288,17 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
 
 // --- Helpers ---
 
+/** Safely convert TC API values to string — handles {code, name} objects */
+function safeStr(val: any): string {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'number') return String(val);
+  if (typeof val === 'object' && val !== null) {
+    return val.name || val.description || val.code || JSON.stringify(val);
+  }
+  return String(val);
+}
+
 function extractPrice(obj: any): number {
   if (typeof obj.price === 'number') return obj.price;
   if (obj.priceBreakdown?.totalPrice?.microsite?.amount) return obj.priceBreakdown.totalPrice.microsite.amount;
@@ -297,16 +308,16 @@ function extractPrice(obj: any): number {
 }
 
 function buildFlightTitle(f: any): string {
-  const from = f.departureCity || f.departure || '';
-  const to = f.arrivalCity || f.arrival || '';
+  const from = safeStr(f.departureCity || f.departure);
+  const to = safeStr(f.arrivalCity || f.arrival);
   if (from && to) return `${from} → ${to}`;
-  return f.company ? `Vlucht ${f.company}` : 'Vlucht';
+  return f.company ? `Vlucht ${safeStr(f.company)}` : 'Vlucht';
 }
 
 function buildTransferTitle(t: any): string {
-  const from = t.departureCity || t.departure || '';
-  const to = t.arrivalCity || t.arrival || '';
-  const type = t.transportType || 'Transfer';
+  const from = safeStr(t.departureCity || t.departure);
+  const to = safeStr(t.arrivalCity || t.arrival);
+  const type = safeStr(t.transportType || 'Transfer');
   if (from && to) return `${type}: ${from} → ${to}`;
   return type;
 }

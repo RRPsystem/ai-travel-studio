@@ -849,17 +849,17 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
 
                         {/* === CONTENT SECTION === */}
                         <div className="p-4 flex flex-col flex-1">
-                          <h4 className="font-bold text-gray-900 text-base mb-0.5">{item.title}</h4>
+                          <h4 className="font-bold text-gray-900 text-base mb-0.5">{String(item.title || '')}</h4>
                           
                           {/* Subtitle - location for hotels, route for transfers */}
                           {isHotel && item.location && (
-                            <p className="text-sm text-gray-500 mb-2">📍 {item.location}</p>
+                            <p className="text-sm text-gray-500 mb-2">📍 {typeof item.location === 'object' ? (item.location as any).name || JSON.stringify(item.location) : item.location}</p>
                           )}
                           {(isTransfer || isCarRental) && (item.pickup_location || item.dropoff_location) && (
-                            <p className="text-sm text-gray-500 mb-2">{[item.pickup_location, item.dropoff_location].filter(Boolean).join(' → ')}</p>
+                            <p className="text-sm text-gray-500 mb-2">{[item.pickup_location, item.dropoff_location].filter(Boolean).map(v => typeof v === 'object' ? (v as any).name || '' : v).join(' → ')}</p>
                           )}
                           {isCruise && item.subtitle && (
-                            <p className="text-sm text-gray-500 mb-2">{item.subtitle}</p>
+                            <p className="text-sm text-gray-500 mb-2">{String(item.subtitle)}</p>
                           )}
                           
                           {/* Detail rows with icons */}
@@ -882,28 +882,28 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
                             {item.room_type && (
                               <div className="flex items-center gap-2">
                                 <span>🛏️</span>
-                                <span>{item.room_type}</span>
+                                <span>{typeof item.room_type === 'object' ? (item.room_type as any).name || '' : item.room_type}</span>
                               </div>
                             )}
                             {/* Board type */}
                             {item.board_type && (
                               <div className="flex items-center gap-2">
                                 <span>🍽️</span>
-                                <span>{item.board_type}</span>
+                                <span>{typeof item.board_type === 'object' ? (item.board_type as any).name || '' : item.board_type}</span>
                               </div>
                             )}
                             {/* Distance */}
                             {item.distance && (
                               <div className="flex items-center gap-2 text-orange-600 font-medium">
                                 <span>🚗</span>
-                                <span>{item.distance}</span>
+                                <span>{typeof item.distance === 'object' ? (item.distance as any).name || '' : item.distance}</span>
                               </div>
                             )}
                             {/* Transfer type */}
                             {(isTransfer || isCarRental) && item.transfer_type && (
                               <div className="flex items-center gap-2">
                                 <span>🚐</span>
-                                <span>{item.transfer_type}</span>
+                                <span>{typeof item.transfer_type === 'object' ? (item.transfer_type as any).name || '' : item.transfer_type}</span>
                               </div>
                             )}
                             {/* Car rental dates */}
@@ -916,8 +916,8 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
                             {/* Cruise supplier */}
                             {isCruise && item.supplier && (
                               <div className="flex items-center gap-2">
-                                <span>�</span>
-                                <span>{item.supplier}</span>
+                                <span>🚢</span>
+                                <span>{typeof item.supplier === 'object' ? (item.supplier as any).name || '' : String(item.supplier)}</span>
                               </div>
                             )}
                             {/* Baggage for flights */}
