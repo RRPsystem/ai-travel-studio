@@ -69,6 +69,32 @@ export function OfferteViewer({ offerteId }: Props) {
   const [submittingResponse, setSubmittingResponse] = useState(false);
   const [responseSubmitted, setResponseSubmitted] = useState(false);
 
+  // Enable scrolling for this public page
+  useEffect(() => {
+    const htmlEl = document.documentElement;
+    const bodyEl = document.body;
+    const rootEl = document.getElementById('root');
+    
+    // Store original styles
+    const originalStyles = {
+      html: htmlEl.style.overflow,
+      body: bodyEl.style.overflow,
+      root: rootEl?.style.overflow
+    };
+    
+    // Enable scrolling
+    htmlEl.style.overflow = 'auto';
+    bodyEl.style.overflow = 'auto';
+    if (rootEl) rootEl.style.overflow = 'auto';
+    
+    return () => {
+      // Restore original styles
+      htmlEl.style.overflow = originalStyles.html;
+      bodyEl.style.overflow = originalStyles.body;
+      if (rootEl) rootEl.style.overflow = originalStyles.root || '';
+    };
+  }, []);
+
   useEffect(() => {
     let mounted = true;
     
