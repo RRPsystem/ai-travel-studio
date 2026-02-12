@@ -797,12 +797,6 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
                             <div className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-semibold text-white" style={{ backgroundColor: config.color }}>
                               {config.label}
                             </div>
-                            {item.date_start && (
-                              <div className="absolute top-3 right-3 px-3 py-1.5 bg-white/90 backdrop-blur-sm rounded-full text-xs font-medium text-gray-700 flex items-center gap-1">
-                                <Calendar size={12} />
-                                {new Date(item.date_start).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}
-                              </div>
-                            )}
                           </div>
                         ) : (
                           <div className="relative bg-white border-b border-gray-200 p-4">
@@ -818,28 +812,59 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
                         {/* Content */}
                         <div className="p-4">
                           <h4 className="font-bold text-gray-900 text-lg mb-1">{item.title}</h4>
-                          <p className="text-sm text-gray-500 mb-3">{formatItemSubtitle(item)}</p>
+                          <p className="text-sm text-gray-500 mb-3">{item.location || formatItemSubtitle(item)}</p>
                           
                           {/* Details with professional icons */}
                           <div className="space-y-2 text-xs text-gray-600">
+                            {/* Date for hotels */}
+                            {!isFlight && item.date_start && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-400">📅</span>
+                                <span>{new Date(item.date_start).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}{item.date_end ? ` - ${new Date(item.date_end).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })}` : ''}</span>
+                              </div>
+                            )}
+                            {/* Nights */}
                             {item.nights && (
                               <div className="flex items-center gap-2">
                                 <span className="text-gray-400">🌙</span>
                                 <span>{item.nights} nachten</span>
                               </div>
                             )}
+                            {/* Room type for hotels */}
+                            {item.room_type && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-400">🛏️</span>
+                                <span>{item.room_type}</span>
+                              </div>
+                            )}
+                            {/* Board type */}
                             {item.board_type && (
                               <div className="flex items-center gap-2">
                                 <span className="text-gray-400">🍽️</span>
                                 <span>{item.board_type}</span>
                               </div>
                             )}
+                            {/* Distance for transfers/cars */}
                             {item.distance && (
                               <div className="flex items-center gap-2 text-orange-600 font-medium">
                                 <span>🚗</span>
                                 <span>{item.distance}</span>
                               </div>
                             )}
+                            {/* Transfer/Car details */}
+                            {(item.type === 'transfer' || item.type === 'car_rental') && item.transfer_type && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-400">🚐</span>
+                                <span>{item.transfer_type}</span>
+                              </div>
+                            )}
+                            {item.pickup_location && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-gray-400">📍</span>
+                                <span>{item.pickup_location}</span>
+                              </div>
+                            )}
+                            {/* Baggage for flights */}
                             {isFlight && (
                               <div className="flex items-center gap-2">
                                 <span className="text-gray-400">🧳</span>
