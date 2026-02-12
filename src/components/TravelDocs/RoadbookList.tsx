@@ -61,7 +61,8 @@ export function RoadbookList() {
   };
 
   const handleEditRoadbook = (roadbook: Roadbook) => {
-    setEditingRoadbook(roadbook);
+    // Ensure roadbooks always have auto-rondreis template type
+    setEditingRoadbook({ ...roadbook, template_type: 'auto-rondreis' } as any);
     setView('editor');
   };
 
