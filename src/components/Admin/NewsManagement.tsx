@@ -991,6 +991,7 @@ Alleen JSON array, geen andere tekst.`;
         <table className="w-full">
           <thead className="bg-gray-50 border-b">
             <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Foto</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Titel</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tags</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
@@ -1003,6 +1004,19 @@ Alleen JSON array, geen andere tekst.`;
               const previewUrl = getPreviewUrl(item.slug, item.id);
               return (
                 <tr key={item.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4">
+                    {item.featured_image ? (
+                      <img 
+                        src={item.featured_image} 
+                        alt={item.title}
+                        className="w-16 h-16 object-cover rounded-lg"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <Newspaper className="w-6 h-6 text-gray-400" />
+                      </div>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
                     <div className="font-medium text-gray-900">{item.title}</div>
                     <div className="text-sm text-gray-500">/{item.slug}</div>
