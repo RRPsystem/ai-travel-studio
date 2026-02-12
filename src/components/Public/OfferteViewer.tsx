@@ -107,13 +107,27 @@ export function OfferteViewer({ offerteId }: Props) {
         return;
       }
       try {
-        const { data, error: dbError } = await supabase
+        // Try travel_offertes first, then fallback to travel_roadbooks
+        let data: any = null;
+        const { data: offerteData, error: offerteErr } = await supabase
           .from('travel_offertes')
           .select('*')
           .eq('id', offerteId)
           .single();
 
-        if (dbError) throw dbError;
+        if (offerteData && !offerteErr) {
+          data = offerteData;
+        } else {
+          // Fallback: try travel_roadbooks table
+          const { data: roadbookData, error: roadbookErr } = await supabase
+            .from('travel_roadbooks')
+            .select('*')
+            .eq('id', offerteId)
+            .single();
+          if (roadbookErr) throw roadbookErr;
+          data = roadbookData;
+        }
+
         if (!data) throw new Error('Offerte niet gevonden');
 
         if (!mounted) return;
@@ -172,12 +186,11 @@ export function OfferteViewer({ offerteId }: Props) {
           if (mounted && brandData) setBrand(brandData);
         }
 
-        // Track view
+        // Track view - try both tables
         if (!data.viewed_at) {
-          await supabase
-            .from('travel_offertes')
-            .update({ viewed_at: new Date().toISOString(), status: 'viewed' })
-            .eq('id', offerteId);
+          const viewUpdate = { viewed_at: new Date().toISOString(), status: 'viewed' };
+          await supabase.from('travel_offertes').update(viewUpdate).eq('id', offerteId);
+          await supabase.from('travel_roadbooks').update(viewUpdate).eq('id', offerteId);
         }
       } catch (err: any) {
         console.error('Error loading offerte:', err);
@@ -215,10 +228,9 @@ export function OfferteViewer({ offerteId }: Props) {
       if (response === 'accepted') update.accepted_at = now;
       if (response === 'rejected') update.rejected_at = now;
 
-      await supabase
-        .from('travel_offertes')
-        .update(update)
-        .eq('id', offerte.id);
+      // Try both tables
+      await supabase.from('travel_offertes').update(update).eq('id', offerte.id);
+      await supabase.from('travel_roadbooks').update(update).eq('id', offerte.id);
 
       // Don't update offerte state to prevent re-renders - just update response flags
       setResponseSubmitted(true);
