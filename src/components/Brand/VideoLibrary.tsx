@@ -336,7 +336,7 @@ export default function VideoLibrary() {
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
                   </div>
                 )}
-                {video.video_url && video.status === 'published' && (
+                {video.video_url && (
                   <button
                     onClick={() => handlePlay(video)}
                     className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-0 hover:bg-opacity-30 transition-all group"
@@ -416,15 +416,23 @@ export default function VideoLibrary() {
               </button>
             </div>
             <div className="aspect-video bg-black">
-              {selectedVideo.video_url && (
+              {selectedVideo.video_url ? (
                 <video
                   src={selectedVideo.video_url}
                   controls
                   autoPlay
                   className="w-full h-full"
+                  onError={(e) => {
+                    console.error('Video playback error:', e);
+                    console.error('Video URL:', selectedVideo.video_url);
+                  }}
                 >
                   Je browser ondersteunt geen video afspelen.
                 </video>
+              ) : (
+                <div className="flex items-center justify-center h-full text-white">
+                  <p>Geen video URL beschikbaar</p>
+                </div>
               )}
             </div>
           </div>
