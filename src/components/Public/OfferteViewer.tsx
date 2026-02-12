@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   MapPin, Plane, Car, Building2, Compass, CarFront, Ship, Train, Shield, StickyNote,
   ChevronDown, Star, Calendar, Clock, ArrowLeft, ArrowRight, X,
@@ -230,7 +230,9 @@ export function OfferteViewer({ offerteId }: Props) {
     );
   }
 
-  const heroImages: string[] = offerte.hero_images?.length ? offerte.hero_images : offerte.hero_image_url ? [offerte.hero_image_url] : [];
+  const heroImages = useMemo(() => {
+    return offerte.hero_images?.length ? offerte.hero_images : offerte.hero_image_url ? [offerte.hero_image_url] : [];
+  }, [offerte.hero_images, offerte.hero_image_url]);
 
   // Auto-cycle hero slideshow every 6 seconds
   useEffect(() => {
