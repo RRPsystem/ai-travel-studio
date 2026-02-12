@@ -52,6 +52,29 @@ export default function VideoLibrary() {
     }
   }, [activeBrandId]);
 
+  // Auto-refresh every 10 seconds to detect new videos
+  useEffect(() => {
+    if (!activeBrandId) return;
+    
+    const interval = setInterval(() => {
+      loadVideos();
+    }, 10000); // 10 seconds
+
+    return () => clearInterval(interval);
+  }, [activeBrandId]);
+
+  // Refresh when window regains focus (user returns from external builder)
+  useEffect(() => {
+    const handleFocus = () => {
+      if (activeBrandId) {
+        loadVideos();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [activeBrandId]);
+
   const initBrand = async () => {
     try {
       if (isAdmin) {
