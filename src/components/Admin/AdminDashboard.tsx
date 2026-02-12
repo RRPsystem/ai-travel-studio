@@ -185,7 +185,7 @@ export function AdminDashboard() {
     { id: 'brands', label: 'Brand Management', icon: Building2 },
     { id: 'agents', label: 'Agent Management', icon: Users },
     { id: 'social-media', label: 'Social Media', icon: Share2 },
-    { id: 'podcast', label: 'Podcast Beheer', icon: Mic },
+    { id: 'podcast', label: 'TravelC Talk', icon: Mic },
   ];
 
   const websiteItems = [
@@ -590,7 +590,7 @@ export function AdminDashboard() {
                 {activeSection === 'agents' && 'Agent Management'}
                 {activeSection === 'admin-news' && 'Admin News Management'}
                 {activeSection === 'destinations' && 'Bestemmingen Beheer'}
-                {activeSection === 'podcast' && 'Podcast Beheer'}
+                {activeSection === 'podcast' && 'TravelC Talk'}
                 {activeSection === 'deeplink-tester' && 'Deeplink Tester'}
                 {activeSection === 'template-manager' && 'Template Manager'}
                 {activeSection === 'gpt-management' && 'GPT Management'}
@@ -605,7 +605,7 @@ export function AdminDashboard() {
                 {activeSection === 'dashboard' && 'System overview and statistics'}
                 {activeSection === 'admin-news' && 'Create and manage news items for all brands'}
                 {activeSection === 'destinations' && 'Beheer bestemmingen voor alle brands'}
-                {activeSection === 'podcast' && 'Plan en beheer podcast afleveringen, vragen en host notities'}
+                {activeSection === 'podcast' && 'Plan en beheer TravelC Talk afleveringen, vragen en host notities'}
                 {activeSection === 'deeplink-tester' && 'Test external builder integration'}
                 {activeSection === 'template-manager' && 'Maak en beheer pagina templates voor brands'}
                 {activeSection === 'gpt-management' && 'Configureer custom GPTs en content generatie instellingen'}
