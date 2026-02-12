@@ -34,7 +34,11 @@ function normalizePhoneNumber(phone: string): string {
   return normalized;
 }
 
-export function TravelBroSetup() {
+interface TravelBroSetupProps {
+  onNavigate?: (section: string) => void;
+}
+
+export function TravelBroSetup({ onNavigate }: TravelBroSetupProps = {}) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'new' | 'active' | 'settings' | 'detail'>('overview');
@@ -1044,22 +1048,12 @@ export function TravelBroSetup() {
   };
 
   const handleCreateRoadbook = async (trip: any) => {
-    // Only allow roadbook creation if trip has a compositor_booking_id
-    if (!trip.compositor_booking_id) {
-      alert('❌ Roadbook kan alleen aangemaakt worden voor reizen met een Travel Compositor ID.\n\nReizen aangemaakt via PDF of handmatig kunnen (nog) geen roadbook krijgen.');
-      return;
+    // Navigate to Travel Docs Roadbook section within the app
+    if (onNavigate) {
+      onNavigate('docs-roadbook');
+    } else {
+      alert('Ga naar Travel Docs > Roadbooks om een nieuw roadbook aan te maken voor deze reis.');
     }
-
-    // Open the builder directly with the TC ID pre-filled
-    // The builder will handle loading the trip data and creating the page
-    const builderUrl = new URL('https://www.ai-websitestudio.nl/builder.html');
-    builderUrl.searchParams.set('tc_id', trip.compositor_booking_id);
-    builderUrl.searchParams.set('mode', 'roadbook');
-    builderUrl.searchParams.set('brand_id', trip.brand_id);
-    builderUrl.searchParams.set('trip_id', trip.id);
-    builderUrl.searchParams.set('trip_name', trip.name);
-    
-    window.open(builderUrl.toString(), '_blank');
   };
 
   const [showQRCode, setShowQRCode] = useState(false);
@@ -2259,32 +2253,19 @@ export function TravelBroSetup() {
                   <p className="text-xs opacity-80">Stuur uitnodiging</p>
                 </button>
 
-                {/* Roadbook */}
-                {selectedTrip.page_id ? (
-                  <button
-                    onClick={() => window.open(`https://www.ai-websitestudio.nl/preview.html?page_id=${selectedTrip.page_id}&brand_id=${selectedTrip.brand_id}`, '_blank')}
-                    className="group bg-gradient-to-br from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 rounded-xl p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
-                  >
-                    <Route className="w-8 h-8 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                    <p className="text-sm font-semibold">Roadbook</p>
-                    <p className="text-xs opacity-80">Bekijk / Bewerk</p>
-                  </button>
-                ) : selectedTrip.compositor_booking_id ? (
-                  <button
-                    onClick={() => handleCreateRoadbook(selectedTrip)}
-                    className="group bg-gradient-to-br from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 rounded-xl p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
-                  >
-                    <Route className="w-8 h-8 mx-auto mb-2 group-hover:scale-110 transition-transform" />
-                    <p className="text-sm font-semibold">Roadbook</p>
-                    <p className="text-xs opacity-80">Maak nieuw</p>
-                  </button>
-                ) : (
-                  <div className="bg-gray-100 rounded-xl p-4 text-gray-400 opacity-50">
-                    <Route className="w-8 h-8 mx-auto mb-2" />
-                    <p className="text-sm font-semibold">Roadbook</p>
-                    <p className="text-xs">Alleen met TC ID</p>
-                  </div>
-                )}
+                {/* Roadbook - navigate to Travel Docs */}
+                <button
+                  onClick={() => {
+                    if (onNavigate) {
+                      onNavigate('docs-roadbook');
+                    }
+                  }}
+                  className="group bg-gradient-to-br from-purple-500 to-violet-600 hover:from-purple-600 hover:to-violet-700 rounded-xl p-4 text-white transition-all hover:scale-105 hover:shadow-lg"
+                >
+                  <Route className="w-8 h-8 mx-auto mb-2 group-hover:scale-110 transition-transform" />
+                  <p className="text-sm font-semibold">Roadbook</p>
+                  <p className="text-xs opacity-80">Travel Docs</p>
+                </button>
 
                 {/* Intake */}
                 <button

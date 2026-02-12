@@ -524,7 +524,7 @@ export function AgentDashboard() {
           {activeSection === 'testing' && <TestDashboard />}
           {activeSection === 'ai-content' && <AIContentGenerator />}
           {activeSection === 'ai-video' && <VideoLibrary />}
-          {activeSection === 'ai-travelbro' && <TravelBroSetup />}
+          {activeSection === 'ai-travelbro' && <TravelBroSetup onNavigate={setActiveSection} />}
           {activeSection === 'roadmap' && <RoadmapBoard />}
           {activeSection === 'travel-journal' && <AgentPodcastViewer />}
           {activeSection === 'ai-import' && (
