@@ -66,12 +66,22 @@ export async function importTcTravel(travelId: string, micrositeId?: string): Pr
 function mapTcDataToOfferte(tc: any): TcImportResult {
   const items: OfferteItem[] = [];
 
-  // Log raw data for debugging field names
-  console.log('[TC Map] Raw hotel keys:', tc.hotels?.[0] ? Object.keys(tc.hotels[0]) : 'none');
-  console.log('[TC Map] Raw hotel[0]._raw:', tc.hotels?.[0]?._raw);
-  console.log('[TC Map] Raw car keys:', tc.carRentals?.[0] ? Object.keys(tc.carRentals[0]) : 'none');
-  console.log('[TC Map] Raw cruise keys:', tc.cruises?.[0] ? Object.keys(tc.cruises[0]) : 'none');
-  console.log('[TC Map] Raw transfer keys:', tc.transfers?.[0] ? Object.keys(tc.transfers[0]) : 'none');
+  // Access raw TC data for richer field extraction
+  const rawHotels = tc.rawTcData?.hotels || [];
+  const rawCars = tc.rawTcData?.cars || [];
+  const rawCruises = tc.rawTcData?.cruises || [];
+  const rawTransports = tc.rawTcData?.transports || [];
+
+  // Log ALL raw field names for debugging
+  console.log('[TC Map] Formatted hotel keys:', tc.hotels?.[0] ? Object.keys(tc.hotels[0]) : 'none');
+  console.log('[TC Map] Raw TC hotel keys:', rawHotels[0] ? Object.keys(rawHotels[0]) : 'none');
+  console.log('[TC Map] Raw TC hotel[0] full:', rawHotels[0] ? JSON.stringify(rawHotels[0]).substring(0, 800) : 'none');
+  console.log('[TC Map] Raw TC car keys:', rawCars[0] ? Object.keys(rawCars[0]) : 'none');
+  console.log('[TC Map] Raw TC car[0] full:', rawCars[0] ? JSON.stringify(rawCars[0]).substring(0, 500) : 'none');
+  console.log('[TC Map] Raw TC cruise keys:', rawCruises[0] ? Object.keys(rawCruises[0]) : 'none');
+  console.log('[TC Map] Raw TC cruise[0] full:', rawCruises[0] ? JSON.stringify(rawCruises[0]).substring(0, 500) : 'none');
+  console.log('[TC Map] Raw TC transport keys:', rawTransports[0] ? Object.keys(rawTransports[0]) : 'none');
+  console.log('[TC Map] Raw TC transport[0] full:', rawTransports[0] ? JSON.stringify(rawTransports[0]).substring(0, 500) : 'none');
 
   // --- Flights ---
   const flights = tc.flights || [];
@@ -95,20 +105,24 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
   }
 
   // --- Hotels ---
+  // Use formatted hotels but also check raw TC data for missing fields
   const hotels = tc.hotels || [];
-  for (const h of hotels) {
+  for (let hi = 0; hi < hotels.length; hi++) {
+    const h = hotels[hi];
+    const raw = rawHotels[hi] || {}; // Original TC API hotel object
+    const rawHd = raw.hotelData || {};
     const hotelData = h.hotelData || h;
-    const name = hotelData.name || h.name || 'Hotel';
-    const nights = h.nights || hotelData.nights || 0;
-    const stars = parseStars(hotelData.category || h.category);
-    const rawImages = hotelData.images || h.images || [];
+    const name = hotelData.name || h.name || rawHd.name || 'Hotel';
+    const nights = h.nights || hotelData.nights || raw.nights || 0;
+    const stars = parseStars(hotelData.category || h.category || rawHd.category);
+    const rawImages = hotelData.images || h.images || rawHd.images || [];
     const imageUrls: string[] = rawImages
       .map((img: any) => typeof img === 'string' ? img : img?.url || '')
       .filter((url: string) => url);
     const firstImage = imageUrls[0] || '';
 
     // Extract facilities as string array
-    const rawFacilities = hotelData.facilities || h.facilities || {};
+    const rawFacilities = hotelData.facilities || h.facilities || rawHd.facilities || {};
     let facilityList: string[] = [];
     if (Array.isArray(rawFacilities)) {
       facilityList = rawFacilities.map((f: any) => typeof f === 'string' ? f : f.name || '').filter(Boolean);
@@ -124,29 +138,47 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
       }
     }
 
-    // Extract location: try city, destination, address in that order
-    const location = safeStr(h.city || hotelData.city || h.destination || hotelData.destination || hotelData.address || h.address);
+    // Extract location: formatted first, then raw TC data
+    const location = safeStr(
+      h.city || hotelData.city || h.destination || hotelData.destination || hotelData.address || h.address ||
+      rawHd.city || raw.destination || rawHd.destination || rawHd.address || raw.city
+    );
 
-    // Extract dates: try multiple field names from TC API
-    const dateStart = safeStr(h.checkIn || hotelData.checkIn || h.startDate || h.dateFrom);
-    const dateEnd = safeStr(h.checkOut || hotelData.checkOut || h.endDate || h.dateTo);
+    // Extract dates: formatted first, then raw TC hotel data (try ALL possible field names)
+    const dateStart = safeStr(
+      h.checkIn || hotelData.checkIn || h.startDate || h.dateFrom ||
+      raw.checkIn || raw.startDate || raw.dateFrom || raw.checkinDate || raw.check_in
+    );
+    const dateEnd = safeStr(
+      h.checkOut || hotelData.checkOut || h.endDate || h.dateTo ||
+      raw.checkOut || raw.endDate || raw.dateTo || raw.checkoutDate || raw.check_out
+    );
 
-    // Extract room type
-    const roomType = safeStr(h.roomType || hotelData.roomType || h.roomDescription || h.room);
+    // Extract room type: formatted first, then raw
+    const roomType = safeStr(
+      h.roomType || hotelData.roomType || h.roomDescription || h.room ||
+      raw.roomDescription || raw.roomType || raw.room || raw.selectedRoom || raw.roomName || rawHd.roomType
+    );
+
+    // Extract meal plan: formatted first, then raw
+    const boardType = safeStr(
+      h.mealPlan || hotelData.mealPlan || h.mealPlanDescription ||
+      raw.mealPlan || raw.mealPlanDescription || raw.board || rawHd.mealPlan
+    );
 
     items.push({
       id: crypto.randomUUID(),
       type: 'hotel',
       title: name,
       hotel_name: name,
-      description: stripHtml(hotelData.shortDescription || hotelData.description || h.description || ''),
+      description: stripHtml(hotelData.shortDescription || hotelData.description || h.description || rawHd.shortDescription || rawHd.description || ''),
       image_url: firstImage,
       images: imageUrls.slice(0, 10),
       facilities: facilityList.length > 0 ? facilityList : undefined,
       location,
       nights,
       star_rating: stars,
-      board_type: safeStr(h.mealPlan || hotelData.mealPlan || h.mealPlanDescription),
+      board_type: boardType,
       room_type: roomType,
       price: extractPrice(h),
       date_start: dateStart,

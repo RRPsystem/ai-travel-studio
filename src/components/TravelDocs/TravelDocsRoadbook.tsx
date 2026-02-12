@@ -809,7 +809,7 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
                             </div>
                             {/* Photo navigation arrows */}
                             {item.images && item.images.length > 1 && (
-                              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2">
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
@@ -929,16 +929,18 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
                             )}
                           </div>
                           
-                          {/* Action button - pushed to bottom */}
-                          <div className="mt-auto">
-                            <button 
-                              onClick={() => setDetailItem(item)}
-                              className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
-                            >
-                              <Star size={14} />
-                              Meer informatie
-                            </button>
-                          </div>
+                          {/* Action button - only for hotels and cruises with extra content */}
+                          {(isHotel || isCruise) && (item.description || (item.images && item.images.length > 1) || item.facilities) && (
+                            <div className="mt-auto">
+                              <button 
+                                onClick={() => setDetailItem(item)}
+                                className="w-full bg-green-600 hover:bg-green-700 text-white text-sm font-medium py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
+                              >
+                                <Star size={14} />
+                                Meer informatie
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
