@@ -9,7 +9,7 @@ import AgentProfileEdit from './AgentProfileEdit';
 import { HelpBot } from '../shared/HelpBot';
 import { Bot, User, ChevronDown, ChevronRight, Share2, Plane, Sparkles, Import as FileImport, Map, ArrowRight, Bell, ClipboardCheck, Video, BookOpen, Wallet, FileText, Ticket, FolderOpen } from 'lucide-react';
 import { TravelDocsOffertes } from '../TravelDocs/TravelDocsOffertes';
-import { TravelDocsRoadbook } from '../TravelDocs/TravelDocsRoadbook';
+import { RoadbookList } from '../TravelDocs/RoadbookList';
 import { TravelDocsVouchers } from '../TravelDocs/TravelDocsVouchers';
 import RoadmapBoard from '../Brand/RoadmapBoard';
 import TestDashboard from '../Testing/TestDashboard';
@@ -419,7 +419,7 @@ export function AgentDashboard() {
 
         <main className="flex-1 overflow-auto">
           {activeSection === 'docs-offertes' && <TravelDocsOffertes />}
-          {activeSection === 'docs-roadbook' && <TravelDocsRoadbook />}
+          {activeSection === 'docs-roadbook' && <RoadbookList />}
           {activeSection === 'docs-vouchers' && <TravelDocsVouchers />}
           {activeSection === 'dashboard' && (
             <div className="p-6">

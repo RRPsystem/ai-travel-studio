@@ -18,7 +18,7 @@ import WordPressTemplateChooser from './WordPressTemplateChooser';
 import WordPressPageManager from './WordPressPageManager';
 import { Users, Settings, Plus, Bot, Sparkles, Import as FileImport, ChevronDown, ChevronRight, FileText, Globe, Newspaper, MapPin, Plane, Share2, Map, ArrowRight, ClipboardCheck, Video, BookOpen, Rocket, Wallet, Ticket, FolderOpen } from 'lucide-react';
 import { TravelDocsOffertes } from '../TravelDocs/TravelDocsOffertes';
-import { TravelDocsRoadbook } from '../TravelDocs/TravelDocsRoadbook';
+import { RoadbookList } from '../TravelDocs/RoadbookList';
 import { TravelDocsVouchers } from '../TravelDocs/TravelDocsVouchers';
 import RoadmapBoard from './RoadmapBoard';
 import TestDashboard from '../Testing/TestDashboard';
@@ -714,7 +714,7 @@ export function BrandDashboard() {
         <main className="flex-1 overflow-auto">
           {activeSection === 'travel-journal' && <AgentPodcastViewer />}
           {activeSection === 'docs-offertes' && <TravelDocsOffertes />}
-          {activeSection === 'docs-roadbook' && <TravelDocsRoadbook />}
+          {activeSection === 'docs-roadbook' && <RoadbookList />}
           {activeSection === 'docs-vouchers' && <TravelDocsVouchers />}
           {activeSection === 'dashboard' && (
             <div className="p-6">
