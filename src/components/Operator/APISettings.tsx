@@ -43,6 +43,8 @@ export function APISettings() {
   const [saving, setSaving] = useState<string | null>(null);
   const [savingTwilio, setSavingTwilio] = useState(false);
   const [savingGoogle, setSavingGoogle] = useState(false);
+  const [testingGoogle, setTestingGoogle] = useState(false);
+  const [googleTestResult, setGoogleTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [testingTwilio, setTestingTwilio] = useState(false);
   const [twilioTestResult, setTwilioTestResult] = useState<{ success: boolean; message: string } | null>(null);
   const [testing, setTesting] = useState<string | null>(null);
@@ -306,6 +308,51 @@ export function APISettings() {
       }
     } catch (err: any) {
       console.error('Error loading Google settings:', err);
+    }
+  };
+
+  const testGoogleSearch = async () => {
+    if (!googleSettings.google_search_api_key || !googleSettings.google_search_engine_id) {
+      setGoogleTestResult({
+        success: false,
+        message: '❌ Vul eerst de API Key en Search Engine ID in'
+      });
+      return;
+    }
+
+    setTestingGoogle(true);
+    setGoogleTestResult(null);
+    
+    try {
+      const testQuery = 'weather Cape Verde';
+      const url = `https://www.googleapis.com/customsearch/v1?key=${googleSettings.google_search_api_key}&cx=${googleSettings.google_search_engine_id}&q=${encodeURIComponent(testQuery)}&num=3`;
+      
+      const response = await fetch(url);
+      const data = await response.json();
+      
+      if (response.ok && data.items && data.items.length > 0) {
+        setGoogleTestResult({
+          success: true,
+          message: `✅ Google Custom Search werkt! Gevonden: ${data.items.length} resultaten voor "${testQuery}"`
+        });
+      } else if (data.error) {
+        setGoogleTestResult({
+          success: false,
+          message: `❌ ${data.error.message || 'API test mislukt'}\n\nControleer:\n- Is Custom Search API geactiveerd in Google Cloud?\n- Is de API key correct?\n- Is de Search Engine ID correct?`
+        });
+      } else {
+        setGoogleTestResult({
+          success: false,
+          message: '❌ Geen resultaten gevonden, maar API werkt. Controleer Search Engine instellingen.'
+        });
+      }
+    } catch (err: any) {
+      setGoogleTestResult({
+        success: false,
+        message: `❌ Netwerk fout: ${err.message}`
+      });
+    } finally {
+      setTestingGoogle(false);
     }
   };
 
@@ -1045,11 +1092,49 @@ export function APISettings() {
                 </div>
               </div>
 
-              <div className="mt-6">
+              {googleTestResult && (
+                <div className={`mt-4 p-4 rounded-lg border ${
+                  googleTestResult.success 
+                    ? 'bg-green-50 border-green-200' 
+                    : 'bg-red-50 border-red-200'
+                }`}>
+                  <div className="flex items-start gap-2">
+                    {googleTestResult.success ? (
+                      <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                    ) : (
+                      <XCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    )}
+                    <p className={`text-sm whitespace-pre-line ${
+                      googleTestResult.success ? 'text-green-800' : 'text-red-800'
+                    }`}>
+                      {googleTestResult.message}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-6 flex gap-3">
+                <button
+                  onClick={testGoogleSearch}
+                  disabled={testingGoogle || !googleSettings.google_search_api_key || !googleSettings.google_search_engine_id}
+                  className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {testingGoogle ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Testen...
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="w-4 h-4" />
+                      Test Key
+                    </>
+                  )}
+                </button>
                 <button
                   onClick={saveGoogleSettings}
                   disabled={savingGoogle}
-                  className="w-full px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   {savingGoogle ? (
                     <>
