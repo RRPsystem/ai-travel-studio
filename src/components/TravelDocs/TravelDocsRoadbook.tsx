@@ -741,8 +741,8 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
           </div>
         )}
 
-        {/* REIS TIMELINE CAROUSEL - Full width, directly under route map */}
-        {items.length > 0 && (
+        {/* REIS TIMELINE CAROUSEL - Only for auto-rondreis template */}
+        {items.length > 0 && templateType === 'auto-rondreis' && (
           <div className="bg-gray-50 py-8">
             <div className="max-w-7xl mx-auto px-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Jouw Reis Timeline</h2>
@@ -935,8 +935,8 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave }: Props) {
           {/* Add button at top */}
           {renderAddButton(0)}
 
-          {/* Items list (hidden for carousel view) */}
-          <div className="hidden">
+          {/* Items list - only show for standard roadbook, hide for auto-rondreis */}
+          <div className={templateType === 'auto-rondreis' ? 'hidden' : ''}>
           {items.map((item, index) => {
             const config = getItemConfig(item.type);
             return (
