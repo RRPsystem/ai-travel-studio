@@ -125,13 +125,23 @@ async function processMessageAsync(
       role: 'user'
     });
 
-    // Get OpenAI settings
-    const { data: openaiSettings } = await supabase
+    // Get API settings (OpenAI + Google Search)
+    const { data: apiSettings } = await supabase
       .from('api_settings')
-      .select('api_key')
-      .eq('provider', 'OpenAI')
-      .eq('service_name', 'OpenAI API')
-      .maybeSingle();
+      .select('provider, service_name, api_key, google_search_api_key, google_search_engine_id')
+      .in('provider', ['OpenAI', 'system'])
+      .eq('is_active', true);
+
+    const openaiSettings = apiSettings?.find(s => s.provider === 'OpenAI');
+    const systemSettings = apiSettings?.find(s => s.provider === 'system' && s.service_name === 'Twilio WhatsApp');
+    const googleSearchApiKey = systemSettings?.google_search_api_key;
+    const googleCseId = systemSettings?.google_search_engine_id;
+
+    console.log('🔍 API Settings:', {
+      hasOpenAI: !!openaiSettings?.api_key,
+      hasGoogleSearch: !!googleSearchApiKey,
+      hasCseId: !!googleCseId
+    });
 
     if (!openaiSettings?.api_key) {
       console.error('❌ No OpenAI API key');
@@ -155,6 +165,45 @@ async function processMessageAsync(
       ? destinations.map((d: any) => typeof d === 'string' ? d : d.name || d.city).filter(Boolean).join(', ')
       : (typeof destinations === 'string' ? destinations : '');
 
+    // Google Search for weather and current information
+    let searchResults = "";
+    if (googleSearchApiKey && googleCseId) {
+      try {
+        const isWeatherQuery = /\b(weer|weather|temperature|temperatuur|rain|regen|zon|sun|cloud|bewolkt)\b/i.test(userMessage);
+        
+        if (isWeatherQuery) {
+          const location = destinationNames || trip.name || 'Disneyland Paris';
+          const today = new Date();
+          const tomorrow = new Date(today);
+          tomorrow.setDate(tomorrow.getDate() + 1);
+          
+          const dateStr = tomorrow.toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+          const searchQuery = `weer ${location} ${dateStr}`;
+          
+          console.log('🌤️ Weather query detected:', searchQuery);
+
+          const searchUrl = `https://www.googleapis.com/customsearch/v1?key=${googleSearchApiKey}&cx=${googleCseId}&q=${encodeURIComponent(searchQuery)}&num=3`;
+          const searchResponse = await fetch(searchUrl);
+          
+          console.log('🔍 Google Search response:', searchResponse.status);
+
+          if (searchResponse.ok) {
+            const searchData = await searchResponse.json();
+            if (searchData.items && searchData.items.length > 0) {
+              searchResults = "\n\n=== ACTUELE WEERSINFORMATIE VIA GOOGLE ===\n" + 
+                searchData.items.map((item: any) => `- ${item.title}: ${item.snippet}`).join("\n") +
+                "\n\nGEBRUIK DEZE ACTUELE INFORMATIE in je antwoord!\n===";
+              console.log('✅ Google Search results added, length:', searchResults.length);
+            }
+          } else {
+            console.error('❌ Google Search error:', await searchResponse.text());
+          }
+        }
+      } catch (error) {
+        console.error('❌ Google Search exception:', error);
+      }
+    }
+
     const systemPrompt = `Je bent TravelBro, de persoonlijke reisassistent voor de reis "${trip.name}".
 
 === BELANGRIJKE CONTEXT ===
@@ -167,6 +216,8 @@ ALLES wat je bespreekt moet relevant zijn voor DEZE specifieke reis.
 === REISDATA ===
 ${customContext}
 ${tripInfo}
+
+${searchResults ? searchResults : ''}
 
 === GEDRAGSREGELS ===
 1. **GESPREKSCONTEXT VOLGEN (ZEER BELANGRIJK!):**
