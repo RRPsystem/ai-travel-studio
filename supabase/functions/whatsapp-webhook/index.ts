@@ -132,6 +132,11 @@ async function processMessageAsync(
       .in('provider', ['OpenAI', 'system'])
       .eq('is_active', true);
 
+    console.log('🔍 Raw API Settings:', {
+      count: apiSettings?.length || 0,
+      items: apiSettings?.map(s => ({ provider: s.provider, service_name: s.service_name }))
+    });
+
     const openaiSettings = apiSettings?.find(s => s.provider === 'OpenAI');
     const systemSettings = apiSettings?.find(s => s.provider === 'system' && s.service_name === 'Twilio WhatsApp');
     const googleSearchApiKey = systemSettings?.google_search_api_key;
@@ -139,8 +144,12 @@ async function processMessageAsync(
 
     console.log('🔍 API Settings:', {
       hasOpenAI: !!openaiSettings?.api_key,
+      foundSystemSettings: !!systemSettings,
+      systemServiceName: systemSettings?.service_name,
       hasGoogleSearch: !!googleSearchApiKey,
-      hasCseId: !!googleCseId
+      googleSearchKeyLength: googleSearchApiKey?.length || 0,
+      hasCseId: !!googleCseId,
+      cseIdLength: googleCseId?.length || 0
     });
 
     if (!openaiSettings?.api_key) {
@@ -204,6 +213,8 @@ async function processMessageAsync(
       }
     }
 
+    console.log('📝 Building system prompt with searchResults length:', searchResults.length);
+
     const systemPrompt = `Je bent TravelBro, de persoonlijke reisassistent voor de reis "${trip.name}".
 
 === BELANGRIJKE CONTEXT ===
@@ -217,7 +228,23 @@ ALLES wat je bespreekt moet relevant zijn voor DEZE specifieke reis.
 ${customContext}
 ${tripInfo}
 
-${searchResults ? searchResults : ''}
+${searchResults ? `
+${searchResults}
+
+🚨 KRITISCH - LEES DIT ZORGVULDIG:
+De bovenstaande Google Search resultaten bevatten ACTUELE, VERSE informatie die je VERPLICHT moet gebruiken.
+Als er weersinformatie in de Google Search resultaten staat:
+- GEBRUIK de temperaturen, weersomstandigheden en details uit de resultaten
+- NOEM specifieke getallen en details (bijv. "15°C", "bewolkt met kans op regen")
+- Zeg NOOIT "ik kan geen actuele informatie geven" - je HEBT de informatie hierboven!
+- Geef een concreet antwoord op basis van de Google Search resultaten
+
+VOORBEELD GOED ANTWOORD:
+"Morgen wordt het ongeveer 12°C in Disneyland Paris met bewolkte perioden en kans op wat lichte regen. Neem een regenjas mee! 🌧️"
+
+VOORBEELD FOUT ANTWOORD (NOOIT DOEN):
+"Ik kan de weersvoorspelling niet opzoeken..."
+` : ''}
 
 === GEDRAGSREGELS ===
 1. **GESPREKSCONTEXT VOLGEN (ZEER BELANGRIJK!):**
