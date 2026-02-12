@@ -358,7 +358,16 @@ function buildTravelData(info: any, detail: any, travelId: string) {
     geolocation: d.geolocation || null,
   }));
 
-  const hotels = (detail.hotels || []).map((h: any) => {
+  // Log ALL raw hotel keys for debugging
+  if (detail.hotels?.[0]) {
+    console.log(`[BuildTravel] Raw hotel[0] ALL keys: ${Object.keys(detail.hotels[0]).join(', ')}`);
+    console.log(`[BuildTravel] Raw hotel[0] full: ${JSON.stringify(detail.hotels[0]).substring(0, 1500)}`);
+    if (detail.hotels[0].hotelData) {
+      console.log(`[BuildTravel] Raw hotel[0].hotelData keys: ${Object.keys(detail.hotels[0].hotelData).join(', ')}`);
+    }
+  }
+
+  const hotels = (detail.hotels || []).map((h: any, idx: number) => {
     const hd = h.hotelData || {};
     return {
       name: hd.name || "",
@@ -370,6 +379,7 @@ function buildTravelData(info: any, detail: any, travelId: string) {
       city: hd.city || h.destination || h.city || hd.destination || "",
       destination: h.destination || hd.destination || "",
       nights: h.nights || 0,
+      day: h.day || 0, // Which day of the trip this hotel starts
       roomAmenities: [],
       mealPlan: h.mealPlan || h.mealPlanDescription || "",
       mealPlanDescription: h.mealPlan || h.mealPlanDescription || "",
@@ -384,8 +394,8 @@ function buildTravelData(info: any, detail: any, travelId: string) {
       pricePerNight: h.nights > 0 ? Math.round((h.priceBreakdown?.totalPrice?.microsite?.amount || 0) / h.nights) : 0,
       checkInTime: hd.checkInTime || "",
       checkOutTime: hd.checkOutTime || "",
-      // Pass through all raw hotel fields for debugging
-      _raw: { checkIn: h.checkIn, checkOut: h.checkOut, startDate: h.startDate, endDate: h.endDate, dateFrom: h.dateFrom, dateTo: h.dateTo, roomType: h.roomType, roomDescription: h.roomDescription, room: h.room, destination: h.destination, city: h.city },
+      // ALL raw keys for debugging
+      _rawKeys: Object.keys(h).join(', '),
     };
   });
 

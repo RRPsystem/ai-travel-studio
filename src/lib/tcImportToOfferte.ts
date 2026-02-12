@@ -262,20 +262,71 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
     });
   }
 
+  // --- CALCULATE MISSING DATES ---
+  // TC API often provides day-numbers (which day of the trip) instead of actual dates.
+  // We calculate real dates from the first flight's departure date + hotel day/nights.
+  const tripStartDate = findTripStartDate(items, tc);
+  if (tripStartDate) {
+    console.log('[TC Map] Trip start date:', tripStartDate.toISOString().split('T')[0]);
+    
+    // Calculate hotel dates from day number or cumulative nights
+    let cumulativeDay = 1; // Track current day for hotels without a day number
+    for (const item of items) {
+      if (item.type === 'hotel') {
+        const hotelNights = item.nights || 1;
+        // Find matching formatted hotel to get day number
+        const hotelIdx = items.filter(i => i.type === 'hotel').indexOf(item);
+        const formattedHotel = (tc.hotels || [])[hotelIdx];
+        const rawHotel = (tc.rawTcData?.hotels || [])[hotelIdx];
+        const dayNum = formattedHotel?.day || rawHotel?.day || 0;
+        
+        if (!item.date_start || item.date_start === '') {
+          let checkIn: Date;
+          if (dayNum > 0) {
+            // Use day number from TC API
+            checkIn = new Date(tripStartDate);
+            checkIn.setDate(checkIn.getDate() + dayNum - 1);
+          } else {
+            // Calculate from cumulative days
+            checkIn = new Date(tripStartDate);
+            checkIn.setDate(checkIn.getDate() + cumulativeDay - 1);
+          }
+          const checkOut = new Date(checkIn);
+          checkOut.setDate(checkOut.getDate() + hotelNights);
+          
+          item.date_start = checkIn.toISOString().split('T')[0];
+          item.date_end = checkOut.toISOString().split('T')[0];
+          console.log(`[TC Map] Calculated hotel dates: ${item.title} → ${item.date_start} to ${item.date_end} (day ${dayNum || cumulativeDay}, ${hotelNights}n)`);
+        }
+        cumulativeDay += hotelNights;
+      }
+      
+      // Calculate car rental dates from pickupDay/dropoffDay
+      if (item.type === 'car_rental' && (!item.date_start || item.date_start === '')) {
+        const carIdx = items.filter(i => i.type === 'car_rental').indexOf(item);
+        const rawCar = (tc.carRentals || [])[carIdx];
+        const pickupDay = rawCar?.pickupDay || rawCar?.day || 1;
+        const dropoffDay = rawCar?.dropoffDay || (tc.numberOfDays || 0);
+        
+        const pickupDate = new Date(tripStartDate);
+        pickupDate.setDate(pickupDate.getDate() + pickupDay - 1);
+        const dropoffDate = new Date(tripStartDate);
+        dropoffDate.setDate(dropoffDate.getDate() + dropoffDay - 1);
+        
+        item.date_start = pickupDate.toISOString().split('T')[0];
+        item.date_end = dropoffDate.toISOString().split('T')[0];
+        console.log(`[TC Map] Calculated car dates: ${item.title} → ${item.date_start} to ${item.date_end}`);
+      }
+    }
+  }
+
   // --- CHRONOLOGICAL SORT ---
-  // Sort ALL items by their date_start, then reassign sort_order
-  // Items without dates keep their relative position within their category
   items.sort((a, b) => {
     const dateA = a.date_start ? new Date(a.date_start).getTime() : NaN;
     const dateB = b.date_start ? new Date(b.date_start).getTime() : NaN;
-    
-    // Both have dates: sort by date
     if (!isNaN(dateA) && !isNaN(dateB)) return dateA - dateB;
-    // Only A has date: A comes first (we know where it belongs)
     if (!isNaN(dateA) && isNaN(dateB)) return -1;
-    // Only B has date: B comes first
     if (isNaN(dateA) && !isNaN(dateB)) return 1;
-    // Neither has date: keep original order (flights first makes sense as fallback)
     return 0;
   });
   
@@ -319,6 +370,48 @@ function mapTcDataToOfferte(tc: any): TcImportResult {
 }
 
 // --- Helpers ---
+
+/** Find trip start date from first flight departure or TC meta data */
+function findTripStartDate(items: OfferteItem[], tc: any): Date | null {
+  // 1. Try first flight's departure date
+  const firstFlight = items.find(i => i.type === 'flight' && i.date_start);
+  if (firstFlight?.date_start) {
+    const d = new Date(firstFlight.date_start);
+    if (!isNaN(d.getTime())) {
+      console.log('[TC Map] Trip start from first flight:', firstFlight.date_start);
+      return d;
+    }
+  }
+  
+  // 2. Try raw transports departure date (flights come from raw TC data)
+  const rawTransports = tc.rawTcData?.transports || tc.transports || [];
+  for (const t of rawTransports) {
+    if (t.departureDate) {
+      const d = new Date(t.departureDate);
+      if (!isNaN(d.getTime())) {
+        console.log('[TC Map] Trip start from raw transport:', t.departureDate);
+        return d;
+      }
+    }
+  }
+  
+  // 3. Try TC meta departure date
+  if (tc.departureDate) {
+    const d = new Date(tc.departureDate);
+    if (!isNaN(d.getTime())) return d;
+  }
+  
+  // 4. Try any item with a valid date
+  for (const item of items) {
+    if (item.date_start) {
+      const d = new Date(item.date_start);
+      if (!isNaN(d.getTime())) return d;
+    }
+  }
+  
+  console.warn('[TC Map] Could not determine trip start date');
+  return null;
+}
 
 /** Safely convert TC API values to string — handles {code, name} objects */
 function safeStr(val: any): string {
