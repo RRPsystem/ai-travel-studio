@@ -171,6 +171,10 @@ export function ChatEmbed({ tripId, shareToken }: ChatEmbedProps) {
       if (imageToSend) requestBody.imageBase64 = imageToSend;
       if (userLocation) requestBody.userLocation = userLocation;
 
+      // Timeout after 30s to prevent hanging
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 30000);
+
       const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/travelbro-chat`, {
         method: 'POST',
         headers: {
@@ -178,7 +182,10 @@ export function ChatEmbed({ tripId, shareToken }: ChatEmbedProps) {
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
         },
         body: JSON.stringify(requestBody),
+        signal: controller.signal,
       });
+
+      clearTimeout(timeout);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -187,38 +194,52 @@ export function ChatEmbed({ tripId, shareToken }: ChatEmbedProps) {
       }
 
       const contentType = response.headers.get('content-type') || '';
+      console.log('[ChatEmbed] Response content-type:', contentType);
 
-      if (contentType.includes('text/event-stream')) {
+      if (contentType.includes('text/event-stream') && response.body) {
         // ⚡ STREAMING: read SSE chunks and update message in real-time
-        const reader = response.body!.getReader();
+        const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let accumulated = '';
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
 
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split('\n').filter(l => l.startsWith('data: '));
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n').filter((l: string) => l.startsWith('data: '));
 
-          for (const line of lines) {
-            const data = line.slice(6).trim();
-            if (data === '[DONE]') continue;
-            try {
-              const parsed = JSON.parse(data);
-              if (parsed.text) {
-                accumulated += parsed.text;
-                // Update the last message (assistant) with accumulated text
-                setMessages(prev => {
-                  const updated = [...prev];
-                  updated[updated.length - 1] = { ...updated[updated.length - 1], content: accumulated };
-                  return updated;
-                });
+            for (const line of lines) {
+              const data = line.slice(6).trim();
+              if (data === '[DONE]') continue;
+              try {
+                const parsed = JSON.parse(data);
+                if (parsed.text) {
+                  accumulated += parsed.text;
+                  const currentText = accumulated;
+                  setMessages(prev => {
+                    const updated = [...prev];
+                    updated[updated.length - 1] = { ...updated[updated.length - 1], content: currentText };
+                    return updated;
+                  });
+                }
+              } catch (e) {
+                // Skip unparseable chunks
               }
-            } catch (e) {
-              // Skip unparseable chunks
             }
           }
+        } finally {
+          reader.releaseLock();
+        }
+
+        // If stream ended but no content came through, show error
+        if (!accumulated) {
+          setMessages(prev => {
+            const updated = [...prev];
+            updated[updated.length - 1] = { ...updated[updated.length - 1], content: 'Geen antwoord ontvangen. Probeer het opnieuw.' };
+            return updated;
+          });
         }
       } else {
         // Fallback: non-streaming JSON response
@@ -232,11 +253,16 @@ export function ChatEmbed({ tripId, shareToken }: ChatEmbedProps) {
           return updated;
         });
       }
-    } catch (error) {
-      console.error('Error:', error);
+    } catch (error: any) {
+      console.error('[ChatEmbed] Error:', error);
+      const errMsg = error?.name === 'AbortError'
+        ? 'Het antwoord duurde te lang. Probeer het opnieuw.'
+        : 'Sorry, er ging iets mis. Probeer het opnieuw.';
       setMessages(prev => {
         const updated = [...prev];
-        updated[updated.length - 1] = { ...updated[updated.length - 1], content: 'Sorry, er ging iets mis. Probeer het opnieuw.' };
+        if (updated.length > 0) {
+          updated[updated.length - 1] = { ...updated[updated.length - 1], content: errMsg };
+        }
         return updated;
       });
     } finally {

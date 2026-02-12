@@ -3,7 +3,7 @@ import {
   ArrowLeft, Save, Send, MapPin, Plus, GripVertical, X,
   Plane, Car, Building2, Compass, CarFront, Ship, Train, Shield, StickyNote,
   ChevronDown, ChevronUp, Image, Video, FileDown, Star, Users, Calendar,
-  Download, Loader2, AlertCircle, CheckCircle2, ExternalLink
+  Download, Loader2, AlertCircle, CheckCircle2, ExternalLink, MessageSquare, Phone
 } from 'lucide-react';
 import { importTcTravel } from '../../lib/tcImportToOfferte';
 import { supabase } from '../../lib/supabase';
@@ -1337,32 +1337,55 @@ export function TravelDocsRoadbook({ offerte, onBack, onSave, brandColor = '#2e7
                 <ChatEmbed shareToken={travelbroShareToken} />
               </div>
 
-              {/* QR Code + link tools */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 bg-gray-50 rounded-xl p-5 border border-gray-200">
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}/travelbro/${travelbroShareToken}`)}`}
-                  alt="TravelBro QR"
-                  className="w-24 h-24 rounded-lg shadow bg-white p-1.5"
-                />
-                <div className="text-center sm:text-left flex-1">
-                  <p className="text-sm font-semibold text-gray-800 mb-1">Deel met je klant</p>
-                  <div className="flex gap-2 mb-2">
+              {/* Links for client: WhatsApp QR, Intake form, Chat link */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* WhatsApp QR */}
+                <div className="bg-green-50 border border-green-200 rounded-xl p-5 text-center">
+                  <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center mx-auto mb-3">
+                    <Phone size={20} className="text-white" />
+                  </div>
+                  <p className="text-sm font-bold text-gray-800 mb-1">WhatsApp QR Code</p>
+                  <p className="text-[11px] text-gray-500 mb-3">Klant scant deze code om TravelBro via WhatsApp te gebruiken</p>
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${window.location.origin}/travelbro/${travelbroShareToken}`)}`}
+                    alt="WhatsApp QR"
+                    className="w-28 h-28 rounded-lg shadow bg-white p-1.5 mx-auto"
+                  />
+                </div>
+
+                {/* Intake formulier */}
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-5 text-center">
+                  <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center mx-auto mb-3">
+                    <StickyNote size={20} className="text-white" />
+                  </div>
+                  <p className="text-sm font-bold text-gray-800 mb-1">Intake Formulier</p>
+                  <p className="text-[11px] text-gray-500 mb-3">Klant vult voorkeuren, allergieën en wensen in</p>
+                  <div className="flex gap-2">
                     <input
                       type="text"
                       readOnly
                       value={`${window.location.origin}/travelbro/${travelbroShareToken}`}
-                      className="flex-1 px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-xs font-mono text-gray-700"
+                      className="flex-1 px-2 py-1.5 bg-white border border-gray-300 rounded-lg text-[10px] font-mono text-gray-600 min-w-0"
                     />
                     <button
-                      onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/travelbro/${travelbroShareToken}`); alert('Link gekopieerd!'); }}
-                      className="px-3 py-1.5 bg-orange-600 text-white text-xs font-medium rounded-lg hover:bg-orange-700 transition-colors"
+                      onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/travelbro/${travelbroShareToken}`); alert('Intake link gekopieerd!'); }}
+                      className="px-2.5 py-1.5 bg-blue-600 text-white text-xs font-medium rounded-lg hover:bg-blue-700 transition-colors shrink-0"
                     >
                       Kopieer
                     </button>
                   </div>
+                </div>
+
+                {/* Chat / Preview */}
+                <div className="bg-orange-50 border border-orange-200 rounded-xl p-5 text-center">
+                  <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center mx-auto mb-3">
+                    <MessageSquare size={20} className="text-white" />
+                  </div>
+                  <p className="text-sm font-bold text-gray-800 mb-1">AI Chat Assistent</p>
+                  <p className="text-[11px] text-gray-500 mb-3">Klant kan vragen stellen over de reis, tips krijgen, foto's sturen</p>
                   <button
                     onClick={() => window.open(`${window.location.origin}/travelbro/${travelbroShareToken}`, '_blank')}
-                    className="px-3 py-1.5 bg-white border border-gray-300 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors"
+                    className="w-full px-3 py-2 bg-orange-600 text-white text-xs font-medium rounded-lg hover:bg-orange-700 transition-colors"
                   >
                     <ExternalLink size={12} className="inline mr-1" /> Preview openen
                   </button>
