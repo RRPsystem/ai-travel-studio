@@ -114,6 +114,7 @@ export function DayByDaySection({ destinations, items, brandColor = '#2e7d32', c
           display: 'grid',
           gridTemplateColumns: '1fr 48px 1fr',
           gridTemplateRows: `repeat(${numDest}, auto)`,
+          overflow: 'visible',
         }}
       >
         {/* === ROAD COLUMN — spans all rows === */}
@@ -167,7 +168,7 @@ export function DayByDaySection({ destinations, items, brandColor = '#2e7d32', c
             <div
               key={`stop-${idx}`}
               style={{ gridColumn: 2, gridRow: row }}
-              className="relative z-20 flex items-start justify-center pt-8"
+              className="relative z-20 flex items-start justify-center pt-8 overflow-visible"
             >
               <div
                 className="rounded-full border-4 border-white shadow-lg flex items-center justify-center"
