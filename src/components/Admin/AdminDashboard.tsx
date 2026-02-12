@@ -42,6 +42,7 @@ export function AdminDashboard() {
   const [newPassword, setNewPassword] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
   const [resetError, setResetError] = useState('');
+  const [pendingTopicsCount, setPendingTopicsCount] = useState(0);
 
   React.useEffect(() => {
     if (['template-manager'].includes(activeSection)) {
@@ -94,12 +95,28 @@ export function AdminDashboard() {
     }
   };
 
+  const loadPendingTopicsCount = async () => {
+    try {
+      const { data } = await db.supabase?.from('podcast_topics').select('*').eq('status', 'concept') || {};
+      if (data) setPendingTopicsCount(data.length);
+    } catch (error) {
+      console.error('Error loading pending topics:', error);
+    }
+  };
+
+  React.useEffect(() => {
+    loadPendingTopicsCount();
+  }, []);
+
   React.useEffect(() => {
     if (activeSection === 'dashboard') {
       loadDashboardStats();
     }
     if (activeSection === 'brands') {
       loadBrands();
+    }
+    if (activeSection === 'podcast') {
+      loadPendingTopicsCount();
     }
   }, [activeSection]);
 
@@ -185,7 +202,7 @@ export function AdminDashboard() {
     { id: 'brands', label: 'Brand Management', icon: Building2 },
     { id: 'agents', label: 'Agent Management', icon: Users },
     { id: 'social-media', label: 'Social Media', icon: Share2 },
-    { id: 'podcast', label: 'TravelC Talk', icon: Mic },
+    { id: 'podcast', label: 'TravelC Talk', icon: Mic, badge: () => pendingTopicsCount },
   ];
 
   const websiteItems = [
@@ -388,19 +405,25 @@ export function AdminDashboard() {
                 <li key={item.id}>
                   <button
                     onClick={() => setActiveSection(item.id)}
-                    className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-left transition-colors ${
                       activeSection === item.id
                         ? 'bg-slate-700 text-white'
                         : 'text-slate-300 hover:text-white hover:bg-slate-700'
                     }`}
                   >
-                    <Icon size={20} />
-                    <span>{item.label}</span>
+                    <div className="flex-1 flex items-center space-x-3">
+                      <Icon size={20} />
+                      <span>{item.label}</span>
+                    </div>
+                    {item.badge && item.badge() > 0 && (
+                      <span className="px-2 py-0.5 text-xs font-bold bg-gradient-to-r from-orange-500 to-pink-500 text-white rounded-full animate-pulse">
+                        {item.badge()}
+                      </span>
+                    )}
                   </button>
                 </li>
               );
             })}
-
             {/* Website Management Menu */}
             <li>
               <button
