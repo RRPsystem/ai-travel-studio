@@ -30,6 +30,7 @@ export function RoadbookPreview({ roadbookId }: RoadbookPreviewProps) {
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
     loadRoadbook();
   }, [roadbookId]);
 
@@ -98,7 +99,7 @@ export function RoadbookPreview({ roadbookId }: RoadbookPreviewProps) {
   const heroImageUrl = heroImages[heroSlideIndex] || heroImages[0] || '';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" style={{ overflowY: 'auto', height: '100vh' }}>
       {/* HERO SECTION */}
       <div className="relative w-full" style={{ minHeight: '70vh' }}>
         {heroVideo && isYouTubeUrl(heroVideo) ? (
@@ -136,7 +137,7 @@ export function RoadbookPreview({ roadbookId }: RoadbookPreviewProps) {
           <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900" />
         )}
 
-        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent pointer-events-none" />
 
         <div className="relative z-10 flex h-full" style={{ minHeight: '70vh' }}>
           <div className="w-2/3 p-8 md:p-12 flex flex-col justify-end">
