@@ -152,7 +152,8 @@ export function SiteHomepage({ brand, primaryColor, destinations, travels, agent
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${HERO_IMAGES[0]})` }}
         />
-        <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, ${primaryColor}cc 0%, ${primaryColor}99 40%, ${primaryColor}bb 100%)` }} />
+        <div className="absolute inset-0 bg-black/50" />
+        <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, ${primaryColor}aa 0%, ${primaryColor}77 40%, ${primaryColor}99 100%)`, mixBlendMode: 'multiply' }} />
 
         {/* Content */}
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
